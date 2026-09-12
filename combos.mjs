@@ -74,7 +74,24 @@ function checkHead(name,d){
  if(apex.x!==0||Math.abs(apex.y-H.top)>1e-6)bad(name,`3D crystal apex at (${apex.x},${apex.y}), expected (0,${H.top})`);
  if(!(H.back<H.seat&&H.seat<H.bezelTop&&H.bezelTop<H.top))bad(name,'3D heights out of order');
  const rh=P.rehaut;if(!(rh[0].y>rh[1].y&&rh[0].x>rh[1].x))bad(name,'3D rehaut must fall inward to the dial');
- try{for(const pts of Object.values(P))L3.lathe(pts,24).dispose()}catch(e){bad(name,'3D lathe threw: '+e.message)}}
+ try{for(const pts of Object.values(P))L3.lathe(pts,24).dispose()}catch(e){bad(name,'3D lathe threw: '+e.message)}
+
+ /* lugs reach the stated lug-to-lug, sit under the chamfer, and drop toward the tip */
+ const lp=L3.lugParts(d);
+ const zs=lp.shapes.flatMap(s=>s.getPoints().map(p=>Math.abs(p.y)));
+ const tip=Math.max(...zs),l2l=G.lugToLugOf(d)/2;
+ if(Math.abs(tip-l2l)>.35)bad(name,`3D lug tips at ${tip.toFixed(2)}mm, lug-to-lug says ${l2l.toFixed(2)}mm`);
+ if(!(lp.top<H.seat&&lp.bottom>H.back&&lp.thick>1))bad(name,`3D lugs out of the band (${lp.bottom.toFixed(2)}..${lp.top.toFixed(2)})`);
+ /* crown stands outside the case band, on the mid-case */
+ const cp=L3.crownParts(d);
+ if(!(cp.barrelX>R.rCase))bad(name,`3D crown barrel at ${cp.barrelX.toFixed(2)}mm is inside the case (${R.rCase.toFixed(2)})`);
+ if(!(cp.axisY>H.back&&cp.axisY<H.seat))bad(name,'3D crown axis is off the mid-case');
+ if(arch.pushers!==(cp.pushers.length===2))bad(name,'3D pushers do not follow the case setting');
+ /* the strap leaves the spring bar continuously and comes to rest below the head */
+ const sp=L3.strapPath(d);let prev=sp.pos(0);
+ for(let s=.5;s<80;s+=.5){const q=sp.pos(s);
+  if(Math.hypot(q[0]-prev[0],q[1]-prev[1])>.51)bad(name,`3D strap jumps at s=${s}`);prev=q}
+ if(!(sp.groundY<0))bad(name,`3D strap rests at y=${sp.groundY.toFixed(2)}, above the caseback`)}
 
 const COMBOS=[
  ['steel case + leather strap',      d=>{d.parts.case.metal='steel';d.parts.case.finish='brushed';d.parts.strap.variant='leather'}],

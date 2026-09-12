@@ -11,8 +11,9 @@ import {drDial} from './dial.js';
 import {drMarkers} from './markers.js';
 import {drHand} from './hands.js';
 import {drCrystal} from './crystal.js';
+import {drCaseback} from './caseback.js';
 
-export const DR={strap:drStrap,case:drCase,crown:drCrown,bezel:drBezel,rehaut:drRehaut,dial:drDial,markers:drMarkers,hands:drHand,crystal:drCrystal};
+export const DR={strap:drStrap,case:drCase,crown:drCrown,bezel:drBezel,rehaut:drRehaut,dial:drDial,markers:drMarkers,hands:drHand,crystal:drCrystal,caseback:drCaseback};
 
 /* options object passed to every part renderer.
 

@@ -29,7 +29,10 @@ export function drCase(ctx,o){const{R,sw,lugExt,rCase,rSeat,rBezOut,crownR}=o.g;
     toward the tip and +x points away from the strap. */
  const lugPath=(sx,sy,inset)=>{
   ctx.save();ctx.translate(C+sx*(sw*0.5+lugW*0.95),C);ctx.scale(sx,sy);
-  const wb=lugW*2.0-inset*2,wt=lugW*1.10-inset*2,lean=lugW*0.12,yb=inner,yt=outer-inset;
+  /* the tip is a quadratic whose peak falls 0.14·wt short of its end points;
+     without this offset every drawn horn stopped ~0.4 mm short of the
+     lug-to-lug the spec sheet prints */
+  const wb=lugW*2.0-inset*2,wt=lugW*1.10-inset*2,lean=lugW*0.12,yb=inner,yt=outer-inset+lugW*1.10*0.14;
   ctx.beginPath();
   ctx.moveTo(-wb/2,yb);
   ctx.quadraticCurveTo(-wt/2-lugW*0.10,(yb+yt)*0.55,lean-wt/2,yt-wt*0.44);

@@ -4,7 +4,7 @@ import {caseOf} from './geometry.js';
 export const PARTS=[['strap','Strap'],['case','Case'],['bezel','Bezel'],['dial','Dial'],['markers','Markers'],['hands','Hands'],['crown','Crown'],['crystal','Crystal']];
 
 /* layers drawn from another part's material — not user-selectable components */
-export const PART_SRC={rehaut:'case'};
+export const PART_SRC={rehaut:'case',caseback:'case'};
 export const srcOf=p=>PART_SRC[p]||p;
 
 export const VARIANTS={

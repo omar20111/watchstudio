@@ -29,7 +29,7 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
  const key=new DirectionalLight(0xffffff,1.5);
  key.position.set(Math.cos(LIGHT.key)*55,85,Math.sin(LIGHT.key)*55);
  key.castShadow=true;key.shadow.mapSize.set(2048,2048);
- Object.assign(key.shadow.camera,{left:-40,right:40,top:40,bottom:-40,near:1,far:300});
+ Object.assign(key.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:300});
  key.shadow.radius=5;key.shadow.blurSamples=16;key.shadow.bias=-.0004;
  scene.add(key,key.target);
 
@@ -47,8 +47,8 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
   const hh=a<1?half/a:half;
   Object.assign(front,{left:-hh*a,right:hh*a,top:hh,bottom:-hh});front.updateProjectionMatrix();
   tq.aspect=a;tq.updateProjectionMatrix();
-  /* from 5 o'clock, 38 degrees above the dial */
-  const el=38*Math.PI/180,az=28*Math.PI/180,dist=(SHEET*.44)/Math.tan(tq.fov*Math.PI/360)/Math.min(1,a);
+  /* from 5 o'clock, 36 degrees above the dial, far enough back for the strap */
+  const el=36*Math.PI/180,az=28*Math.PI/180,dist=(SHEET*.58)/Math.tan(tq.fov*Math.PI/360)/Math.min(1,a);
   tq.position.set(target.x+Math.sin(az)*Math.cos(el)*dist,target.y+Math.sin(el)*dist,target.z+Math.cos(az)*Math.cos(el)*dist);
   tq.lookAt(target)};
 
@@ -58,6 +58,8 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
   target:()=>target,
   setDesign(d){if(head){scene.remove(head);disposeHead(head)}
    head=buildHead(d,{aniso:renderer.capabilities.getMaxAnisotropy()});scene.add(head);
+   /* the watch rests on its strap, so the table is wherever the strap lands */
+   ground.position.y=head.userData.groundY-.02;
    target.set(0,head.userData.heights.dial,0);aim()},
   setView(v){view=v==='three-quarter'?'three-quarter':'front';aim()},
   resize(width,height,dpr=1){w=Math.max(1,width);h=Math.max(1,height);
