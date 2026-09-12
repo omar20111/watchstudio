@@ -38,14 +38,17 @@ const COMBOS=[
  ['diver bezel + steel bracelet',    d=>{d.parts.bezel.variant='diver';d.parts.strap.variant='steel';d.parts.case.variant='sport'}],
  ['GMT bezel + steel bracelet',      d=>{d.parts.bezel.variant='gmt';d.parts.strap.variant='steel'}],
  ['fluted bezel + dress dial',       d=>{d.parts.bezel.variant='fluted';d.parts.dial.variant='guilloche';d.parts.markers.variant='roman'}],
- ['domed crystal + polished case',   d=>{d.parts.crystal.variant='dome';d.parts.case.finish='polished';d.crystalMm=2.6}],
+ ['domed crystal + polished case',   d=>{d.parts.crystal.variant='dome';d.parts.case.finish='polished';d.case.crystalMm=2.6},
+  /* the height has to reach the geometry, or this combo tests the default crystal */
+  d=>Math.abs(G.crystalMmOf(d)-2.6)<1e-9||`crystal height ${G.crystalMmOf(d)}mm, expected 2.6mm`],
 ];
 
 let fails=0;
 const bad=(name,msg)=>{fails++;console.log(`  FAIL  [${name}] ${msg}`)};
 
-for(const[name,apply]of COMBOS){
+for(const[name,apply,check]of COMBOS){
  const d=M.clone(M.DEF);apply(d);
+ if(check){const r=check(d);if(r!==true)bad(name,r)}
  let layers;
  try{layers=M.buildLayers(d,{})}catch(e){bad(name,'buildLayers threw: '+e.message);continue}
  if(!layers.length){bad(name,'no layers');continue}
@@ -91,10 +94,15 @@ for(const caseMm of[34,40,46])for(const crownMm of[3.5,6.5,10])for(const v of['s
  const tip=C+g.R+g.crownR*0.30+g.crownR*1.5*sc;
  if(tip>CAN)bad(`crown ${caseMm}/${crownMm}/${v}`,`tip at ${tip.toFixed(0)}px runs off the ${CAN}px sheet`);
 }
-for(const caseMm of[34,40,46])for(const l2l of[caseMm*1.05,caseMm*1.5]){
- const d=M.clone(M.DEF);d.caseMm=caseMm;d.lugToLugMm=l2l;
- const g=G.geoOf(d);
- if(C+g.R+g.lugExt>CAN)bad(`lug ${caseMm}/${l2l.toFixed(1)}`,'lug tip runs off the sheet');
+/* lug length is the v5 input (lug-to-lug is derived from it); sweep the slider's
+   full 3-12 mm range, not the v4 top-level field nothing reads any more */
+for(const caseMm of[34,40,46])for(const lugLenMm of[3,6.5,12]){
+ const d=M.clone(M.DEF);d.caseMm=caseMm;d.case.lugLenMm=lugLenMm;
+ const g=G.geoOf(d),tag=`lug ${caseMm}/${lugLenMm}`;
+ const wantLen=Math.max(lugLenMm,G.lugLenMinOf(caseMm));
+ if(G.caseOf(d).lugLen!==wantLen)bad(tag,`lug length ${G.caseOf(d).lugLen}mm, expected ${wantLen}mm`);
+ if(C+g.R+g.lugExt>CAN)bad(tag,'lug tip runs off the sheet');
+ if(Math.abs((g.R+g.lugExt)*2-G.lugToLugOf(d)*PX)>1.5)bad(tag,`lug span ${((g.R+g.lugExt)*2/PX).toFixed(1)}mm != lug-to-lug ${G.lugToLugOf(d)}mm`);
 }
 
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');

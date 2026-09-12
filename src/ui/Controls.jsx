@@ -2,7 +2,7 @@
 import React from 'react';
 import {PARTS,VARIANTS,VNAME} from '../core/parts.js';
 import {strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,bezelMmOf,bezelRangeOf,lugToLugMaxOf,
-        rehautMmOf,caseOf,thicknessStack,lugToLugMm,detentOf} from '../core/geometry.js';
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
 import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section} from './primitives.jsx';
@@ -63,7 +63,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      caseback {st.caseback.toFixed(1)} · band {st.band.toFixed(2)} · movement {st.movement.toFixed(1)}
      · dial {st.dial.toFixed(1)} · bezel {st.bezel.toFixed(1)} · crystal {st.crystal.toFixed(1)}
      <span className="text-neutral-400"> = {st.total.toFixed(2)} mm</span></div>
-    <Slider label="Lug length" min={3} max={12} step={0.1} val={c.lugLen}
+    <Slider label="Lug length" min={lugLenMinOf(d.caseMm)} max={12} step={0.1} val={c.lugLen}
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugLenMm:v},'lug')}/>
     <Slider label="Lug drop" min={0} max={6} step={0.1} val={c.lugDrop}
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugDropMm:v},'drop')}/>

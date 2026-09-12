@@ -62,6 +62,13 @@ export const DEF_CASE=()=>({
 
 const mmOf=(v,lo,hi,fb)=>{const n=+v;return Number.isFinite(n)?clamp(n,lo,hi):fb};
 
+/* The shortest lug the front view can draw: geoOf never lets a horn stand less
+   than R*0.1 proud of the case. Below this the drawing used the floor while the
+   spec sheet reported the shorter lug, so the two disagreed. Clamping here keeps
+   caseOf, the lug-to-lug figure and the slider on the number that is drawn.
+   exposed = lugLen*0.55*PX >= caseMm*PX/2*0.1  ->  lugLen >= caseMm/11 */
+export const lugLenMinOf=caseMm=>Math.max(3,Math.ceil((+caseMm||40)/11*10)/10);
+
 /* thinnest mid-band a real case can have and still hold a movement */
 export const MIN_BAND_MM=0.8;
 
@@ -95,7 +102,7 @@ export function caseOf(d){
  return{thickness,requested,minThickness:sp.min,feasible:requested>=sp.min-1e-9,
   crystal,crystalMm:crys,caseback:req.caseback,movement:req.movement,
   wrM:[30,50,100,200,300,500,1000].includes(+c0.wrM)?+c0.wrM:100,
-  lugLen:mmOf(c0.lugLenMm,3,12,clamp(mm*0.16,5,8)),
+  lugLen:mmOf(c0.lugLenMm,lugLenMinOf(mm),12,clamp(mm*0.16,5,8)),
   lugDrop:mmOf(c0.lugDropMm,0,6,2.5),
   pushers:!!c0.pushers,
   crownPos:c0.crownPos==='430'?'430':'3',
