@@ -3,7 +3,7 @@
   "private": true,
   "version": "3.0.0",
   "type": "module",
-  "description": "WatchStudio \u2014 2D wrist watch designer (modular build, ships as a single HTML file)",
+  "description": "WatchStudio — 2D wrist watch designer (modular build, ships as a single HTML file)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,7 +11,8 @@
     "smoke": "esbuild smoke.mjs --bundle --format=esm --platform=node --jsx=automatic --external:react --external:react-dom --outfile=node_modules/.smoke-out.mjs && node node_modules/.smoke-out.mjs",
     "combos": "esbuild combos.mjs --bundle --format=esm --platform=node --jsx=automatic --external:react --external:react-dom --outfile=node_modules/.combos-out.mjs && node node_modules/.combos-out.mjs",
     "assert": "esbuild assertrun.mjs --bundle --format=esm --platform=node --jsx=automatic --external:react --external:react-dom --outfile=node_modules/.assert-out.mjs && node node_modules/.assert-out.mjs",
-    "test": "npm run assert && npm run smoke && npm run combos"
+    "test": "npm run assert && npm run smoke && npm run combos",
+    "refs": "node scripts/refs.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -21,6 +22,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "esbuild": "^0.28.2",
+    "playwright-core": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.2",
     "vite-plugin-singlefile": "^2.3.3"
