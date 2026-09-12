@@ -13,12 +13,18 @@ import {useApp,store,patchPartT} from '../state/store.js';
 import {GOLD,LayerView} from './primitives.jsx';
 const {useEffect,useMemo,useRef,useState}=React;
 
+/* The 3D spike, dev builds only. The DEV guard is a build-time constant, so a
+   production build drops this branch — and three.js with it — from the
+   single-file bundle entirely. */
+const Stage3D=import.meta.env&&import.meta.env.DEV?React.lazy(()=>import('./Stage3D.jsx')):null;
+
 export function Stage(){const s=useApp();const d=s.d;const g=geoOf(d);
  const ref=useRef();const innerRef=useRef();const drag=useRef(null);
  const[box,setBox]=useState({w:900,h:700});
  useEffect(()=>{const ro=new ResizeObserver(e=>{const r=e[0].contentRect;setBox({w:r.width,h:r.height})});ro.observe(ref.current);return()=>ro.disconnect()},[]);
  const fit=Math.max(220,Math.min(box.w,box.h)-56);const size=fit*d.zoom;const k=size/CAN;
  const clock=useSceneClock();
+ const[r3d,setR3d]=useState(null);             /* null = 2D, else 'front' | 'three-quarter' */
  const layers=useMemo(()=>buildLayers(d,s.customs),[d,s.customs]);
  const bg=BG[d.bg];const bgImg=d.bg==='wrist'?d.bgCustom:(d.bg==='leather'?LEATHER.toDataURL():null);
  const rotFor=key=>layerAngle(key,clock);
@@ -84,6 +90,11 @@ export function Stage(){const s=useApp();const d=s.d;const g=geoOf(d);
      :<rect key={i} x={f.x} y={f.y} width={f.w} height={f.h} rx="14" fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>)}
    </svg>
   </div>
+  {Stage3D&&<div data-ui="1" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-amber-400/30" style={{zIndex:60}}>
+   <span className="text-[9px] uppercase tracking-widest text-amber-300/70 px-1">dev</span>
+   {[[null,'2D'],['front','3D'],['three-quarter','3D ¾']].map(([k,l])=>
+    <button key={l} className={`chip ${r3d===k?'on':''}`} onClick={()=>setR3d(k)}>{l}</button>)}</div>}
+  {Stage3D&&r3d&&<React.Suspense fallback={null}><Stage3D view={r3d}/></React.Suspense>}
   <div data-ui="1" className="absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10" style={{zIndex:50}}>
    Drag part to move · Alt-drag rotate · Shift+scroll scale · arrows nudge · [ ] rotate · 1–8 select · F fit · Ctrl+Z undo</div>
   <div data-ui="1" className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur px-2.5 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>

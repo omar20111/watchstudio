@@ -36,15 +36,18 @@ function engrave(ctx,x0,y0,x1,y1,w,ink){
      'insert' -> just the printed insert, which spins as a CSS transform
      anything else -> the metal ring it sits in, which does not move
    A fixed bezel (smooth/fluted/tachy) has no insert layer and bakes whole. */
-export function drBezel(ctx,o){const{R,rBezOut,rBezIn,dialR}=o.g;
- const m=METALS[o.metal]||METALS.steel;
- const W=rBezOut-rBezIn;
- const rot=o.variant==='diver'||o.variant==='gmt';
+/* The bezel's radial layout. Exported so the 3D lathe puts the grip, the insert
+   and the inner chamfer at exactly the radii this drawing does. */
+export function bezelRings(g,variant){const{rBezOut,rBezIn}=g,W=rBezOut-rBezIn;
+ const rot=variant==='diver'||variant==='gmt';
  /* the grip is on the bezel's outer FLANK, which from above is a thin ring — it
     must not eat the top face the insert printing has to live on */
  const rGripIn=rBezOut-W*(rot?0.15:0.11);
- const rTopOut=rGripIn;
- const rInCham=rBezIn+W*0.10;
+ return{W,rot,rGripIn,rTopOut:rGripIn,rInsOut:rGripIn-W*0.03,rInCham:rBezIn+W*0.10}}
+
+export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
+ const m=METALS[o.metal]||METALS.steel;
+ const{W,rot,rGripIn,rTopOut,rInCham}=bezelRings(o.g,o.variant);
 
  const rotating=o.variant==='diver'||o.variant==='gmt';
  const wantInsert=o.which==='insert';

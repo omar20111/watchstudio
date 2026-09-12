@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased — safety net, one crystal, 3D spike
+
+**Added**
+- `npm run refs`: pixel reference renders of every theme through the real
+  export compositor, byte-reproducible, via the system Edge/Chrome
+  (`playwright-core`, no browser download). `--renderer 3d --view
+  front|three-quarter` renders the 3D spike the same way. The headless tests
+  mock the canvas, so this is the only check that looks at pixels.
+- CI workflow (`.github/workflows/test.yml`) running `npm test` and the build.
+- **3D spike (dev builds only).** `core/three/` lathes the case, bezel, rehaut,
+  caseback and crystal from `geoOf()` + `thicknessStack()`; dial, indices,
+  insert and hands are the existing 2D bakes as textures. The studio
+  environment is built from the `ENV` table rather than an HDRI. A `2D · 3D ·
+  3D ¾` toggle sits top-right of the stage in `npm run dev`; the production
+  bundle contains none of it. combos.mjs asserts the head's apex equals the
+  case thickness and its rings follow the radial stack.
+
+**Fixed**
+- The crystal had two shape fields: `case.crystal` fed the thickness stack,
+  `parts.crystal.variant` fed the drawings. `case.crystal` is now the only one;
+  schema v6 migrates the old variant into it (what was drawn wins).
+- `hydrate()` read a `__v` that nothing wrote, so every load re-ran the v4
+  migration and a box crystal could never survive a reload. Autosave now
+  writes `schemaVersion`; a missing one is inferred from shape.
+- Box crystals now draw in the front view and the profile.
+- Short lugs drew longer than the lug-to-lug the sheet printed (`geoOf` floors
+  the exposed lug at R·0.1). `caseOf` and the slider share `lugLenMinOf`.
+- Preset thumbnails bake through `procOpts`, so case thumbnails show pushers.
+- smoke.mjs printed its hit-test results without checking them; combos.mjs set
+  v4 fields nothing reads. Both now assert what they claim.
+
 ## v5 — case architecture, scene clock, rotating bezel, image vault
 
 Feature parity work against the single-file v5 build, without collapsing the

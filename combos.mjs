@@ -31,6 +31,25 @@ const M=await import('./src/smokeExports.jsx');
 const G=await import('./src/core/geometry.js');
 const {PX,CAN,C}=await import('./src/core/constants.js');
 const {drProfile,drBack}=await import('./src/core/render/profile.js');
+const L3=await import('./src/core/three/lathe.js');
+
+/* The 3D head must be built from the mm model, not beside it: its apex has to
+   land on the stated thickness, its rings on geoOf's radii, and every profile
+   has to be real numbers. This is the check the 2D profile view never had,
+   which is how it drifted to its own 20/50/30 split. */
+function checkHead(name,d){
+ const{profiles:P,heights:H,radii:R}=L3.headProfiles(d),arch=G.caseOf(d);
+ if(Math.abs(H.top-arch.thickness)>1e-6)bad(name,`3D apex ${H.top.toFixed(3)}mm != case thickness ${arch.thickness}mm`);
+ const rs=[['rCase',R.rCase],['rSeat',R.rSeat],['rBezOut',R.rBezOut],['rBezIn',R.rBezIn],['dialR',R.dialR]];
+ for(let i=1;i<rs.length;i++)if(!(rs[i-1][1]>rs[i][1]))bad(name,`3D ${rs[i-1][0]} must exceed ${rs[i][0]}`);
+ for(const[k,pts]of Object.entries(P)){
+  if(pts.length<2)bad(name,`3D profile ${k} has ${pts.length} points`);
+  if(pts.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<0))bad(name,`3D profile ${k} has a bad point`)}
+ const apex=P.crystal[P.crystal.length-1];
+ if(apex.x!==0||Math.abs(apex.y-H.top)>1e-6)bad(name,`3D crystal apex at (${apex.x},${apex.y}), expected (0,${H.top})`);
+ if(!(H.back<H.seat&&H.seat<H.bezelTop&&H.bezelTop<H.top))bad(name,'3D heights out of order');
+ const rh=P.rehaut;if(!(rh[0].y>rh[1].y&&rh[0].x>rh[1].x))bad(name,'3D rehaut must fall inward to the dial');
+ try{for(const pts of Object.values(P))L3.lathe(pts,24).dispose()}catch(e){bad(name,'3D lathe threw: '+e.message)}}
 
 const COMBOS=[
  ['steel case + leather strap',      d=>{d.parts.case.metal='steel';d.parts.case.finish='brushed';d.parts.strap.variant='leather'}],
@@ -72,6 +91,9 @@ for(const[name,apply,check]of COMBOS){
  for(const l of layers){if(!l.proc)continue;
   try{M.getProc(l.proc[0],d,l.proc[1])}catch(e){bad(name,`${l.proc[0]} renderer threw: ${e.message}`)}}
 
+ checkHead(name,d);
+ for(const crystal of['flat','dome','box']){const d2=M.clone(d);d2.case.crystal=crystal;checkHead(`${name} / ${crystal} crystal`,d2)}
+
  /* the sheet's elevations must render too */
  try{const[cv,x]=M.mk(600);drProfile(x,d,{scale:.2,cx:300,cy:300});drBack(x,d,{scale:.2,cx:300,cy:300})}
  catch(e){bad(name,'profile/back threw: '+e.message)}
@@ -87,6 +109,7 @@ for(const caseMm of[34,40,46])for(const bezelMm of[1.2,2.5,5.5]){
  const g=G.geoOf(d);
  if(!(g.rBezIn>g.dialR))bad(`sweep ${caseMm}/${bezelMm}`,'bezel swallowed the rehaut');
  if(!(g.rBezOut>g.rBezIn))bad(`sweep ${caseMm}/${bezelMm}`,'bezel inverted');
+ for(const thicknessMm of[6,12,20]){const d2=M.clone(d);d2.case.thicknessMm=thicknessMm;checkHead(`sweep ${caseMm}/${bezelMm}/${thicknessMm}mm`,d2)}
 }
 for(const caseMm of[34,40,46])for(const crownMm of[3.5,6.5,10])for(const v of['standard','oversized']){
  const d=M.clone(M.DEF);d.caseMm=caseMm;d.crownMm=crownMm;d.parts.crown.variant=v;
