@@ -20,7 +20,10 @@ export function metalMaterial(metalId,finish='polished',o={}){
   /* circular graining: the lathe's u runs around the ring, so anisotropy along the
      tangent streaks the highlight around the bezel the way a turned finish does */
   if(f==='brushed'){mat.anisotropy=.85;mat.anisotropyRotation=0}}
- else if(m.kind==='ceramic'){mat.metalness=0;mat.roughness=.32;mat.clearcoat=1;mat.clearcoatRoughness=.03}
+ /* white ceramic: a bright diffuse body under a thin gloss. Full environment
+    strength on both flattens it to paper white seen from above. */
+ else if(m.kind==='ceramic'){mat.metalness=0;mat.roughness=.42;mat.clearcoat=.8;mat.clearcoatRoughness=.05;mat.envMapIntensity=.55;
+  mat.color=new Color(m.base).multiplyScalar(.9)}
  else{/* forged carbon: a dark dielectric under a lacquer coat */
   mat.metalness=.15;mat.roughness=.55;mat.clearcoat=.6;mat.clearcoatRoughness=.12}
  return mat}

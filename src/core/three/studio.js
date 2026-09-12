@@ -37,11 +37,17 @@ export function buildStudio(){
   new MeshBasicMaterial({map:band,side:BackSide,color:new Color(1,1,1).multiplyScalar(2.2)}));
  horizon.position.y=0;env.add(horizon);       /* spans roughly +-24 degrees of elevation */
 
- /* overhead softbox: bright core, long smooth falloff, core pulled toward 12 */
- const box=dataTex(256,256,(u,v)=>{const dx=(u-.5)/.5,dz=(v-.62)/.55;
+ /* overhead softbox: bright core, long smooth falloff, core pulled well toward
+    12. Rotated face-up, the texture's v runs toward +z (6 o'clock), so a small
+    v is the 12 side. A core straight overhead makes every upward-facing gloss
+    surface reflect the same peak and read as flat white; angled, a crown barrel
+    or a ceramic case gets a lit shoulder falling away toward 6. */
+ const box=dataTex(256,256,(u,v)=>{const dx=(u-.5)/.5,dz=(v-.22)/.55;
   return Math.pow(1-smooth(.15,1,Math.hypot(dx,dz)),1.6)});
  const top=new Mesh(new CircleGeometry(95,96),
-  new MeshBasicMaterial({map:box,side:DoubleSide,color:new Color(1,1,1).multiplyScalar(3.2)}));
+  /* bright enough to model polished metal, not so bright that anything glossy
+     seen straight down — a white ceramic case, a crown's end — clips to white */
+  new MeshBasicMaterial({map:box,side:DoubleSide,color:new Color(1,1,1).multiplyScalar(2.3)}));
  top.rotation.x=Math.PI/2;top.position.y=70;env.add(top);
 
  /* table: a pale sweep bouncing light back up. A case flank is vertical, so from
