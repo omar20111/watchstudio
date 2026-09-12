@@ -1,0 +1,150 @@
+/* Right panel: presets, uploads, transforms and part styling. */
+import React from 'react';
+import {PARTS,VARIANTS,VNAME} from '../core/parts.js';
+import {strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,bezelMmOf,bezelRangeOf,lugToLugMaxOf,
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,detentOf} from '../core/geometry.js';
+import {getThumb} from '../core/cache.js';
+import {store,useApp,TT} from '../state/store.js';
+import {Slider,MetalRow,FinishRow,ColorField,Section} from './primitives.jsx';
+import {UploadZone} from './upload.jsx';
+
+function TransformCtl({t,onChange}){return<div className="grid grid-cols-1 gap-0.5">
+ <Slider label="Scale" min={0.3} max={2.5} step={0.01} val={t.s} fmt={v=>v.toFixed(2)} onChange={v=>onChange({s:v})}/>
+ <Slider label="Rotation" min={-180} max={180} step={1} val={t.r} fmt={v=>v+'°'} onChange={v=>onChange({r:v})}/>
+ <Slider label="Offset X" min={-300} max={300} step={1} val={t.x} onChange={v=>onChange({x:v})}/>
+ <Slider label="Offset Y" min={-300} max={300} step={1} val={t.y} onChange={v=>onChange({y:v})}/>
+ <Slider label="Opacity" min={0} max={1} step={0.01} val={t.o} fmt={v=>Math.round(v*100)+'%'} onChange={v=>onChange({o:v})}/></div>}
+
+export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p=d.parts[part];const customs=(s.customs[part]||{});
+ const up=(patch,tag)=>s.upd(n=>{Object.assign(n.parts[part],patch)},tag||('ctl:'+part));
+ const upT=(key,patch,tag)=>s.upd(n=>{Object.assign(n.parts[part][key],patch)},tag||('t:'+part+key));
+ return<div className="w-[340px] shrink-0 border-l border-white/10 bg-[#141519] overflow-y-auto p-3 space-y-4">
+  <div className="flex items-baseline justify-between"><h2 className="text-sm font-semibold text-[#d4af37]">{PARTS.find(x=>x[0]===part)[1]}</h2>
+   <span className="text-[10px] text-neutral-500">{d.active[part]?'custom upload':'preset: '+(VNAME[p.variant]||p.variant)}</span></div>
+  <Section title="Presets"><div className="flex gap-2 flex-wrap">
+   {VARIANTS[part].map(v=>
+    <button key={v} title={VNAME[v]||v} onClick={()=>up({variant:v})} className="flex flex-col items-center gap-0.5">
+     <span className={`block rounded-lg overflow-hidden border-2 ${!d.active[part]&&p.variant===v?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
+      <img src={getThumb(part,v,d)} className="w-14 h-14 object-cover" alt={v}/></span>
+     <span className="text-[9px] text-neutral-500">{VNAME[v]||v}</span></button>)}
+   {Object.entries(customs).map(([id,cu])=>
+    <div key={id} className={`relative rounded-lg border-2 ${d.active[part]===id?'border-[#d4af37]':'border-white/10'}`}>
+     <button onClick={()=>s.setSource(part,id)}><img src={cu.url} className="w-14 h-14 object-contain bg-[#1d1e23]" alt=""/></button>
+     <button onClick={()=>s.delUpload(part,id)} className="absolute -top-1.5 -right-1.5 bg-red-900 rounded-full w-4 h-4 text-[9px] leading-4">✕</button>
+    </div>)}
+  </div>
+  {d.active[part]&&<button className="btn" onClick={()=>s.setSource(part,null)}>← Back to preset</button>}</Section>
+  <Section title="Upload"><UploadZone part={part}/></Section>
+  <Section title="Transform / Alignment">
+   {part==='hands'&&!d.active.hands? <div className="space-y-2">
+     {[['tH','Hour'],['tM','Minute'],['tS','Second']].map(([k,l])=><div key={k} className="border border-white/10 rounded p-1.5">
+      <div className="text-[10px] text-neutral-500 mb-1">{l} hand</div><TransformCtl t={p[k]} onChange={patch=>upT(k,patch,'t:'+k)}/></div>)}
+    </div>
+   : <TransformCtl t={p.t} onChange={patch=>upT('t',patch)}/>}
+   <button className="btn w-full" onClick={()=>{if(part==='hands'&&!d.active.hands)up({tH:TT(),tM:TT(),tS:TT()});else up({t:TT()})}}>⤢ Reset transform</button>
+   <p className="text-[10px] text-neutral-500">Tip: drag the part directly on the canvas · Alt-drag rotates · Shift+scroll scales</p></Section>
+  {['strap','case','crown','bezel','hands'].includes(part)&&
+   <Section title="Metal"><MetalRow val={p.metal} onChange={v=>up({metal:v})}/>{d.active[part]&&<p className="text-[10px] text-neutral-500">applied as tint filter on uploads</p>}</Section>}
+  {['strap','case','crown','bezel','hands','dial','crystal'].includes(part)&&
+   <Section title="Finish"><FinishRow val={p.finish||'none'} onChange={v=>up({finish:v})}/></Section>}
+  {part==='case'&&(()=>{const c=caseOf(d),st=thicknessStack(d);
+   const setc=(patch,tag)=>s.upd(n=>{n.case={...n.case,...patch}},tag||'case');
+   const Pick=({label,val,opts,onPick,tag})=><div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
+     <span>{label}</span><div className="flex gap-1 flex-wrap justify-end">{opts.map(([v,t])=>
+      <button key={v} className={`chip ${val===v?'on':''}`} aria-label={`${label}: ${t}`}
+       onClick={()=>onPick(v)}>{t}</button>)}</div></div>;
+   return<Section title="Case Architecture">
+    <Slider label="Thickness" min={6} max={20} step={0.1} val={c.thickness}
+     fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({thicknessMm:v},'thk')}/>
+    {!c.feasible&&<p className="text-[10px] text-amber-400" role="status">
+      Raised to {c.minThickness.toFixed(1)} mm — a {c.movement} movement with this crystal,
+      bezel and caseback cannot fit in {c.requested.toFixed(1)} mm.</p>}
+    <div className="text-[10px] text-neutral-500 leading-5">
+     caseback {st.caseback.toFixed(1)} · band {st.band.toFixed(2)} · movement {st.movement.toFixed(1)}
+     · dial {st.dial.toFixed(1)} · bezel {st.bezel.toFixed(1)} · crystal {st.crystal.toFixed(1)}
+     <span className="text-neutral-400"> = {st.total.toFixed(2)} mm</span></div>
+    <Slider label="Lug length" min={3} max={12} step={0.1} val={c.lugLen}
+     fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugLenMm:v},'lug')}/>
+    <Slider label="Lug drop" min={0} max={6} step={0.1} val={c.lugDrop}
+     fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugDropMm:v},'drop')}/>
+    <Slider label="Crystal height" min={c.crystal==='flat'?0.6:c.crystal==='box'?2:0.8}
+     max={c.crystal==='flat'?2.5:c.crystal==='box'?5:4} step={0.1} val={c.crystalMm}
+     fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({crystalMm:v},'cry')}/>
+    <Pick label="Crystal" val={c.crystal} opts={[['flat','Flat'],['dome','Domed'],['box','Box']]}
+     onPick={v=>setc({crystal:v},'crys')}/>
+    <Pick label="Caseback" val={c.caseback} opts={[['solid','Solid'],['exhibition','Exhibition'],['engraved','Engraved']]}
+     onPick={v=>setc({caseback:v},'back')}/>
+    <Pick label="Movement" val={c.movement} opts={[['automatic','Auto'],['manual','Manual'],['quartz','Quartz'],['spring','Spring']]}
+     onPick={v=>setc({movement:v},'mvt')}/>
+    <Pick label="Crown at" val={c.crownPos} opts={[['3','3 o’clock'],['430','4:30']]}
+     onPick={v=>setc({crownPos:v},'cpos')}/>
+    <Pick label="Water resist" val={String(c.wrM)} opts={[['30','30 m'],['100','100 m'],['200','200 m'],['300','300 m'],['1000','1000 m']]}
+     onPick={v=>setc({wrM:+v},'wr')}/>
+    <label className="flex items-center gap-2 text-[11px] text-neutral-400">
+     <input type="checkbox" checked={c.pushers} onChange={e=>setc({pushers:e.target.checked},'push')}/>
+     Chronograph pushers at 2 and 4</label>
+    <input className="tin" placeholder="Caseback engraving" value={c.engraving}
+     aria-label="Caseback engraving" onChange={e=>setc({engraving:e.target.value},'eng')}/>
+    <div className="text-[10px] text-neutral-500">Lug-to-lug {lugToLugMm(d).toFixed(1)} mm · derived from lug length, not assumed.</div>
+   </Section>})()}
+  {part==='case'&&<Section title="Case Dimensions">
+   <Slider label="Diameter" min={34} max={46} step={0.5} val={d.caseMm} fmt={v=>v+' mm'} onChange={v=>s.upd(n=>{n.caseMm=v},'mm')}/>
+   {/* range must match geoOf's own clamp (0.34..0.88 of the bezel+rehaut span)
+       or the top of the track is inert and the thumb springs back */}
+   <Slider label="Bezel width" min={+bezelRangeOf(d)[0].toFixed(1)} max={+bezelRangeOf(d)[1].toFixed(1)} step={0.1} val={bezelMmOf(d)} fmt={v=>v.toFixed(1)+' mm'} onChange={v=>s.upd(n=>{n.bezelMm=v},'bez')}/>
+   <Slider label="Crown diameter" min={3.5} max={10} step={0.1} val={crownMmOf(d)} fmt={v=>v.toFixed(1)+' mm'} onChange={v=>s.upd(n=>{n.crownMm=v},'crn')}/>
+   <div className="flex items-center justify-between text-[10px] text-neutral-500 pt-1">
+    <span>Dial Ø {(d.caseMm*0.78).toFixed(1)} mm · rehaut {rehautMmOf(d).toFixed(1)} mm</span>
+    <button className="btn" onClick={()=>s.upd(n=>{n.bezelMm='auto';n.crownMm='auto'},'dimreset')}>Auto</button></div>
+   <p className="text-[10px] text-neutral-500">Everything downstream — lugs, rehaut, crystal, crown — is derived from these.</p></Section>}
+  {part==='strap'&&<Section title="Strap">
+   <div className="flex items-center gap-2 text-[11px] text-neutral-400">Lug width
+    <select className="bg-[#1b1c21] border border-white/10 rounded px-1 py-0.5" value={d.strapMm} onChange={e=>s.upd(n=>{n.strapMm=e.target.value},'sw')}>
+     <option value="auto">Auto ({strapMmOf(d)} mm)</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="22">22 mm</option></select></div>
+   <ColorField label="Strap color" val={p.color} onChange={v=>up({color:v},'col')}/>
+   <ColorField label="Stitching" val={p.stitch} onChange={v=>up({stitch:v},'st')}/></Section>}
+  {part==='bezel'&&(p.variant==='diver'||p.variant==='gmt')&&!d.active.bezel&&
+   <Section title="Bezel Insert"><ColorField label="Insert" val={p.insertColor} onChange={v=>up({insertColor:v},'ins')}/>
+    <div className="flex items-center justify-between text-[11px] text-neutral-400">
+     <span>Detents</span><div className="flex gap-1">
+      {(p.variant==='gmt'?[24,120]:[60,120]).map(n=>
+       <button key={n} className={`chip ${detentOf(d)===n?'on':''}`} aria-label={`${n} detents per revolution`}
+        onClick={()=>up({detents:n},'det')}>{n}</button>)}</div></div>
+    <div className="flex items-center justify-between text-[11px] text-neutral-400">
+     <span>Action</span><div className="flex gap-1">
+      <button className={`chip ${p.dir!=='bi'?'on':''}`} aria-label="Counter-clockwise ratchet"
+       onClick={()=>up({dir:'ccw'},'dir')}>CCW ratchet</button>
+      <button className={`chip ${p.dir==='bi'?'on':''}`} aria-label="Bidirectional bezel"
+       onClick={()=>up({dir:'bi'},'dir')}>Bidirectional</button></div></div>
+    <div className="flex items-center justify-between text-[11px] text-neutral-400">
+     <span>Rotation {Math.round(p.rot||0)}&deg;</span>
+     <div className="flex gap-1">
+      <button className="btn" aria-label="Rotate bezel one detent anticlockwise" onClick={()=>s.nudgeBezel(-1)}>&larr;</button>
+      <button className="btn" aria-label="Rotate bezel one detent clockwise" onClick={()=>s.nudgeBezel(1)}>&rarr;</button>
+      <button className="btn" aria-label="Reset bezel to 12" onClick={()=>s.resetBezel()}>Reset</button></div></div>
+    <p className="text-[10px] text-neutral-500">Drag the ring on the canvas, or use &larr; &rarr; with the bezel selected. 0 resets.</p>
+   </Section>}
+  {part==='dial'&&p.variant==='chrono'&&<Section title="Chronograph">
+   <div className="flex items-center gap-2">
+    <button className="btn flex-1" aria-label={d.chrono&&d.chrono.running?'Stop chronograph':'Start chronograph'}
+     onClick={()=>s.chronoToggle()}>{d.chrono&&d.chrono.running?'■ Stop':'▶ Start'}</button>
+    <button className="btn flex-1" aria-label="Reset chronograph" onClick={()=>s.chronoReset()}>↺ Reset</button></div>
+   <p className="text-[10px] text-neutral-500">Space starts and stops, R resets. The central seconds hand becomes the chrono seconds.</p>
+  </Section>}
+  {part==='dial'&&<Section title="Dial Color"><div className="flex gap-1.5 mb-1">{['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66'].map(c=>
+   <button key={c} className="w-6 h-6 rounded-full border border-white/20" style={{background:c}} onClick={()=>up({color:c})}/>)}</div>
+   <ColorField label="Custom" val={p.color} onChange={v=>up({color:v},'dc')}/></Section>}
+  {part==='dial'&&<Section title="Dial Text / Branding">
+   <input className="tin" placeholder="Top (12h) — brand name" value={p.text.top} onChange={e=>up({text:{...p.text,top:e.target.value}},'txt')}/>
+   <input className="tin" placeholder="Bottom (6h) — model line" value={p.text.bottom} onChange={e=>up({text:{...p.text,bottom:e.target.value}},'txt')}/>
+   <div className="flex gap-1">{['serif','sans','caps'].map(f=>
+    <button key={f} className={`chip ${p.text.font===f?'on':''}`} onClick={()=>up({text:{...p.text,font:f}},'font')}>{f}</button>)}</div>
+   <div className="flex items-center gap-2">
+    <button className={`chip ${p.text.color==='auto'?'on':''}`} onClick={()=>up({text:{...p.text,color:'auto'}},'tcol')}>Auto ink</button>
+    {p.text.color!=='auto'&&<input type="color" value={p.text.color} onChange={e=>up({text:{...p.text,color:e.target.value}},'tcol')}/>}</div></Section>}
+  {['markers','hands'].includes(part)&&<Section title="Lume">
+   <ColorField label="Lume color" val={p.lume} onChange={v=>up({lume:v},'lume')}/>
+   <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={p.glow} onChange={e=>up({glow:e.target.checked})}/>Glow (lights out)</label>
+   {part==='hands'&&<ColorField label="Second hand" val={p.secColor} onChange={v=>up({secColor:v},'sec')}/>}</Section>}
+  {part==='crystal'&&<Section title="Crystal"><Slider label="Gloss" min={0} max={1} step={0.01} val={p.opacity} fmt={v=>Math.round(v*100)+'%'} onChange={v=>up({opacity:v},'cry')}/></Section>}
+ </div>}
