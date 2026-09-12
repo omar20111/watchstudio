@@ -5,7 +5,7 @@ import {strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,bezelMmOf,bezelRa
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
 import {store,useApp,TT} from '../state/store.js';
-import {Slider,MetalRow,FinishRow,ColorField,Section} from './primitives.jsx';
+import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
 import {UploadZone} from './upload.jsx';
 
 function TransformCtl({t,onChange}){return<div className="grid grid-cols-1 gap-0.5">
@@ -16,6 +16,7 @@ function TransformCtl({t,onChange}){return<div className="grid grid-cols-1 gap-0
  <Slider label="Opacity" min={0} max={1} step={0.01} val={t.o} fmt={v=>Math.round(v*100)+'%'} onChange={v=>onChange({o:v})}/></div>}
 
 export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p=d.parts[part];const customs=(s.customs[part]||{});
+ const thumbD=useSettled(d);
  const up=(patch,tag)=>s.upd(n=>{Object.assign(n.parts[part],patch)},tag||('ctl:'+part));
  const upT=(key,patch,tag)=>s.upd(n=>{Object.assign(n.parts[part][key],patch)},tag||('t:'+part+key));
  return<div className="w-[340px] shrink-0 border-l border-white/10 bg-[#141519] overflow-y-auto p-3 space-y-4">
@@ -25,12 +26,16 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    {VARIANTS[part].map(v=>
     <button key={v} title={VNAME[v]||v} onClick={()=>s.upd(n=>applyVariant(n,part,v),'ctl:'+part)} className="flex flex-col items-center gap-0.5">
      <span className={`block rounded-lg overflow-hidden border-2 ${!d.active[part]&&variantOf(part,d)===v?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
-      <img src={getThumb(part,v,d)} className="w-14 h-14 object-cover" alt={v}/></span>
+      <img src={getThumb(part,v,thumbD)} className="w-14 h-14 object-cover" alt={v}/></span>
      <span className="text-[9px] text-neutral-500">{VNAME[v]||v}</span></button>)}
    {Object.entries(customs).map(([id,cu])=>
     <div key={id} className={`relative rounded-lg border-2 ${d.active[part]===id?'border-[#d4af37]':'border-white/10'}`}>
-     <button onClick={()=>s.setSource(part,id)}><img src={cu.url} className="w-14 h-14 object-contain bg-[#1d1e23]" alt=""/></button>
-     <button onClick={()=>s.delUpload(part,id)} className="absolute -top-1.5 -right-1.5 bg-red-900 rounded-full w-4 h-4 text-[9px] leading-4">✕</button>
+     <button onClick={()=>s.setSource(part,id)} title={cu.name} aria-label={`Use upload ${cu.name}`}>
+      {/* rehydrateImages flags a blob the vault no longer has; an <img> with no
+          src just shows a broken-image icon */}
+      {cu.url?<img src={cu.url} className="w-14 h-14 object-contain bg-[#1d1e23]" alt=""/>
+       :<span className="w-14 h-14 flex items-center justify-center text-center text-[9px] leading-tight text-amber-300/80 bg-[#1d1e23]">image<br/>missing</span>}</button>
+     <button onClick={()=>s.delUpload(part,id)} aria-label={`Delete upload ${cu.name}`} className="absolute -top-1.5 -right-1.5 bg-red-900 rounded-full w-4 h-4 text-[9px] leading-4">✕</button>
     </div>)}
   </div>
   {d.active[part]&&<button className="btn" onClick={()=>s.setSource(part,null)}>← Back to preset</button>}</Section>
@@ -99,7 +104,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    <p className="text-[10px] text-neutral-500">Everything downstream — lugs, rehaut, crystal, crown — is derived from these.</p></Section>}
   {part==='strap'&&<Section title="Strap">
    <div className="flex items-center gap-2 text-[11px] text-neutral-400">Lug width
-    <select className="bg-[#1b1c21] border border-white/10 rounded px-1 py-0.5" value={d.strapMm} onChange={e=>s.upd(n=>{n.strapMm=e.target.value},'sw')}>
+    <select className="bg-[#1b1c21] border border-white/10 rounded px-1 py-0.5" value={d.strapMm} onChange={e=>s.upd(n=>{n.strapMm=e.target.value==='auto'?'auto':+e.target.value},'sw')}>
      <option value="auto">Auto ({strapMmOf(d)} mm)</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="22">22 mm</option></select></div>
    <ColorField label="Strap color" val={p.color} onChange={v=>up({color:v},'col')}/>
    <ColorField label="Stitching" val={p.stitch} onChange={v=>up({stitch:v},'st')}/></Section>}

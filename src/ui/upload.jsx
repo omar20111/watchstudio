@@ -14,7 +14,9 @@ export function processFile(part,file,mode,removeWhite,cb){const rd=new FileRead
   cb(cv.toDataURL('image/png'))};img.src=rd.result};rd.readAsDataURL(file)}
 
 export function UploadZone({part}){const s=useApp();const[mode,setMode]=useState('fit');const[rw,setRw]=useState(false);const inp=useRef();
- const handle=f=>{if(!f)return;processFile(part,f,mode,rw&&/jpe?g/i.test(f.type),url=>s.addUpload(part,f.name,url))};
+ /* the checkbox is offered for every accepted type, so honour it for every type —
+    it used to be silently ignored for PNG and SVG */
+ const handle=f=>{if(!f)return;processFile(part,f,mode,rw,url=>s.addUpload(part,f.name,url))};
  return<div className="space-y-1.5">
   <div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();handle(e.dataTransfer.files[0])}} onClick={()=>inp.current.click()}
    className="border border-dashed border-white/20 rounded-lg p-3 text-center text-[11px] text-neutral-400 cursor-pointer hover:border-[#d4af37]/60 hover:text-neutral-200">

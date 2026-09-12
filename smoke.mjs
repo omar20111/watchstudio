@@ -20,7 +20,8 @@ function el(){return{style:{},setAttribute(){},appendChild(){},removeChild(){},r
 
 globalThis.document={createElement:t=>t==='canvas'?makeCanvas():el(),getElementById:()=>el(),body:el(),addEventListener(){},removeEventListener(){}};
 globalThis.window={addEventListener(){},removeEventListener(){}};
-globalThis.localStorage={getItem:()=>null,setItem(){},removeItem(){}};
+/* a real in-memory store, so persistence is tested rather than discarded */
+{const m=new Map();globalThis.localStorage={getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)}}
 globalThis.CanvasRenderingContext2D=class{};
 globalThis.requestAnimationFrame=()=>0;globalThis.cancelAnimationFrame=()=>{};
 globalThis.ResizeObserver=class{observe(){}disconnect(){}};
@@ -85,6 +86,22 @@ const rt=o=>JSON.parse(JSON.stringify(o));
  expect(M.caseOf(h).crystal==='flat',`v4 crystal migrated to ${M.caseOf(h).crystal}`);
  expect(M.lugToLugOf(h)===50.4,`v4 lug-to-lug 50.4 became ${M.lugToLugOf(h)}`);
  expect(M.caseOf(h).crystalMm===2.2,`v4 crystal height 2.2 became ${M.caseOf(h).crystalMm}`)}
+/* ---- autosave and projects ---- */
+{const S=M.store.get();
+ expect(!S.hasWork(),'a fresh session reports work worth protecting');
+ S.rename('Renamed watch');M.flushAutosave();
+ const a=JSON.parse(localStorage.getItem('ws:auto')||'null');
+ expect(a&&a.name==='Renamed watch','renaming the project was not autosaved');
+ expect(a&&a.schemaVersion===M.SCHEMA_VERSION,'autosave does not record its schema version');
+ S.upd(n=>{n.parts.dial.color='#223344'},'t');M.flushAutosave();
+ expect(M.store.get().hasWork(),'an edited design is not reported as work to protect before a share link');
+ expect(JSON.parse(localStorage.getItem('ws:auto')).d.parts.dial.color==='#223344','flushAutosave did not write the pending edit');
+ const nm=M.store.get().uniqueProjectName('Renamed watch');expect(nm==='Renamed watch','unique name changed a free name');
+ M.store.get().saveProject('Renamed watch');
+ expect(M.store.get().uniqueProjectName('Renamed watch')==='Renamed watch 2','uniqueProjectName would overwrite an existing project');
+ M.store.get().delProject('Renamed watch');
+ expect(!JSON.parse(localStorage.getItem('ws:idx')).includes('Renamed watch'),'delProject left the project in the index');
+ M.store.get().reset();M.flushAutosave()}
 const m1=renderToString(React.createElement(M.SaveModal,{onClose:()=>{}}));
 const m2=renderToString(React.createElement(M.ProjectsModal,{onClose:()=>{}}));
 expect(m1.length>0&&m2.length>0,'a modal rendered empty');

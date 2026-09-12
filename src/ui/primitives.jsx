@@ -39,12 +39,35 @@ export function ColorField({label,val,onChange}){return<label className="flex it
 
 export function Section({title,children}){return<div className="space-y-2"><div className="text-[10px] uppercase tracking-widest text-neutral-500">{title}</div>{children}</div>}
 
-export function Modal({title,children,onClose}){return(
+/* A dialog: announced as one, closes on Escape, keeps Tab inside itself, and
+   hands focus back to whatever opened it. */
+let modalSeq=0;
+export function Modal({title,children,onClose}){const box=useRef();const[id]=useState(()=>'modal-title-'+(++modalSeq));
+ useEffect(()=>{const prev=document.activeElement;const el=box.current;
+  const first=el&&el.querySelector('[autofocus],input,button:not([aria-label="Close"]),select,textarea');
+  (first||el)&&(first||el).focus();
+  const key=e=>{if(e.key==='Escape'){e.stopPropagation();onClose();return}
+   if(e.key!=='Tab'||!el)return;
+   const f=[...el.querySelectorAll('button,input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled);
+   if(!f.length)return;const a=f[0],z=f[f.length-1];
+   if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus()}
+   else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus()}};
+  window.addEventListener('keydown',key,true);
+  return()=>{window.removeEventListener('keydown',key,true);if(prev&&prev.focus)prev.focus()}},[]);
+ return(
  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-  <div className="w-[380px] max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl border border-white/10 bg-[#1b1d23] shadow-2xl">
+  <div ref={box} role="dialog" aria-modal="true" aria-labelledby={id} tabIndex={-1}
+   className="w-[380px] max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl border border-white/10 bg-[#1b1d23] shadow-2xl outline-none">
    <div className="flex items-center justify-between px-4 pt-4 pb-1">
-    <div className="text-base font-semibold text-[#e8c766]" style={{fontFamily:'Georgia, serif'}}>{title}</div>
-    <button className="btn" onClick={onClose}>✕</button></div>
+    <div id={id} className="text-base font-semibold text-[#e8c766]" style={{fontFamily:'Georgia, serif'}}>{title}</div>
+    <button className="btn" aria-label="Close" onClick={onClose}>✕</button></div>
    <div className="px-4 pb-4 pt-2">{children}</div>
   </div>
  </div>)}
+
+/* A value that only updates once it has stopped changing for `ms`. Preset
+   thumbnails are full 1200² bakes; recomputing five of them on every tick of a
+   dimension slider is what made dragging one stutter. */
+export function useSettled(value,ms=220){const[v,setV]=useState(value);
+ useEffect(()=>{if(v===value)return;const t=setTimeout(()=>setV(value),ms);return()=>clearTimeout(t)},[value]);
+ return v}

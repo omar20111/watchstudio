@@ -27,6 +27,8 @@ export function ensureRoundRect(){
 
 /* tiny toast notifications */
 export function toast(msg){const el=document.createElement('div');el.textContent=msg;
+ /* announced, so "storage is full" is not visual-only */
+ el.setAttribute('role','status');el.setAttribute('aria-live','polite');
  el.style.cssText='position:fixed;bottom:56px;left:50%;transform:translateX(-50%);background:#d4af37;color:#141414;font-size:12px;font-weight:600;padding:7px 14px;border-radius:999px;z-index:300;box-shadow:0 6px 24px rgba(0,0,0,.5);transition:opacity .4s';
  document.body.appendChild(el);setTimeout(()=>{el.style.opacity='0';setTimeout(()=>el.remove(),450)},1900)}
 

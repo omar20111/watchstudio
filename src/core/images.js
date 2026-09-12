@@ -13,7 +13,7 @@
    a crashed app. `vaultStatus()` is what the banner reads. */
 
 const DB='watchstudio',STORE='images',VER=1;
-let dbp=null,broken=null;
+let dbp=null,broken=null,dbOpen=false;
 
 function open(){
  if(dbp)return dbp;
@@ -22,7 +22,7 @@ function open(){
   try{req=indexedDB.open(DB,VER)}catch(e){broken='IndexedDB is unavailable in this browser context';return res(null)}
   req.onupgradeneeded=()=>{const db=req.result;
    if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE)};
-  req.onsuccess=()=>res(req.result);
+  req.onsuccess=()=>{dbOpen=true;res(req.result)};
   req.onerror=()=>{broken='The image vault could not be opened';res(null)};
   req.onblocked=()=>{broken='The image vault is blocked by another tab';res(null)};
  });
@@ -77,4 +77,7 @@ export async function resolve(ids){
  return missing}
 
 export function vaultStatus(){return{ok:!broken,message:broken}}
-export function clearStatus(){broken=null}
+/* A retry has to be able to succeed: forget the error, and if the database
+   never opened (blocked by another tab, say), drop the cached failed open so
+   the next call really tries again. */
+export function clearStatus(){broken=null;if(!dbOpen)dbp=null}

@@ -97,15 +97,35 @@ const strip=customs=>{const out={};
  for(const part in customs){out[part]={};
   for(const id in customs[part])out[part][id]={name:customs[part][id].name}}
  return out};
-const persist=get=>{clearTimeout(pT);pT=setTimeout(()=>{
+const writeAuto=get=>{
  try{localStorage.setItem('ws:auto',JSON.stringify({d:get().d,customs:strip(get().customs),name:get().projName,schemaVersion:SCHEMA_VERSION}))}
  catch(e){const now=Date.now();if(now-autoWarnedAt>30000){autoWarnedAt=now;
-  toast('Browser storage is full — changes are NOT being saved')}}},600)};
+  toast('Browser storage is full — changes are NOT being saved')}}};
+let pGet=null;
+const persist=get=>{clearTimeout(pT);pGet=get;pT=setTimeout(()=>{pT=null;writeAuto(get)},600)};
+/* The debounce alone lost whatever was edited in the last 600 ms before the tab
+   closed. pagehide also fires on mobile, where beforeunload often does not. */
+export function flushAutosave(){if(pT==null||!pGet)return;clearTimeout(pT);pT=null;writeAuto(pGet)}
+if(typeof window!=='undefined'&&window.addEventListener){
+ window.addEventListener('pagehide',flushAutosave);window.addEventListener('beforeunload',flushAutosave)}
+
+/* what makes one design different from another — not which view, zoom or
+   backdrop it happens to be looked at through */
+const designKey=d=>JSON.stringify({caseMm:d.caseMm,strapMm:d.strapMm,bezelMm:d.bezelMm,crownMm:d.crownMm,
+ case:d.case,parts:d.parts,active:d.active});
+const projectIndex=()=>{try{return JSON.parse(localStorage.getItem('ws:idx')||'[]')}catch(e){return[]}};
 
 const initStore=(set,get)=>{const auto=loadAuto()||{};return{
  d:hydrate(auto.d,auto.schemaVersion),customs:auto.customs||{},projName:auto.name||'My Watch',
  sel:'case',past:[],future:[],_tag:null,_t:0,vault:{ok:true,message:null},
  select:p=>set({sel:p}),
+ /* renaming used to write straight to the store, so the new name was lost on
+    reload unless some other edit happened to trigger an autosave */
+ rename(name){set({projName:name});persist(get)},
+ /* true when there is something worth protecting before a share link replaces it */
+ hasWork(){const s=get();
+  return designKey(s.d)!==designKey(hydrate(null))||Object.values(s.customs).some(c=>Object.keys(c||{}).length)},
+ uniqueProjectName(base){const idx=projectIndex();let n=base,k=2;while(idx.includes(n))n=`${base} ${k++}`;return n},
  upd(fn,tag){const s=get();const next=clone(s.d);fn(next);const now=Date.now();
   const past=(tag&&tag===s._tag&&now-s._t<900)?s.past:[...s.past.slice(-99),s.d];
   set({d:next,past,future:[],_tag:tag||null,_t:now});persist(get)},
@@ -155,7 +175,11 @@ const initStore=(set,get)=>{const auto=loadAuto()||{};return{
   if(get().d.active[part]===id)get().upd(n=>{n.active[part]=null})},
  /* Resolve every referenced blob from the vault after a reload or a project
     load. Anything that cannot be found is reported, not silently swallowed. */
- async rehydrateImages(){const c=get().customs,ids=[];
+ async rehydrateImages(){
+  /* clear the sticky failure first, or the banner's Retry re-reads the old error
+     and can never succeed */
+  IMG.clearStatus();
+  const c=get().customs,ids=[];
   for(const part in c)for(const id in c[part])ids.push(id);
   if(!ids.length){set({vault:IMG.vaultStatus()});return}
   const missing=await IMG.resolve(ids);
@@ -173,7 +197,7 @@ const initStore=(set,get)=>{const auto=loadAuto()||{};return{
     themselves are already in the vault; loadProject resolves them back. */
  saveProject(name){const s=get();try{localStorage.setItem('ws:p:'+name,JSON.stringify({d:s.d,customs:strip(s.customs),name,ts:Date.now(),schemaVersion:SCHEMA_VERSION}));
   const idx=JSON.parse(localStorage.getItem('ws:idx')||'[]');if(!idx.includes(name))idx.push(name);
-  localStorage.setItem('ws:idx',JSON.stringify(idx));set({projName:name});return true}catch(e){toast('Browser storage is full — remove old projects/uploads.');return false}},
+  localStorage.setItem('ws:idx',JSON.stringify(idx));set({projName:name});persist(get);return true}catch(e){toast('Browser storage is full — remove old projects/uploads.');return false}},
  loadProject(name){try{const r=JSON.parse(localStorage.getItem('ws:p:'+name)||'null');
   if(r){set({d:hydrate(r.d,r.schemaVersion),customs:r.customs||{},projName:name,past:[],future:[],_tag:null});
    /* resolve the blobs this project references out of the vault. Projects
@@ -186,7 +210,19 @@ const initStore=(set,get)=>{const auto=loadAuto()||{};return{
   while(idx.includes(n2)){n2=name+' copy '+k++}
   localStorage.setItem('ws:p:'+n2,JSON.stringify({...r,name:n2,ts:Date.now()}));
   idx.push(n2);localStorage.setItem('ws:idx',JSON.stringify(idx))}catch(e){toast('Browser storage is full')}},
- delProject(name){localStorage.removeItem('ws:p:'+name);localStorage.setItem('ws:idx',JSON.stringify((JSON.parse(localStorage.getItem('ws:idx')||'[]')).filter(n=>n!==name)))},
+ delProject(name){const gone=[];
+  try{const r=JSON.parse(localStorage.getItem('ws:p:'+name)||'null');
+   if(r&&r.customs)for(const part in r.customs)for(const id in r.customs[part])gone.push(id)}catch(e){}
+  localStorage.removeItem('ws:p:'+name);
+  const idx=projectIndex().filter(n=>n!==name);localStorage.setItem('ws:idx',JSON.stringify(idx));
+  /* A deleted project's images used to stay in IndexedDB forever. They are only
+     garbage once nothing else points at them: another project (a duplicate
+     shares ids), or the design that is open right now. */
+  if(!gone.length)return;
+  const live=new Set(),add=c=>{for(const part in(c||{}))for(const id in c[part])live.add(id)};
+  add(get().customs);
+  for(const n of idx){try{add(JSON.parse(localStorage.getItem('ws:p:'+n)||'{}').customs)}catch(e){}}
+  for(const id of gone)if(!live.has(id)){IMG.release(id);IMG.del(id)}},
  /* both callers (project file, share link) have already run migrateProject, so
     an absent version means the design is current, not that it is v0 */
  importState(o){set({d:hydrate(o.d,o.schemaVersion??SCHEMA_VERSION),customs:o.customs||{},projName:o.name||'Imported watch',past:[],future:[],_tag:null});

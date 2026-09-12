@@ -1,6 +1,6 @@
 /* Re-export surface used by the headless smoke test (smoke.mjs). */
 export {default as App} from './App.jsx';
-export {store,useApp,DEF,hydrate,SCHEMA_VERSION} from './state/store.js';
+export {store,useApp,DEF,hydrate,SCHEMA_VERSION,flushAutosave} from './state/store.js';
 export {buildLayers} from './core/layers.js';
 export {THEMES,shuffleInto} from './state/themes.js';
 export {pickPart,geoOf,caseOf,lugToLugOf} from './core/geometry.js';

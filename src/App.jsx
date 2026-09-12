@@ -9,27 +9,50 @@ import {TopBar} from './ui/TopBar.jsx';
 import {PartsList} from './ui/PartsList.jsx';
 import {Controls} from './ui/Controls.jsx';
 import {Stage} from './ui/Stage.jsx';
-import {SaveModal,ProjectsModal} from './ui/Modals.jsx';
+import {SaveModal,ProjectsModal,SharedModal} from './ui/Modals.jsx';
 import {ProductRender,DesignSheet} from './ui/Views.jsx';
 import {Modal} from './ui/primitives.jsx';
 import {strapMmOf} from './core/geometry.js';
 import {PX} from './core/constants.js';
 const {useEffect,useState}=React;
 
+/* Any renderer or geometry throw used to unmount the whole tree to a blank page.
+   The design itself is safe in the store and in autosave, so offer a way back
+   instead of a white screen. */
+class Boundary extends React.Component{
+ constructor(p){super(p);this.state={err:null}}
+ static getDerivedStateFromError(err){return{err}}
+ componentDidCatch(err,info){console.error('WatchStudio view crashed:',err,info&&info.componentStack)}
+ render(){if(!this.state.err)return this.props.children;
+  return<div role="alert" className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+   <div className="text-sm text-[#e8c766]">This view hit an error and stopped drawing.</div>
+   <div className="text-[11px] text-neutral-500 max-w-md">Your design is not lost — it is still in autosave. {String(this.state.err&&this.state.err.message||'')}</div>
+   <div className="flex gap-2">
+    <button className="btn" onClick={()=>this.setState({err:null})}>Try again</button>
+    <button className="btn" onClick={()=>{store.get().setD(n=>{n.view='edit';n.camera='front';n.zoom=1});this.setState({err:null})}}>Back to the editor</button>
+   </div></div>}}
+
 export default function App(){const s=useApp();const d=s.d;
  const[modal,setModal]=useState(null);
+ const[shared,setShared]=useState(null);
  const close=()=>setModal(null);
  /* resolve uploaded blobs from the vault once, after mount */
  useEffect(()=>{store.get().rehydrateImages&&store.get().rehydrateImages()},[]);
- /* a #w=... fragment is a shared design — load it before the user edits */
- useEffect(()=>{const shared=readShareFromLocation();
-  if(shared){store.get().importState({d:shared.d,name:shared.name,customs:{}});
-   history.replaceState(null,'',location.pathname)}},[]);
+ /* A #w=... fragment is a shared design. Opening one used to replace the
+    visitor's autosaved design outright, with no undo. Now: a pristine session
+    just opens it; anyone with work of their own is asked, and their design is
+    kept in Projects before anything is replaced. */
+ useEffect(()=>{const sh=readShareFromLocation();if(!sh)return;
+  history.replaceState(null,'',location.pathname+location.search);
+  if(store.get().hasWork())setShared(sh);
+  else store.get().importState({d:sh.d,name:sh.name,customs:{}})},[]);
  useEffect(()=>{const h=e=>{const tg=(e.target&&e.target.tagName||'').toLowerCase();
   if(tg==='input'||tg==='select'||tg==='textarea')return;
+  /* an open dialog owns the keyboard — arrows must not nudge parts behind it */
+  if(document.querySelector('[role="dialog"]'))return;
   const st=store.getState();
   /* the presentation modes are read-only — no nudging parts from there */
-  if(st.d.view!=='edit'&&!((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'))return;
+  if(st.d.view!=='edit'&&!((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase())))return;
   if((e.ctrlKey||e.metaKey)&&!e.altKey){const key=e.key.toLowerCase();
    if(key==='z'){e.preventDefault();e.shiftKey?st.redo():st.undo();return}
    if(key==='y'){e.preventDefault();st.redo();return}}
@@ -70,6 +93,7 @@ export default function App(){const s=useApp();const d=s.d;
    <span className="flex-1">{vault.message||'The image vault is unavailable — uploads will not survive a reload.'}</span>
    <button className="btn" onClick={()=>store.get().rehydrateImages()}>Retry</button>
   </div>}
+  <Boundary key={d.view}>
   {d.view==='product'?<ProductRender/>:d.view==='sheet'?<DesignSheet/>:<>
    <div className="flex-1 flex min-h-0 overflow-x-auto">
     <PartsList/><Stage/><Controls/>
@@ -78,6 +102,8 @@ export default function App(){const s=useApp();const d=s.d;
     <span>Scale 1 mm = {PX} px @1200²</span><span>Case {d.caseMm} mm</span><span>Lug {strapMmOf(d)} mm</span>
     <span>Zoom {Math.round(d.zoom*100)}%</span><span className="text-neutral-600">All layers share one 1200×1200 canvas, center (600,600)</span>
    </div></>}
+  </Boundary>
+  {shared&&<SharedModal shared={shared} onClose={()=>setShared(null)}/>}
   {modal==='save'&&<SaveModal onClose={close}/>}
   {modal==='projects'&&<ProjectsModal onClose={close}/>}
   {modal==='reset'&&<Modal title="Reset design" onClose={close}>
