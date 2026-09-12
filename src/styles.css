@@ -23,3 +23,25 @@ input[type=color]{background:none;border:none;width:26px;height:22px;padding:0}
 .goldbtn{background:linear-gradient(180deg,#e6c179,#c99a4c);color:#241a08;font-weight:600;border:1px solid #c99a4c;border-radius:7px;padding:7px 12px;font-size:12.5px;cursor:pointer}
 .goldbtn:hover{filter:brightness(1.06)}
 :focus-visible{outline:2px solid var(--gold-hi);outline-offset:1px}
+
+/* editor side panels: in the row on wide screens, drawers over the stage on narrow ones */
+.drawer-left,.drawer-right{display:flex;min-height:0}
+.drawer-left>*,.drawer-right>*{height:100%}
+.drawer-tab{display:none;position:absolute;top:50%;z-index:75;width:26px;height:44px;padding:0;justify-content:center;align-items:center;
+ background:rgba(20,21,25,.92);font-size:14px}
+.drawer-tab-left{left:0;border-radius:0 8px 8px 0}
+.drawer-tab-right{right:0;border-radius:8px 0 0 8px}
+@media (max-width:1100px){
+ .drawer-right{position:absolute;right:0;top:0;bottom:0;z-index:70;transform:translateX(100%);transition:transform .2s ease;box-shadow:-12px 0 32px rgba(0,0,0,.5)}
+ .drawer-right.open{transform:none}
+ .drawer-right.open~.drawer-tab-right{right:340px}
+ .drawer-tab-right{display:flex}
+}
+@media (max-width:760px){
+ .drawer-left{position:absolute;left:0;top:0;bottom:0;z-index:70;transform:translateX(-100%);transition:transform .2s ease;box-shadow:12px 0 32px rgba(0,0,0,.5)}
+ .drawer-left.open{transform:none}
+ .drawer-left.open~.drawer-tab-left{left:192px}
+ .drawer-tab-left{display:flex}
+ .drawer-right>*{max-width:88vw}
+}
+@media (prefers-reduced-motion:reduce){.dashAnim{animation:none}.drawer-left,.drawer-right{transition:none}}

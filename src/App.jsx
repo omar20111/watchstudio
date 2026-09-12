@@ -3,12 +3,13 @@ import React from 'react';
 import {PARTS} from './core/parts.js';
 import {clamp,normDeg} from './core/utils.js';
 import {store,useApp,patchPartT} from './state/store.js';
-import {bezelRotatable,bezelRotOf} from './core/geometry.js';
+import {bezelRotatable} from './core/geometry.js';
 import {readShareFromLocation} from './export/shareUrl.js';
 import {TopBar} from './ui/TopBar.jsx';
 import {PartsList} from './ui/PartsList.jsx';
 import {Controls} from './ui/Controls.jsx';
-import {Stage} from './ui/Stage.jsx';
+import {Stage,stageCamera} from './ui/Stage.jsx';
+import {hasStructuralUpload} from './core/three/uploads.js';
 import {SaveModal,ProjectsModal,SharedModal} from './ui/Modals.jsx';
 import {ProductRender,DesignSheet} from './ui/Views.jsx';
 import {Modal} from './ui/primitives.jsx';
@@ -35,6 +36,7 @@ class Boundary extends React.Component{
 export default function App(){const s=useApp();const d=s.d;
  const[modal,setModal]=useState(null);
  const[shared,setShared]=useState(null);
+ const[drawer,setDrawer]=useState(null);         /* narrow screens: 'parts' | 'controls' | null */
  const close=()=>setModal(null);
  /* resolve uploaded blobs from the vault once, after mount */
  useEffect(()=>{store.get().rehydrateImages&&store.get().rehydrateImages()},[]);
@@ -76,8 +78,10 @@ export default function App(){const s=useApp();const d=s.d;
    case'f':case'F':st.setD(n=>{n.zoom=1});break;
    /* V cycles cameras, 0 resets the bezel, Space/R drive the chronograph */
    case'v':case'V':{e.preventDefault();
-    /* two cameras, both real drawings — see CHANGELOG for why there is no 3/4 */
-    st.setD(n=>{n.camera=n.camera==='profile'?'front':'profile'});break}
+    /* front -> three-quarter -> side; a flat uploaded case, bezel, crown,
+       hands or strap has no depth to turn, so three-quarter is skipped */
+    const order=hasStructuralUpload(st.d,st.customs)?['front','profile']:['front','three-quarter','profile'];
+    st.setD(n=>{n.camera=order[(order.indexOf(stageCamera(n,st.customs))+1)%order.length]});break}
    case'0':{if(bezelRotatable(st.d)){e.preventDefault();st.resetBezel()}break}
    case' ':{if(st.d.parts.dial.variant==='chrono'){e.preventDefault();st.chronoToggle()}break}
    case'r':case'R':{if(st.d.parts.dial.variant==='chrono'){e.preventDefault();st.chronoReset()}break}
@@ -95,12 +99,21 @@ export default function App(){const s=useApp();const d=s.d;
   </div>}
   <Boundary key={d.view}>
   {d.view==='product'?<ProductRender/>:d.view==='sheet'?<DesignSheet/>:<>
-   <div className="flex-1 flex min-h-0 overflow-x-auto">
-    <PartsList/><Stage/><Controls/>
+   {/* Narrow screens used to scroll the whole editor sideways to reach the
+       controls. Below 1100 px the controls become a drawer over the stage,
+       below 760 px the parts list does too (styles.css .drawer-*). */}
+   <div className="relative flex-1 flex min-h-0 overflow-hidden">
+    <div className={`drawer-left ${drawer==='parts'?'open':''}`}><PartsList/></div>
+    <Stage/>
+    <div className={`drawer-right ${drawer==='controls'?'open':''}`}><Controls/></div>
+    <button className="drawer-tab drawer-tab-left btn" aria-expanded={drawer==='parts'} aria-label="Parts, themes and scene"
+     onClick={()=>setDrawer(x=>x==='parts'?null:'parts')}>{drawer==='parts'?'‹':'☰'}</button>
+    <button className="drawer-tab drawer-tab-right btn" aria-expanded={drawer==='controls'} aria-label={`Edit ${s.sel}`}
+     onClick={()=>setDrawer(x=>x==='controls'?null:'controls')}>{drawer==='controls'?'›':'✎'}</button>
    </div>
    <div className="h-7 shrink-0 flex items-center gap-4 px-3 border-t border-white/10 bg-[#16171b] text-[10px] text-neutral-500 overflow-x-auto whitespace-nowrap">
     <span>Scale 1 mm = {PX} px @1200²</span><span>Case {d.caseMm} mm</span><span>Lug {strapMmOf(d)} mm</span>
-    <span>Zoom {Math.round(d.zoom*100)}%</span><span className="text-neutral-600">All layers share one 1200×1200 canvas, center (600,600)</span>
+    <span>Zoom {Math.round(d.zoom*100)}%</span><span className="text-neutral-600">3D, built from the millimetre geometry · artwork on a 1200×1200 sheet, center (600,600)</span>
    </div></>}
   </Boundary>
   {shared&&<SharedModal shared={shared} onClose={()=>setShared(null)}/>}

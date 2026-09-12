@@ -32,10 +32,6 @@ export const bezelRangeOf=d=>{const g=geoOf(d),span=g.rBezOut-g.dialR;
  /* rounded inward: a max that rounds up sits above geoOf's clamp and the thumb
     springs back off the end of the track */
  return[Math.ceil(span*0.34/PX*10)/10,Math.floor(span*0.88/PX*10)/10]};
-/* the largest lug-to-lug whose tips still fit the sheet, so the slider cannot
-   offer a value the geometry will silently clamp away */
-export const lugToLugMaxOf=d=>{const R=d.caseMm*PX/2;
- return Math.min(d.caseMm*1.5,(R+(CAN-C-R-8))*2/PX)};
 
 
 /* ==================== CASE ARCHITECTURE (mm truth) ====================
@@ -201,7 +197,8 @@ export function frameBox(part,d){const g=geoOf(d);switch(part){
 export function frames(sel,d){const g=geoOf(d),r=g.R;switch(sel){
  case'strap':return[{t:'r',x:C-g.sw/2-8,y:28,w:g.sw+16,h:C-g.R-40},{t:'r',x:C-g.sw/2-8,y:C+g.R+12,w:g.sw+16,h:CAN-28-(C+g.R+12)}];
  case'case':return[{t:'c',r:r+10}];
- case'crown':{const b=crownBox(d);return[{t:'r',x:b.x+3,y:b.y+3,w:b.w-6,h:b.h-6}]}
+ /* swung to the crown's bearing, so a 4:30 crown is outlined at 4:30 */
+ case'crown':{const b=crownBox(d);return[{t:'r',x:b.x+3,y:b.y+3,w:b.w-6,h:b.h-6,rot:crownAng(d)-90}]}
  case'bezel':return[{t:'c',r:g.rBezOut},{t:'c',r:g.rBezIn}];
  case'dial':return[{t:'c',r:g.dialR}];
  case'markers':return[{t:'c',r:g.dialR*0.92}];
@@ -209,33 +206,9 @@ export function frames(sel,d){const g=geoOf(d),r=g.R;switch(sel){
  case'crystal':return[{t:'c',r:g.crystalR}];
  default:return[]}}
 
-/* hit-test shapes (account for each part's current transform) */
+/* the crown's footprint at 3 o'clock, before its bearing is applied — used for
+   its selection guide and upload frame. Picking is a ray into the 3D crown
+   (three/watch.js pickPart3D), not a box. */
 export function crownBox(d){const g=geoOf(d);const sc=crownScale(d);
  const h=g.crownR*2*sc+16,w=g.crownR*(1.5*sc+0.75)+16;
  return{x:C+g.R-g.crownR*0.45-8,y:C-h/2,w,h}}
-export function strapBoxes(d){const g=geoOf(d);const w=g.sw;
- return[{x:C-w/2-6,y:28,w:w+12,h:C-g.R*0.55-28},{x:C-w/2-6,y:C+g.R*0.55,w:w+12,h:CAN-46-(C+g.R*0.55)}]}
-
-export function pickPart(px,py,d,sel){const g=geoOf(d),P=d.parts;
- const base=part=>part==='hands'?P.hands.tH:P[part].t;
- /* the crown is drawn at its bearing, so the hit box has to be tested in the
-    same rotated frame — otherwise a 4:30 crown is clickable at 3 o'clock */
- {const tt=base('crown'),cb=crownBox(d),bearing=(crownAng(d)-90)*Math.PI/180;
-  let qx=px-tt.x-C,qy=py-tt.y-C;
-  if(bearing){const cs=Math.cos(-bearing),sn=Math.sin(-bearing);
-   const rx=qx*cs-qy*sn,ry=qx*sn+qy*cs;qx=rx;qy=ry}
-  const hx=qx+C,hy=qy+C;
-  if(hx>=cb.x&&hx<=cb.x+cb.w&&hy>=cb.y&&hy<=cb.y+cb.h)return'crown'}
- {const fam=['dial','markers','hands','crystal'].includes(sel)?sel:'dial';const q=base(fam);
-  if(Math.hypot(px-(C+q.x),py-(C+q.y))<=g.dialR*q.s)return fam}
- {const q=base('bezel');const dz=Math.hypot(px-(C+q.x),py-(C+q.y));
-  if(dz<=g.rBezOut*q.s&&dz>g.dialR*q.s)return'bezel'}
- {const q=base('case');if(Math.hypot(px-(C+q.x),py-(C+q.y))<=g.R*q.s)return'case';
-  /* the lug horns are part of the case and sit outside its circle */
-  const lw=g.R*0.17*2.0;
-  for(const sx of[-1,1])for(const sy of[-1,1]){
-   const cx=C+sx*(g.sw*0.5+g.R*0.17*0.95)+q.x,cy=C+sy*(g.R*0.72)+q.y;
-   if(Math.abs(px-cx)<=lw*q.s&&Math.abs(py-cy)<=(g.R*0.3+g.lugExt)*q.s)return'case'}}
- {const q=base('strap');for(const b of strapBoxes(d))
-  if(px>=b.x+q.x&&px<=b.x+q.x+b.w&&py>=b.y+q.y&&py<=b.y+q.y+b.h)return'strap'}
- return null}

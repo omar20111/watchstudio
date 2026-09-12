@@ -30,8 +30,8 @@ export const DEF={caseMm:40,strapMm:'auto',
   bezel:{variant:'smooth',metal:'steel',finish:'polished',insertColor:'#101318',rot:0,detents:120,dir:'ccw',t:TT()},
   dial:{variant:'sunburst',color:'#16324f',finish:'none',text:{top:'WatchStudio',bottom:'AUTOMATIC',font:'serif',color:'auto'},t:TT()},
   markers:{variant:'batons',lume:'#dff3e4',glow:false,t:TT()},
-  hands:{variant:'dauphine',hourVariant:'',minVariant:'',metal:'steel',finish:'polished',lume:'#dff3e4',glow:false,
-   secColor:'#e8482c',gmt:false,gmtColor:'#e8c766',smallsec:false,tH:TT(),tM:TT(),tS:TT()},
+  hands:{variant:'dauphine',metal:'steel',finish:'polished',lume:'#dff3e4',glow:false,
+   secColor:'#e8482c',tH:TT(),tM:TT(),tS:TT()},
   /* no `variant`: the crystal's shape is case.crystal (see migrateProject v6) */
   crystal:{finish:'polished',opacity:0.65,t:TT()}}};
 
@@ -78,12 +78,14 @@ export function hydrate(saved,schemaVersion){const d=clone(DEF);if(!saved)return
  for(const k of DIMS)if(s[k]!=null)d[k]=s[k];
  d.bg=s.bg??d.bg;d.bgCustom=s.bgCustom??null;d.shadow=s.shadow!==false;
  d.view=s.view==='product'||s.view==='sheet'?s.view:'edit';
- d.camera=s.camera==='profile'?'profile':'front';
+ d.camera=['profile','three-quarter'].includes(s.camera)?s.camera:'front';
  if(s.case)d.case={...d.case,...clone(s.case)};
  if(s.time)d.time={...d.time,...clone(s.time)};
  if(s.chrono)d.chrono={...d.chrono,...clone(s.chrono)};
  if(s.active)d.active=clone(s.active);
  for(const k in d.parts){if(s.parts&&s.parts[k])Object.assign(d.parts[k],clone(s.parts[k]))}
+ /* fields earlier builds wrote but nothing ever read — drop them from old saves */
+ for(const f of['hourVariant','minVariant','gmt','gmtColor','smallsec'])delete d.parts.hands[f];
  return d}
 
 let pT;const loadAuto=()=>{try{const r=localStorage.getItem('ws:auto');return r?JSON.parse(r):null}catch(e){return null}};
@@ -152,9 +154,13 @@ const initStore=(set,get)=>{const auto=loadAuto()||{};return{
   const cur=bezelRotOf(s.d);
   let next=snapDetent(deg,n);
   if(dir==='ccw'){
-   /* shortest signed way round from cur to next; forbid the negative one */
+   /* Shortest signed way round from cur to next. Angles run clockwise, so a
+      counter-clockwise click is a NEGATIVE delta and that is the only one a
+      diver's ratchet allows: turning it anticlockwise can only make elapsed
+      time read longer. This used to forbid the negative delta instead, so the
+      "CCW ratchet" only ever turned clockwise — the unsafe direction. */
    let delta=((next-cur+540)%360)-180;
-   if(delta<-1e-9)next=cur;
+   if(delta>1e-9)next=cur;
   }
   if(next===cur)return;
   get().upd(m=>{m.parts.bezel.rot=next},tag||'bezel');},

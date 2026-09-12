@@ -1,28 +1,9 @@
-/* Shared UI primitives: sliders, pickers, layer views, modal shell. */
+/* Shared UI primitives: sliders, pickers, modal shell. */
 import React from 'react';
 import {METALS} from '../core/constants.js';
 const {useEffect,useRef,useState}=React;
 
 export const GOLD='#d4af37';
-
-export function CanvasHost({cv}){const ref=useRef();useEffect(()=>{const el=ref.current;if(cv&&cv.parentNode!==el)el.appendChild(cv);return()=>{if(cv&&cv.parentNode===el)el.removeChild(cv)}},[cv]);return<div ref={ref} className="absolute inset-0 w-full h-full"/>}
-
-const sameMedia=(a,b)=>a&&b&&((a.cv&&a.cv===b.cv)||(a.url&&a.url===b.url));
-
-export function LayerView({cv,url,t,rot=0,k,z,o=1,filter,glow,tex:ttx}){
- const media=cv?{cv}:{url};
- const[st,setSt]=useState({cur:media,prev:null});
- useEffect(()=>{setSt(s=>sameMedia(s.cur,media)?s:{cur:media,prev:s.cur})},[cv,url]);
- useEffect(()=>{if(!st.prev)return;const id=setTimeout(()=>setSt(s=>({...s,prev:null})),450);return()=>clearTimeout(id)},[st.prev]);
- let f=filter&&filter!=='none'?filter:'';if(glow)f+=` drop-shadow(0 0 7px ${glow})`;
- const wrap={position:'absolute',inset:0,zIndex:z,pointerEvents:'none',isolation:'isolate',opacity:o,filter:f||undefined,
-  transform:`translate(${t.x*k}px,${t.y*k}px) rotate(${rot+t.r}deg) scale(${t.s})`,transformOrigin:'50% 50%'};
- const node=(m,fading)=>{const stl={position:'absolute',inset:0};if(fading){stl.transition='opacity .4s';stl.opacity=0}
-  return<div key={fading?'p':'c'} style={stl} className="absolute inset-0">
-   {m.cv?<CanvasHost cv={m.cv}/>:<img src={m.url} className="w-full h-full" draggable="false" alt=""/>}
-   {m.url&&ttx&&<div className="absolute inset-0" style={{mixBlendMode:'soft-light',backgroundImage:`url(${ttx})`,backgroundSize:'220px',opacity:.6,WebkitMaskImage:`url(${m.url})`,maskImage:`url(${m.url})`,WebkitMaskSize:'100% 100%',maskSize:'100% 100%'}}/>}
-  </div>};
- return<div style={wrap}>{st.prev&&node(st.prev,true)}{node(st.cur,false)}</div>}
 
 export function Slider({label,min,max,step,val,onChange,fmt}){return<label className="block text-[11px] text-neutral-400 mb-1">
  <div className="flex justify-between"><span>{label}</span><span className="text-neutral-300 tabular-nums">{fmt?fmt(val):val}</span></div>

@@ -30,7 +30,6 @@ if(!globalThis.URL.createObjectURL)globalThis.URL.createObjectURL=()=>'blob:x';
 const M=await import('./src/smokeExports.jsx');
 const G=await import('./src/core/geometry.js');
 const {PX,CAN,C}=await import('./src/core/constants.js');
-const {drProfile,drBack}=await import('./src/core/render/profile.js');
 const L3=await import('./src/core/three/lathe.js');
 const TR=await import('./src/core/three/tracer.js');
 
@@ -136,9 +135,11 @@ for(const[name,apply,check]of COMBOS){
  checkHead(name,d);
  for(const crystal of['flat','dome','box']){const d2=M.clone(d);d2.case.crystal=crystal;checkHead(`${name} / ${crystal} crystal`,d2)}
 
- /* the sheet's elevations must render too */
- try{const[cv,x]=M.mk(600);drProfile(x,d,{scale:.2,cx:300,cy:300});drBack(x,d,{scale:.2,cx:300,cy:300})}
- catch(e){bad(name,'profile/back threw: '+e.message)}
+ /* the whole 3D watch must build — every lathe, extrusion, strap and bake */
+ try{const w=M.buildHead(d,{});if(!w.userData.groups.case.children.length)bad(name,'3D case built empty')}
+ catch(e){bad(name,'3D build threw: '+e.message)}
+ for(const cb of['solid','exhibition','engraved']){const d2=M.clone(d);d2.case.caseback=cb;d2.case.pushers=true;d2.parts.case.variant='sport';d2.case.crownPos='430';
+  try{M.buildHead(d2,{})}catch(e){bad(name,`3D build (${cb} back, pushers, guards, 4:30) threw: ${e.message}`)}}
 
  console.log(`  ok    ${name} — ${layers.length} layers, dial ${(g.dialR*2/PX).toFixed(1)}mm, `+
   `bezel ${G.bezelMmOf(d)}mm, rehaut ${G.rehautMmOf(d)}mm, L2L ${G.lugToLugOf(d)}mm`);

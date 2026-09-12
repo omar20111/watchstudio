@@ -1,7 +1,7 @@
 /* Right panel: presets, uploads, transforms and part styling. */
 import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant} from '../core/parts.js';
-import {strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,bezelMmOf,bezelRangeOf,lugToLugMaxOf,
+import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
 import {store,useApp,TT} from '../state/store.js';

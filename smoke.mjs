@@ -46,17 +46,39 @@ for(const t of M.THEMES){const n=M.clone(M.DEF);t.apply(n);
 const n2=M.clone(M.DEF);M.shuffleInto(n2);
 expect(M.buildLayers(n2,{}).length>=12,'shuffled design built too few layers');
 const st=M.store.getState();
-const center=M.pickPart(M.C,M.C,st.d,st.sel);
+/* ---- picking: a ray straight down into the built 3D watch ----
+   sheet px -> mm on the dial plane; 12 o'clock is -z */
+const pickAt=(watch,px,py,sel)=>{const rc=new M.Raycaster();
+ rc.set(new M.Vector3((px-M.C)/M.PX,500,(py-M.C)/M.PX),new M.Vector3(0,-1,0));return M.pickPart3D(watch,rc,sel)};
+const W0=M.buildHead(st.d,{});
 const g=M.geoOf(st.d);
-const crownHit=M.pickPart(M.C+g.R+30,M.C,st.d,st.sel);
-const strapHit=M.pickPart(M.C,1100,st.d,st.sel);
-const bezelHit=M.pickPart(M.C,M.C-(g.rBezOut+g.rBezIn)/2,st.d,'case');
-const miss=M.pickPart(20,20,st.d,st.sel);
+const center=pickAt(W0,M.C,M.C,'case');
+const bezelHit=pickAt(W0,M.C,M.C-(g.rBezOut+g.rBezIn)/2,'case');
+const lugHit=pickAt(W0,M.C+(g.sw*.5+g.R*.135*.95),M.C+(g.R+g.lugExt*.6),'dial');
+const strapHit=pickAt(W0,M.C,M.C+g.R+g.lugExt+6*M.PX,'dial');
+const miss=pickAt(W0,20,20,'dial');
 expect(center==='dial',`click at centre should pick dial, got ${center}`);
-expect(crownHit==='crown',`click beside the case at 3h should pick crown, got ${crownHit}`);
-expect(strapHit==='strap',`click at the bottom of the sheet should pick strap, got ${strapHit}`);
+expect(pickAt(W0,M.C,M.C,'hands')==='hands','clicking inside the dial should keep a selected hand selected');
 expect(bezelHit==='bezel',`click on the bezel ring should pick bezel, got ${bezelHit}`);
+expect(lugHit==='case',`click on a lug should pick the case, got ${lugHit}`);
+expect(strapHit==='strap',`click past the lugs should pick the strap, got ${strapHit}`);
 expect(miss===null,`click in the corner should pick nothing, got ${miss}`);
+/* the crown is picked where it is built — at its bearing, not at 3 o'clock */
+{const crownAt=(pos,deg)=>{const d=M.clone(M.DEF);d.case.crownPos=pos;const w=M.buildHead(d,{});
+  const cp=M.crownParts(d),r=(cp.barrelX+g.crownR/M.PX*.6)*M.PX,a=deg*Math.PI/180;
+  return pickAt(w,M.C+r*Math.sin(a),M.C-r*Math.cos(a),'case')};
+ expect(crownAt('3',90)==='crown','a 3 o’clock crown must be pickable at 90deg');
+ expect(crownAt('430',135)==='crown','a 4:30 crown must be pickable at 135deg');
+ expect(crownAt('430',90)!=='crown','a 4:30 crown must NOT be pickable at 90deg')}
+/* ---- transforms move the built watch without rebuilding it ---- */
+{const d=M.clone(M.DEF),k0=M.headKey(d,{});
+ d.parts.case.t.x=36;d.parts.hands.tM.r=90;d.parts.bezel.rot=30;d.zoom=2;d.camera='three-quarter';
+ expect(M.headKey(d,{})===k0,'moving, rotating or zooming must not force a rebuild');
+ M.applyPose(W0,d);const G=W0.userData.groups;
+ expect(Math.abs(G.case.position.x-2)<1e-9,`a 36 px case offset should move the case 2 mm, moved ${G.case.position.x}`);
+ const minHolder=G.hands.children.find(h=>h.name==='hand:min');
+ expect(minHolder&&Math.abs(minHolder.rotation.y+Math.PI/2)<1e-9,'the minute hand transform must turn only the minute hand');
+ d.case.thicknessMm=14;expect(M.headKey(d,{})!==k0,'a dimension change must rebuild')}
 let thumbs=0;const want=Object.values(M.VARIANTS).reduce((a,v)=>a+v.length,0);
 for(const part of Object.keys(M.VARIANTS))for(const v of M.VARIANTS[part]){
  expect(typeof M.getThumb(part,v,st.d)==='string',`thumbnail ${part}/${v} is not a data URL`);thumbs++}
@@ -86,6 +108,15 @@ const rt=o=>JSON.parse(JSON.stringify(o));
  expect(M.caseOf(h).crystal==='flat',`v4 crystal migrated to ${M.caseOf(h).crystal}`);
  expect(M.lugToLugOf(h)===50.4,`v4 lug-to-lug 50.4 became ${M.lugToLugOf(h)}`);
  expect(M.caseOf(h).crystalMm===2.2,`v4 crystal height 2.2 became ${M.caseOf(h).crystalMm}`)}
+/* ---- the diver's ratchet turns anticlockwise only ---- */
+{const S=M.store.get();S.upd(n=>{n.parts.bezel.variant='diver';n.parts.bezel.dir='ccw';n.parts.bezel.detents=60;n.parts.bezel.rot=0},'t');
+ M.store.get().nudgeBezel(-1);
+ expect(M.store.get().d.parts.bezel.rot===354,`an anticlockwise click on a CCW ratchet should land on 354deg, got ${M.store.get().d.parts.bezel.rot}`);
+ M.store.get().nudgeBezel(1);
+ expect(M.store.get().d.parts.bezel.rot===354,'a CCW ratchet must refuse a clockwise click');
+ M.store.get().upd(n=>{n.parts.bezel.dir='bi'},'t');M.store.get().nudgeBezel(1);
+ expect(M.store.get().d.parts.bezel.rot===0,'a bidirectional bezel must turn clockwise too');
+ M.store.get().reset()}
 /* ---- autosave and projects ---- */
 {const S=M.store.get();
  expect(!S.hasWork(),'a fresh session reports work worth protecting');
@@ -106,7 +137,7 @@ const m1=renderToString(React.createElement(M.SaveModal,{onClose:()=>{}}));
 const m2=renderToString(React.createElement(M.ProjectsModal,{onClose:()=>{}}));
 expect(m1.length>0&&m2.length>0,'a modal rendered empty');
 M.exportSpec();M.exportProjectFile();
-console.log('EXTRAS layers='+L.length+' center='+center+' crown='+crownHit+' strap='+strapHit+' bezel='+bezelHit+' thumbs='+thumbs+' modalChars='+(m1.length+m2.length));
+console.log('EXTRAS layers='+L.length+' center='+center+' lug='+lugHit+' strap='+strapHit+' bezel='+bezelHit+' thumbs='+thumbs+' modalChars='+(m1.length+m2.length));
 
 const out=renderToString(React.createElement(M.App));
 expect(out.length>1000,`<App/> server render is suspiciously short (${out.length} chars)`);

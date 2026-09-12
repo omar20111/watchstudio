@@ -1,10 +1,10 @@
-/* Layered export — one ZIP holding every part as its own PNG, both cameras,
-   and the numbers behind them.
+/* Layered export — one ZIP holding every part's artwork as its own PNG, the
+   rendered views, and the numbers behind them.
 
    This is the handoff format: a dial maker wants the dial, a case maker wants
    the case, and both want the spec to agree with what they are looking at.
    Everything is rendered from the SAME marketing clock, so the hands in the
-   composed view and the hands in the per-part files cannot disagree. */
+   views and the hands in the per-part files cannot disagree. */
 import {CAN} from '../core/constants.js';
 import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,rehautMmOf} from '../core/geometry.js';
 import {buildLayers} from '../core/layers.js';
@@ -14,8 +14,9 @@ import {METALS,PX} from '../core/constants.js';
 import {store,SCHEMA_VERSION} from '../state/store.js';
 import {toast} from '../core/utils.js';
 import {zip} from './zip.js';
-import {sceneBlob,loadImg} from './png.js';
-import {drProfile,drBack} from '../core/render/profile.js';
+import {loadImg} from './background.js';
+import {sceneBlob3D,renderStill} from '../core/three/view.js';
+import {hasStructuralUpload} from '../core/three/uploads.js';
 
 const bytes=async blob=>blob?new Uint8Array(await blob.arrayBuffer()):new Uint8Array(0);
 const enc=s=>new TextEncoder().encode(s);
@@ -55,9 +56,11 @@ export function geometryData(d){const g=geoOf(d);
   rings:{rCase:g.rCase,rSeat:g.rSeat,rBezOut:g.rBezOut,rBezIn:g.rBezIn,dialR:g.dialR,
    rehautW:g.rehautW,crystalR:g.crystalR,lugExt:g.lugExt,crownR:g.crownR,strapW:g.sw}}}
 
-function elevation(d,draw,w,h){
+/* an orthographic elevation on drawing-paper ground */
+async function elevation(d,customs,camera,w,h,clock){
+ const im=await renderStill({...d,shadow:false},customs,{w,h,camera,clock});
  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
- const x=cv.getContext('2d');draw(x,cv);
+ const x=cv.getContext('2d');x.fillStyle='#f3f2ef';x.fillRect(0,0,w,h);x.drawImage(im,0,0);
  return new Promise(res=>cv.toBlob(res,'image/png'))}
 
 export async function exportLayered(){
@@ -81,24 +84,21 @@ export async function exportLayered(){
   const b=await new Promise(r=>cv.toBlob(r,'image/png'));
   files.push({name:`parts/${safe(l.key)}.png`,data:await bytes(b)})}
 
- /* both cameras at 2x, from the same clock as the parts */
- const front=await sceneBlob(d,s.customs,{mult:2,clock});
+ /* every camera at 2x, from the same clock as the parts */
+ const front=await sceneBlob3D(d,s.customs,{size:CAN*2,camera:'front',clock});
  files.push({name:'views/front@2x.png',data:await bytes(front)});
- const prof=await elevation(d,(x)=>{
-  x.fillStyle='#f3f2ef';x.fillRect(0,0,1400,900);
-  drProfile(x,d,{scale:(1400*0.72)/(lugToLugMm(d)*PX),cx:700,cy:420})},1400,900);
- files.push({name:'views/profile@2x.png',data:await bytes(prof)});
- const back=await elevation(d,(x)=>{
-  x.fillStyle='#f3f2ef';x.fillRect(0,0,900,900);
-  drBack(x,d,{scale:(900*0.66)/(d.caseMm*PX),cx:450,cy:450})},900,900);
- files.push({name:'views/caseback@2x.png',data:await bytes(back)});
+ if(!hasStructuralUpload(d,s.customs)){
+  const tq=await sceneBlob3D(d,s.customs,{size:CAN*2,camera:'three-quarter',clock});
+  files.push({name:'views/three-quarter@2x.png',data:await bytes(tq)})}
+ files.push({name:'views/profile@2x.png',data:await bytes(await elevation(d,s.customs,'side',2800,1800,clock))});
+ files.push({name:'views/caseback@2x.png',data:await bytes(await elevation(d,s.customs,'back',1800,1800,clock))});
 
  files.push({name:'spec.json',data:enc(JSON.stringify(specData(d,s.projName),null,2))});
  files.push({name:'geometry.json',data:enc(JSON.stringify(geometryData(d),null,2))});
  files.push({name:'README.txt',data:enc(
   `${s.projName}\nWatchStudio layered export\n\n`+
-  `parts/     every component on its own transparent 1200x1200 sheet\n`+
-  `views/     composed front, profile and caseback at 2x\n`+
+  `parts/     every component's artwork on its own transparent 1200x1200 sheet\n`+
+  `views/     rendered front, three-quarter, profile and caseback at 2x\n`+
   `spec.json  every dimension in millimetres\n`+
   `geometry.json  the ring stack in canvas pixels (1 mm = ${PX} px)\n`)});
 

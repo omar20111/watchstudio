@@ -139,16 +139,6 @@ import {__dimsKeyForTest} from './cache.js';
  for(const[name,fn]of Object.entries(nudge)){const d=clone(base);fn(d);
   assert(__dimsKeyForTest(d)!==k0,`cache key must change when ${name} changes`)}}
 
-/* ---- 12. the crown is clickable where it is actually drawn ----
-   The renderer swings the crown to its bearing; a hit box left at 3 o'clock
-   would make a 4:30 crown unselectable, which is the "state moves, DOM
-   doesn't" class of bug in another costume. */
-import {pickPart} from './geometry.js';
-{const at=(deg,d)=>{const r=geoOf(d).R+geoOf(d).crownR*0.6;
-  const rad=deg*Math.PI/180;
-  return pickPart(600+r*Math.sin(rad),600-r*Math.cos(rad),d,'case')};
- const three=design(x=>{x.case={...x.case,crownPos:'3'}});
- const half=design(x=>{x.case={...x.case,crownPos:'430'}});
- assert(at(90,three)==='crown','a 3 oclock crown must be pickable at 90deg');
- assert(at(135,half)==='crown','a 4:30 crown must be pickable at 135deg');
- assert(at(90,half)!=='crown','a 4:30 crown must NOT be pickable at 90deg');}
+/* (crown pickability at its bearing is checked against the 3D geometry in
+   smoke.mjs — picking is a ray into the built watch now, which needs three.js
+   and the bakes, not pure maths) */

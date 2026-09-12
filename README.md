@@ -1,20 +1,38 @@
-# WatchStudio — 2D Wrist Watch Designer (v3, modular)
+# WatchStudio — Wrist Watch Designer
 
 A part-by-part watch configurator: strap, case, bezel, dial, markers, hands,
-crown and crystal — with procedural rendering, custom image uploads,
-per-part transforms (drag directly on the canvas), themes, live clock,
-and crisp PNG / spec-sheet / project-file export.
+crown and crystal. Rendered in 3D from real millimetre geometry, with custom
+image uploads, per-part transforms (drag directly on the watch), themes, a
+live clock and chronograph, and PNG / layered ZIP / spec sheet / project-file
+export.
 
-Materials are shaded by a shared engine (`core/render/material.js`): a studio
-environment reflection (softbox overhead, dark walls at 3 and 9, floor bounce
-at 6), anisotropic circular/linear graining for brushed finishes, Fresnel rim
-light for polished chamfers, and per-material grain. Every reflection is built
-from gradients rather than raster tiles, so it stays sharp when the PNG export
-re-renders the scene at 2× or 4×. Materials: steel, rose/yellow gold, titanium,
-black DLC, bronze, white ceramic and forged carbon.
+## How it is built
 
-Developed as a modular Vite project; **the build output is still ONE
-portable HTML file** (via `vite-plugin-singlefile`).
+Every dimension lives in `core/geometry.js` in millimetres: the radial stack
+(case, chamfer, bezel, rehaut, dial) and the thickness stack (caseback,
+mid-case, movement, dial, bezel, crystal). The 3D watch is built from those
+numbers and nothing else:
+
+- **Metal is lathed or extruded** (`core/three/lathe.js`): case, bezel, rehaut,
+  crystal and caseback are solids of revolution from the two stacks; lugs,
+  crown guards, crown and pushers use the outlines the 2D renderers draw.
+- **Hands and applied indices are traced** (`core/three/tracer.js`): the 2D
+  renderer bakes each silhouette, marching squares traces it back into
+  outlines with holes, and it is extruded — five hand styles, five marker
+  styles and serif numerals without writing any shape twice.
+- **Colour is the existing artwork, unlit** (`core/render/*`, `mode: 'flat'`):
+  dial printing, bezel inserts, straps and lume are baked without painted
+  light and applied as textures, so all light and shadow is real.
+- **Light is the studio the 2D engine described** (`core/three/studio.js`): the
+  `ENV` table in `core/render/material.js` becomes a horizon band, a softbox
+  and a table, prefiltered into an environment map. No HDRI file.
+- **Surface detail is generated** (`core/three/surface.js`): sunburst and
+  brushed dials use anisotropy maps; flutes and knurling are normal maps.
+
+The same view (`core/three/view.js`) drives the editor, the product and sheet
+presentations and every export, so what you see and what you export cannot
+diverge. The build output is still **one portable HTML file** (via
+`vite-plugin-singlefile`).
 
 ## Commands
 
@@ -22,38 +40,41 @@ portable HTML file** (via `vite-plugin-singlefile`).
 npm install        # once
 npm run dev        # dev server with hot reload
 npm run build      # → dist/index.html (single portable file)
-npm run smoke      # headless validation of renderers/themes/export/UI
+npm test           # boot invariants + smoke + combination checks (headless)
+npm run refs       # pixel reference renders of every theme (drives Edge/Chrome)
 ```
+
+`npm run refs -- --camera three-quarter` (or `side`, `back`) renders other
+cameras; `--only diver,dress` limits the themes. The headless tests cannot see
+pixels; these images are the check that does.
 
 ## Layout
 
 ```
 src/
 ├── core/
-│   ├── constants.js     canvas size, materials, backgrounds
-│   ├── utils.js         math/color helpers, toast, roundRect polyfill
+│   ├── constants.js     sheet size, materials, backgrounds
+│   ├── geometry.js      millimetre construction, case architecture, bezel detents
 │   ├── parts.js         part catalog & variant names
-│   ├── geometry.js      proportions, frames, hit-testing (pickPart)
-│   ├── textures.js      noise, sheen, leather backdrop, finish textures
-│   ├── cache.js         LRU caches for part canvases & thumbnails
-│   ├── layers.js        state → ordered layer list
-│   ├── time.js          clock math + live-time hook
-│   └── render/          material.js (shading engine) + one module per part
-├── state/
-│   ├── store.js         state, undo/redo (drag coalescing), autosave, projects
-│   └── themes.js        whole-watch themes + shuffle
-├── export/
-│   ├── png.js           hi-res PNG (re-rendered, not upscaled)
-│   ├── spec.js          spec sheet (.txt)
-│   └── projectFile.js   portable .watchstudio.json import/export
-└── ui/
-    ├── App.jsx, main.jsx
-    ├── TopBar / PartsList / Controls / Stage / Modals
-    └── primitives.jsx, upload.jsx, icons.jsx
+│   ├── cache.js         bakes (painted / flat / shape / lume / print) & thumbnails
+│   ├── layers.js        per-part artwork list, clock angle table
+│   ├── time.js          scene clock, chronograph
+│   ├── render/          2D renderers: thumbnails, artwork, textures for 3D
+│   └── three/           lathe, tracer, surface, studio, uploads, watch, view
+├── state/               store (undo/redo, autosave, projects, migrations), themes
+├── export/              png, layered zip, spec, project file, share URL
+└── ui/                  App shell, Stage (editor), WatchCanvas, Controls, Views…
 ```
 
 ## Controls
 
-- Drag a part to move it · Alt-drag rotates · Shift+scroll scales
-- Arrow keys nudge (Shift = 5×) · `[` `]` rotate · `1–8` select part · `F` fit
-- `Ctrl+Z` undo · `Ctrl+Shift+Z` / `Ctrl+Y` redo
+- **Front** (editing): drag a part to move it · Alt-drag rotates · drag a diver
+  or GMT bezel to turn it · Shift+scroll scales · arrow keys nudge (Shift = 5×)
+  · `[` `]` rotate · `1–8` select part · `F` fit
+- **¾**: drag to orbit · click a part to select it · scroll to zoom
+- **Side**: measured side elevation and caseback
+- `V` cycles cameras · `0` resets the bezel · `Space` / `R` run and reset the
+  chronograph · `Ctrl+Z` undo · `Ctrl+Shift+Z` / `Ctrl+Y` redo
+
+An uploaded case, bezel, crown, hands or strap is a flat picture with no depth
+to turn, so the ¾ camera is unavailable while one is in use.

@@ -81,8 +81,3 @@ export function zip(files,opts={}){
  ev.setUint32(12,centralSize,true);
  ev.setUint32(16,offset,true);       /* central directory starts after the data */
  return new Blob([...chunks,...central,end],{type:'application/zip'})}
-
-/* the same bytes, for tests that cannot use Blob */
-export function zipBytes(files,opts){
- const parts=[];const b=zip(files,opts);
- return b}

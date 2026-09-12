@@ -1,61 +1,36 @@
 /* Presentation modes: PRODUCT RENDER and DESIGN PRESENTATION.
 
-   Both reuse the editing engine's layer stack unchanged — they only change what
-   surrounds it. Nothing here writes to the design, so switching modes can never
-   alter a project. */
+   Both show the same 3D watch as the editor — the product view live and
+   orbitable, the sheet as rendered stills. Nothing here writes to the design,
+   so switching modes can never alter a project. */
 import React from 'react';
 import {CAN,PX,METALS} from '../core/constants.js';
 import {VNAME} from '../core/parts.js';
 import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,caseOf} from '../core/geometry.js';
-import {buildLayers,layerAngle} from '../core/layers.js';
-import {useSceneClock,marketingClock} from '../core/time.js';
-import {drProfile,drBack} from '../core/render/profile.js';
+import {marketingClock} from '../core/time.js';
 import {useApp} from '../state/store.js';
-import {LayerView} from './primitives.jsx';
-const {useEffect,useMemo,useRef,useState}=React;
-
-/* the composed watch, with no selection guides and no interaction */
-export function WatchView({size,still}){const s=useApp();const d=s.d;
- const layers=useMemo(()=>buildLayers(d,s.customs),[d,s.customs]);
- /* a technical drawing does not tick — running the live clock behind it
-    re-rendered every layer at 60 Hz for a static sheet */
- /* a technical drawing does not tick: the sheet reads the frozen marketing
-    pose, so hands AND date agree and the page never re-renders on a clock */
- const live=useSceneClock();const clock=still?marketingClock(d):live;
- const k=size/CAN;
- const rotFor=key=>layerAngle(key,clock);
- return<div className="relative shrink-0" style={{width:size,height:size}}>
-  {layers.map(l=>{const{key,...rest}=l;return<LayerView key={key} {...rest} rot={rotFor(key)} k={k}/>})}
- </div>}
-
-function Canvas2D({draw,w,h,className,style}){const ref=useRef();
- useEffect(()=>{const c=ref.current;if(!c)return;const x=c.getContext('2d');
-  x.clearRect(0,0,c.width,c.height);draw(x,c)},[draw,w,h]);
- return<canvas ref={ref} width={w} height={h} className={className} style={style}/>}
+import {useWatchView} from './WatchCanvas.jsx';
+import {renderStill} from '../core/three/view.js';
+import {headKey} from '../core/three/watch.js';
+import {hasStructuralUpload} from '../core/three/uploads.js';
+const {useEffect,useState}=React;
 
 /* ---------------------------------------------------------------- product */
 
 export function ProductRender(){const s=useApp();const d=s.d;
- const ref=useRef();const[box,setBox]=useState({w:900,h:700});
- useEffect(()=>{const ro=new ResizeObserver(e=>{const r=e[0].contentRect;setBox({w:r.width,h:r.height})});
-  ro.observe(ref.current);return()=>ro.disconnect()},[]);
- const size=Math.max(220,Math.min(box.w*0.78,box.h*0.82));
- const g=geoOf(d);const k=size/CAN;
- return<div ref={ref} className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden"
+ const camera=hasStructuralUpload(d,s.customs)?'front':'three-quarter';
+ const{host,canvas,view,redraw}=useWatchView({camera,orbit:true});
+ useEffect(()=>{if(view.current){view.current.setFrame({zoom:1});redraw()}},[camera]);
+ return<div ref={host} className="flex-1 min-h-0 relative overflow-hidden"
   style={{background:'radial-gradient(115% 85% at 50% 8%, #4a4e56 0%, #2c2f35 46%, #141519 100%)'}}>
-  {/* contact shadow: tight and dark directly under the caseback, spreading out */}
-  <div className="absolute pointer-events-none" style={{
-    left:'50%',top:'50%',width:2*g.R*k*1.06,height:2*g.R*k*0.30,
-    transform:'translate(-50%,-50%) translateY('+(g.R*k*0.92)+'px)',
-    background:'radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,.66) 0%, rgba(0,0,0,.30) 46%, rgba(0,0,0,0) 72%)',
-    filter:'blur(10px)'}}/>
-  <WatchView size={size}/>
-  <div className="absolute bottom-4 left-0 right-0 text-center text-[11px] tracking-[.24em] text-neutral-500 uppercase">
+  <canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>
+  <div className="absolute bottom-4 left-0 right-0 text-center text-[11px] tracking-[.24em] text-neutral-500 uppercase pointer-events-none">
    {s.projName} · {d.caseMm} mm · {(METALS[d.parts.case.metal]||{}).name}
   </div>
+  <div className="absolute top-3 left-3 text-[10px] text-neutral-500 pointer-events-none">Drag to turn the watch</div>
  </div>}
 
-/* ------------------------------------------------------------------ sheet */
+/* ---------------------------------------------------------------- sheet */
 
 const Row=({l,v})=><div className="flex justify-between gap-4 py-[3px] border-b border-black/10">
  <span className="text-neutral-500">{l}</span><span className="text-neutral-900 tabular-nums">{v}</span></div>;
@@ -72,12 +47,26 @@ function Dim({x1,y1,x2,y2,label,vertical}){
    fontFamily="ui-sans-serif, system-ui">{label}</text>
  </g>}
 
+/* Stills for the sheet, rendered at 2x and re-rendered only when the design
+   itself changes — a technical drawing does not tick, so these read the frozen
+   marketing pose and never touch a live clock. */
+function useSheetStills(d,customs){const[img,setImg]=useState({});
+ const key=headKey(d,customs)+JSON.stringify([d.parts.hands.tH,d.parts.hands.tM,d.parts.hands.tS,d.parts.bezel.rot]);
+ useEffect(()=>{let alive=true;
+  (async()=>{const clock=marketingClock(d);
+   /* drawings on paper: no table, so no drop shadow */
+   const url=async(camera,w,h)=>(await renderStill({...d,shadow:false},customs,{w,h,camera,clock})).toDataURL('image/png');
+   const front=await url('front',600,600);if(!alive)return;setImg(o=>({...o,front}));
+   const side=await url('side',680,440);if(!alive)return;setImg(o=>({...o,side}));
+   const back=await url('back',440,440);if(!alive)return;setImg(o=>({...o,back}))})();
+  return()=>{alive=false}},[key]);
+ return img}
+
+const Pending=({w,h})=><div style={{width:w,height:h}} className="flex items-center justify-center text-[10px] text-neutral-400 bg-neutral-100">rendering…</div>;
+
 export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
  const size=300,pw=340,ph=220;
- const profile=useMemo(()=>(x,c)=>{const sc=(pw*0.82)/(lugToLugOf(d)*PX);
-  drProfile(x,d,{scale:sc,cx:pw/2,cy:ph/2})},[d]);
- const back=useMemo(()=>(x,c)=>{const sc=(ph*0.74)/(d.caseMm*PX);
-  drBack(x,d,{scale:sc,cx:pw/2,cy:ph/2})},[d]);
+ const img=useSheetStills(d,s.customs);
  const mm=v=>`${v} mm`;
  const dialMm=+(d.caseMm*0.78).toFixed(1);
  const g=geoOf(d);
@@ -95,13 +84,13 @@ export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
    <div className="flex gap-8 mt-7">
     <div className="shrink-0">
      {(()=>{const X=92,Y=16;
-      /* dimension lines must span the real feature, not the drawing box */
+      /* the front still is framed at 1 mm = size/SHEET px, so these lines
+         span the real features */
       const cx=X+size/2,cy=Y+size/2;
       const caseW=size*(d.caseMm*PX/CAN),l2lH=size*(lugToLugOf(d)*PX/CAN),lugW=size*(strapMmOf(d)*PX/CAN);
       return<svg width={size+150} height={size+92} className="block">
-       <foreignObject x={X} y={Y} width={size} height={size}>
-        <div style={{width:size,height:size}}><WatchView size={size} still/></div>
-       </foreignObject>
+       {img.front?<image href={img.front} x={X} y={Y} width={size} height={size}/>
+        :<foreignObject x={X} y={Y} width={size} height={size}><Pending w={size} h={size}/></foreignObject>}
        <Dim x1={cx-caseW/2} y1={Y+size+26} x2={cx+caseW/2} y2={Y+size+26} label={mm(d.caseMm)}/>
        <Dim x1={cx-lugW/2} y1={Y+size+56} x2={cx+lugW/2} y2={Y+size+56} label={mm(strapMmOf(d))}/>
        <Dim x1={X-34} y1={cy-l2lH/2} x2={X-34} y2={cy+l2lH/2} label={mm(lugToLugOf(d))} vertical/>
@@ -111,12 +100,12 @@ export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
 
     <div className="flex-1 flex flex-col gap-6">
      <div>
-      <Canvas2D draw={profile} w={pw} h={ph} className="block"/>
+      {img.side?<img src={img.side} width={pw} height={ph} alt="Side elevation" className="block"/>:<Pending w={pw} h={ph}/>}
       <div className="text-[10px] tracking-[.2em] uppercase text-neutral-500">Side profile · {mm(caseThickOf(d))} thick</div>
      </div>
      <div>
-      <Canvas2D draw={back} w={pw} h={ph} className="block"/>
-      <div className="text-[10px] tracking-[.2em] uppercase text-neutral-500">Caseback</div>
+      {img.back?<img src={img.back} width={ph} height={ph} alt="Caseback" className="block"/>:<Pending w={ph} h={ph}/>}
+      <div className="text-[10px] tracking-[.2em] uppercase text-neutral-500">Caseback · {caseOf(d).caseback}</div>
      </div>
     </div>
    </div>

@@ -24,7 +24,7 @@ export function TopBar({onModal}){const s=useApp();
   <div className="flex-1"/>
   <button className="btn" aria-label="Copy a share link for this design" onClick={copyShareLink}>🔗 Share</button>
   <button className="btn" aria-label="Export the spec sheet as text" onClick={exportSpec}>⤓ Spec sheet</button>
-  <button className="btn" aria-label="Export every layer and both cameras as a ZIP" onClick={exportLayered}>⤓ Layered ZIP</button>
+  <button className="btn" aria-label="Export every part's artwork and every view as a ZIP" onClick={exportLayered}>⤓ Layered ZIP</button>
   <button className="btn text-[#d4af37]" aria-label="Export a 2x PNG" onClick={()=>exportPNG(2)}>⤓ PNG 2×</button>
   <button className="btn text-[#d4af37]" aria-label="Export a 4x PNG" onClick={()=>exportPNG(4)}>⤓ PNG 4×</button>
  </div>}

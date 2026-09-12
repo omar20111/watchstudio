@@ -1,116 +1,152 @@
-/* Center stage: layered canvas watch, direct manipulation, time & zoom bars. */
+/* Center stage: the 3D watch, direct manipulation, cameras, time & zoom bars.
+
+   Front is the editing camera. It is orthographic on the 1200 px sheet at the
+   same scale the 2D stage used, so the sheet-space maths below — selection
+   guides, drag offsets, keyboard nudges — is unchanged; only "which part is
+   under the pointer" moved from 2D hit boxes to a ray into the real geometry.
+   Three-quarter orbits (and a click selects); profile is a measured drawing. */
 import React from 'react';
 import {C,CAN,BG} from '../core/constants.js';
 import {clamp,normDeg} from '../core/utils.js';
-import {geoOf,frames,pickPart} from '../core/geometry.js';
-import {buildLayers,layerAngle} from '../core/layers.js';
-import {drProfile,drBack} from '../core/render/profile.js';
-import {lugToLugOf,caseThickOf} from '../core/geometry.js';
-import {PX} from '../core/constants.js';
-import {useSceneClock} from '../core/time.js';
+import {frames,bezelRotatable,bezelRotOf,caseThickOf} from '../core/geometry.js';
 import {LEATHER} from '../core/textures.js';
+import {useSceneClock,fmtChrono} from '../core/time.js';
 import {useApp,store,patchPartT} from '../state/store.js';
-import {GOLD,LayerView} from './primitives.jsx';
-const {useEffect,useMemo,useRef,useState}=React;
+import {GOLD} from './primitives.jsx';
+import {useWatchView} from './WatchCanvas.jsx';
+import {SHEET,profileLayout} from '../core/three/view.js';
+import {hasStructuralUpload} from '../core/three/uploads.js';
+const {useEffect,useMemo,useRef}=React;
 
-/* The 3D spike, dev builds only. The DEV guard is a build-time constant, so a
-   production build drops this branch — and three.js with it — from the
-   single-file bundle entirely. */
-const Stage3D=import.meta.env&&import.meta.env.DEV?React.lazy(()=>import('./Stage3D.jsx')):null;
+/* The only part of the stage that has to re-render with the clock, kept in its
+   own component so the rest of the stage does not re-render 60 times a second. */
+function ChronoReadout(){const c=useSceneClock();
+ return<span className="text-[10px] text-neutral-400 tabular-nums pl-1" aria-live="off">chrono {fmtChrono(c.chrono.ms)}</span>}
 
-export function Stage(){const s=useApp();const d=s.d;const g=geoOf(d);
- const ref=useRef();const innerRef=useRef();const drag=useRef(null);
- const[box,setBox]=useState({w:900,h:700});
- useEffect(()=>{const ro=new ResizeObserver(e=>{const r=e[0].contentRect;setBox({w:r.width,h:r.height})});ro.observe(ref.current);return()=>ro.disconnect()},[]);
- const fit=Math.max(220,Math.min(box.w,box.h)-56);const size=fit*d.zoom;const k=size/CAN;
- const clock=useSceneClock();
- const[r3d,setR3d]=useState(null);             /* null = 2D, else 'front' | 'three-quarter' */
- const layers=useMemo(()=>buildLayers(d,s.customs),[d,s.customs]);
- const bg=BG[d.bg];const bgImg=d.bg==='wrist'?d.bgCustom:(d.bg==='leather'?LEATHER.toDataURL():null);
- const rotFor=key=>layerAngle(key,clock);
+export const stageCamera=(d,customs)=>{
+ const c=['front','three-quarter','profile'].includes(d.camera)?d.camera:'front';
+ return c==='three-quarter'&&hasStructuralUpload(d,customs)?'front':c};
+
+export function Stage(){const s=useApp();const d=s.d;
+ const structural=hasStructuralUpload(d,s.customs);
+ const camera=stageCamera(d,s.customs);
+ const innerRef=useRef();const drag=useRef(null);const down=useRef(null);
+ const{host,canvas,view,box,redraw}=useWatchView({camera,orbit:true});
+ const fit=Math.max(220,Math.min(box.w,box.h)-56);const size=fit*d.zoom;
+ /* 1 mm = size/SHEET px: the sheet square below and the front camera agree */
+ useEffect(()=>{if(view.current){view.current.setFrame({pxPerMm:size/SHEET,zoom:d.zoom});redraw()}},[size,d.zoom,camera]);
+ /* encoded once — this used to re-encode a 512² PNG on every render, 60 times a
+    second while the seconds hand swept */
+ const leather=useMemo(()=>LEATHER.toDataURL(),[]);
+ const bg=BG[d.bg];const bgImg=d.bg==='wrist'?d.bgCustom:(d.bg==='leather'?leather:null);
  const t=d.time;
- /* The second camera. It reads the same millimetre geometry as the front view
-    and the spec sheet, so the three can never disagree. Only front and profile
-    are offered: a three-quarter view faked without a projection model would
-    look worse than either, so it is deliberately not built. */
- const camera=d.camera==='profile'?'profile':'front';
- const profRef=useRef();
- useEffect(()=>{if(camera!=='profile')return;const c=profRef.current;if(!c)return;
-  const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
-  const sc=(c.width*0.62)/(lugToLugOf(d)*PX);
-  drProfile(x,d,{scale:sc,cx:c.width/2,cy:c.height*0.42});
-  drBack(x,d,{scale:(c.height*0.26)/(d.caseMm*PX),cx:c.width/2,cy:c.height*0.80});
-  /* dimension callouts, in mm, on the drawing itself */
-  x.save();x.strokeStyle='rgba(255,255,255,.34)';x.fillStyle='rgba(255,255,255,.7)';
-  x.lineWidth=1;x.font='11px ui-sans-serif, system-ui';x.textAlign='center';
-  const th=caseThickOf(d),halfT=th*PX*sc/2,cy=c.height*0.42;
-  const xr=c.width/2+lugToLugOf(d)*PX*sc/2+26;
-  x.beginPath();x.moveTo(xr,cy-halfT);x.lineTo(xr,cy+halfT);
-  x.moveTo(xr-5,cy-halfT);x.lineTo(xr+5,cy-halfT);
-  x.moveTo(xr-5,cy+halfT);x.lineTo(xr+5,cy+halfT);x.stroke();
-  x.save();x.translate(xr+16,cy);x.rotate(-Math.PI/2);x.fillText(th.toFixed(1)+' mm',0,0);x.restore();
-  const l2l=lugToLugOf(d),yb=cy+halfT+34,hw=l2l*PX*sc/2;
-  x.beginPath();x.moveTo(c.width/2-hw,yb);x.lineTo(c.width/2+hw,yb);
-  x.moveTo(c.width/2-hw,yb-5);x.lineTo(c.width/2-hw,yb+5);
-  x.moveTo(c.width/2+hw,yb-5);x.lineTo(c.width/2+hw,yb+5);x.stroke();
-  x.fillText(l2l.toFixed(1)+' mm',c.width/2,yb-9);x.restore()},[camera,d,box]);
 
- const toCanvas=e=>{const r=innerRef.current.getBoundingClientRect();return[(e.clientX-r.left)/k,(e.clientY-r.top)/k]};
- return<div ref={ref} className="relative flex-1 overflow-hidden select-none"
-  style={{backgroundImage:bgImg?`url(${bgImg})`:undefined,background:bg.css,backgroundSize:bgImg?'cover':undefined,backgroundPosition:'center'}}
-  onWheel={e=>{if(e.shiftKey){const st=store.getState();const selP=st.sel;const p=st.d.parts[selP];
+ /* pointer -> sheet px, through the sheet-sized square centred on the stage */
+ const toSheet=e=>{const r=innerRef.current.getBoundingClientRect();const k=size/CAN;return[(e.clientX-r.left)/k,(e.clientY-r.top)/k]};
+ const pickAt=e=>{const r=canvas.current.getBoundingClientRect();const st=store.getState();
+  return view.current?view.current.pick(e.clientX-r.left,e.clientY-r.top,st.sel):null};
+ const angleAt=(px,py)=>Math.atan2(py-C,px-C)*180/Math.PI;
+ const end=()=>{drag.current=null;if(host.current)host.current.style.cursor='default'};
+
+ /* the profile drawing's dimension callouts, drawn over exactly what is rendered */
+ const overlay=useRef();
+ useEffect(()=>{const c=overlay.current;if(!c||camera!=='profile')return;
+  const dpr=Math.min(2,window.devicePixelRatio||1);c.width=box.w*dpr;c.height=box.h*dpr;
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,box.w,box.h);
+  const L=profileLayout(box.w,box.h,d),S=L.side,at=S.toScreen;
+  x.strokeStyle='rgba(255,255,255,.34)';x.fillStyle='rgba(255,255,255,.72)';x.lineWidth=1;
+  x.font='11px ui-sans-serif, system-ui';x.textAlign='center';
+  const tick=(ax,ay,bx,by)=>{x.beginPath();x.moveTo(ax,ay);x.lineTo(bx,by);x.stroke()};
+  /* thickness: caseback to crystal apex */
+  const th=caseThickOf(d),[xr,y0]=at(-S.l2l/2-3,0),[,y1]=at(0,S.top);
+  tick(xr,y0,xr,y1);tick(xr-5,y0,xr+5,y0);tick(xr-5,y1,xr+5,y1);
+  x.save();x.translate(xr+16,(y0+y1)/2);x.rotate(-Math.PI/2);x.fillText(th.toFixed(1)+' mm',0,0);x.restore();
+  /* lug-to-lug, above the crystal */
+  const[xa,ya]=at(S.l2l/2,S.top+2.5),[xb]=at(-S.l2l/2,S.top+2.5);
+  tick(xa,ya,xb,ya);tick(xa,ya-5,xa,ya+5);tick(xb,ya-5,xb,ya+5);
+  x.fillText(S.l2l.toFixed(1)+' mm',(xa+xb)/2,ya-8);
+  x.textAlign='left';x.fillStyle='rgba(255,255,255,.4)';x.font='10px ui-sans-serif, system-ui';
+  x.fillText('SIDE ELEVATION · FROM 3 O’CLOCK',14,S.h-12);x.fillText('CASEBACK',14,L.back.y+18);
+ },[camera,box,d]);
+
+ return<div ref={host} className="relative flex-1 overflow-hidden select-none"
+  style={{backgroundImage:bgImg?`url(${bgImg})`:undefined,background:bgImg?undefined:bg.css,backgroundSize:bgImg?'cover':undefined,backgroundPosition:'center'}}
+  onWheel={e=>{if(e.target.closest('[data-ui]'))return;
+   if(e.shiftKey&&camera==='front'){const st=store.getState();const selP=st.sel;const p=st.d.parts[selP];
     const base=selP==='hands'&&!st.d.active.hands?p.tH:p.t;
     patchPartT(selP,{s:clamp(+(base.s*(e.deltaY>0?0.94:1.06)).toFixed(3),0.3,2.5)},'sc:'+selP);return}
    s.setD(n=>{n.zoom=clamp(n.zoom*(e.deltaY>0?0.92:1.08),0.4,3)})}}
-  onPointerDown={e=>{if(e.button!==0)return;if(e.target.closest('[data-ui]'))return;
-   const[px,py]=toCanvas(e);if(px<0||px>CAN||py<0||py>CAN)return;
-   const st=store.getState();const part=pickPart(px,py,st.d,st.sel);if(!part)return;
-   st.select(part);const p=st.d.parts[part];const base=part==='hands'&&!st.d.active.hands?p.tH:p.t;
-   drag.current={part,px,py,x:base.x,y:base.y,r:base.r,alt:e.altKey};
-   e.currentTarget.setPointerCapture(e.pointerId);
-   if(innerRef.current)innerRef.current.style.cursor='grabbing'}}
+  onPointerDown={e=>{if(e.button!==0||e.target.closest('[data-ui]'))return;
+   if(camera==='three-quarter'){down.current=[e.clientX,e.clientY];return}
+   if(camera!=='front')return;
+   const st=store.getState();const part=pickAt(e);if(!part)return;
+   st.select(part);const[px,py]=toSheet(e);const p=st.d.parts[part];
+   const base=part==='hands'&&!st.d.active.hands?p.tH:p.t;
+   /* a rotating bezel turns when dragged — that is what the ring is for;
+      Alt-drag still rotates any part, the bezel included */
+   const spin=part==='bezel'&&bezelRotatable(st.d)&&!e.altKey;
+   drag.current={part,px,py,x:base.x,y:base.y,r:base.r,alt:e.altKey,spin,rot0:bezelRotOf(st.d),a0:angleAt(px,py)};
+   e.currentTarget.setPointerCapture(e.pointerId);host.current.style.cursor='grabbing'}}
   onPointerMove={e=>{const dg=drag.current;
-   if(!dg){const[px,py]=toCanvas(e);
-    if(px>=0&&px<=CAN&&py>=0&&py<=CAN&&pickPart(px,py,store.getState().d,store.getState().sel)){if(innerRef.current)innerRef.current.style.cursor='grab'}
-    else if(innerRef.current)innerRef.current.style.cursor='default';return}
-   const[px,py]=toCanvas(e);
-   if(dg.alt||e.altKey){const a0=Math.atan2(dg.py-C,dg.px-C),a1=Math.atan2(py-C,px-C);
-    patchPartT(dg.part,{r:Math.round(normDeg(dg.r+(a1-a0)*180/Math.PI))},'rot:'+dg.part)}
+   if(!dg){if(camera!=='front'||e.target.closest('[data-ui]'))return;
+    host.current.style.cursor=pickAt(e)?'grab':'default';return}
+   const[px,py]=toSheet(e);
+   if(dg.spin){store.getState().setBezelRot(dg.rot0+normDeg(angleAt(px,py)-dg.a0),'bezelDrag');return}
+   if(dg.alt||e.altKey){patchPartT(dg.part,{r:Math.round(normDeg(dg.r+angleAt(px,py)-dg.a0))},'rot:'+dg.part)}
    else patchPartT(dg.part,{x:clamp(Math.round(dg.x+px-dg.px),-300,300),y:clamp(Math.round(dg.y+py-dg.py),-300,300)},'mv:'+dg.part)}}
-  onPointerUp={()=>{drag.current=null;if(innerRef.current)innerRef.current.style.cursor='default'}}>
-  {d.shadow&&<div className="absolute rounded-full pointer-events-none" style={{left:'50%',top:'50%',width:2*g.R*k,height:2*g.R*k,transform:'translate(-50%,-47%)',boxShadow:'0 16px 55px rgba(0,0,0,.55), 0 5px 20px rgba(0,0,0,.5)'}}/>}
-  {camera==='profile'&&<canvas ref={profRef} width={Math.max(320,Math.round(box.w))} height={Math.max(260,Math.round(box.h))}
-    className="absolute inset-0 w-full h-full" aria-label="Side profile and caseback elevation"/>}
-  <div ref={innerRef} className="absolute" style={{width:size,height:size,left:'50%',top:'50%',transform:'translate(-50%,-50%)',
-    display:camera==='profile'?'none':undefined}}>
-   {layers.map(l=>{const{key,...rest}=l;return<LayerView key={key} {...rest} rot={rotFor(key)} k={k}/>})}
-   <svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full pointer-events-none" style={{zIndex:40}}>
+  onPointerUp={e=>{
+   if(camera==='three-quarter'&&down.current){const[dx,dy]=down.current;down.current=null;
+    /* a click, not an orbit: select what is under it */
+    if(Math.hypot(e.clientX-dx,e.clientY-dy)<4){const part=pickAt(e);if(part)store.getState().select(part)}}
+   end()}}
+  /* a cancelled pointer (touch interrupted, browser gesture) used to leave the
+     drag latched, so the part followed the cursor with no button held */
+  onPointerCancel={end} onLostPointerCapture={end}>
+
+  <canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label={`Watch, ${camera} view`}/>
+  {camera==='profile'&&<canvas ref={overlay} className="absolute inset-0 w-full h-full pointer-events-none"/>}
+
+  {/* the sheet: invisible, but it is the coordinate frame for guides and drags */}
+  <div ref={innerRef} className="absolute pointer-events-none" style={{width:size,height:size,left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
+   {camera==='front'&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
     {frames(s.sel,d).map((f,i)=>f.t==='c'
      ?<circle key={i} cx={C} cy={C} r={f.r} fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>
-     :<rect key={i} x={f.x} y={f.y} width={f.w} height={f.h} rx="14" fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>)}
-   </svg>
+     :<rect key={i} x={f.x} y={f.y} width={f.w} height={f.h} rx="14" fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"
+       transform={f.rot?`rotate(${f.rot} ${C} ${C})`:undefined}/>)}
+   </svg>}
   </div>
-  {Stage3D&&<div data-ui="1" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-amber-400/30" style={{zIndex:60}}>
-   <span className="text-[9px] uppercase tracking-widest text-amber-300/70 px-1">dev</span>
-   {[[null,'2D'],['front','3D'],['three-quarter','3D ¾']].map(([k,l])=>
-    <button key={l} className={`chip ${r3d===k?'on':''}`} onClick={()=>setR3d(k)}>{l}</button>)}</div>}
-  {Stage3D&&r3d&&<React.Suspense fallback={null}><Stage3D view={r3d}/></React.Suspense>}
+
   <div data-ui="1" className="absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10" style={{zIndex:50}}>
-   Drag part to move · Alt-drag rotate · Shift+scroll scale · arrows nudge · [ ] rotate · 1–8 select · F fit · Ctrl+Z undo</div>
-  <div data-ui="1" className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur px-2.5 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
+   {camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
+    :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
+    :'Side elevation and caseback, measured · V camera'}</div>
+
+  <div data-ui="1" role="group" aria-label="Camera" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
+   {[['front','Front'],['three-quarter','¾'],['profile','Side']].map(([id,label])=>{
+    const off=id==='three-quarter'&&structural;
+    return<button key={id} className={`chip ${camera===id?'on':''}`} disabled={off} aria-pressed={camera===id}
+     title={off?'An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ¾ view is unavailable while one is in use':`${label} camera`}
+     style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
+     onClick={()=>s.setD(n=>{n.camera=id})}>{label}</button>})}
+   {camera==='three-quarter'&&<button className="chip" title="Reset the orbit" onClick={()=>{view.current&&view.current.fit();redraw();s.setD(n=>{n.zoom=1})}}>Reset</button>}
+  </div>
+
+  {camera!=='profile'&&<div data-ui="1" className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur px-2.5 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
    <button className={`chip ${t.mode==='live'?'on':''}`} onClick={()=>s.setD(n=>{n.time.mode='live'})}>● Live</button>
    {t.mode==='live'&&<label className="text-[10px] text-neutral-400 flex items-center gap-1"><input type="checkbox" checked={t.sweep} onChange={e=>s.setD(n=>{n.time.sweep=e.target.checked})}/>sweep</label>}
    <button className={`chip ${t.mode==='set'&&t.h===10&&t.m===8?'on':''}`} onClick={()=>s.setD(n=>{n.time.mode='set';n.time.h=10;n.time.m=8;n.time.s=36})}>10:08</button>
    <button className={`chip ${t.mode==='set'&&!(t.h===10&&t.m===8)?'on':''}`} onClick={()=>s.setD(n=>{n.time.mode='set'})}>Set</button>
    {t.mode==='set'&&<span className="flex items-center gap-1 text-[10px] text-neutral-400">
-    {['h','m','s'].map(u=><input key={u} type="number" className="w-11 bg-[#1b1c21] border border-white/10 rounded px-1" value={t[u]}
+    {['h','m','s'].map(u=><input key={u} type="number" aria-label={{h:'Hours',m:'Minutes',s:'Seconds'}[u]} className="w-11 bg-[#1b1c21] border border-white/10 rounded px-1" value={t[u]}
      onChange={e=>s.setD(n=>{n.time[u]=clamp(+e.target.value||0,0,u==='h'?23:59)})}/>)}
    </span>}
-  </div>
+   {d.parts.dial.variant==='chrono'&&<ChronoReadout/>}
+  </div>}
+
   <div data-ui="1" className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
-   <button className="btn" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom-0.15,0.4,3)})}>−</button>
+   <button className="btn" aria-label="Zoom out" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom-0.15,0.4,3)})}>−</button>
    <span className="text-[10px] w-9 text-center text-neutral-300">{Math.round(d.zoom*100)}%</span>
-   <button className="btn" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom+0.15,0.4,3)})}>+</button>
+   <button className="btn" aria-label="Zoom in" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom+0.15,0.4,3)})}>+</button>
    <button className="btn" onClick={()=>s.setD(n=>{n.zoom=1})}>Fit</button>
   </div>
  </div>}

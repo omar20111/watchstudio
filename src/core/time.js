@@ -19,7 +19,6 @@ export const calcAngles=(dt,sweep)=>{const h=dt.getHours(),m=dt.getMinutes(),s=d
 export const fixedAng=t=>({h:(t.h%12)*30+t.m/2+t.s/120,m:t.m*6+t.s/10,s:t.s*6,g:((t.h%24)+t.m/60)*15});
 
 export const pad2=n=>String(n).padStart(2,'0');
-export const HMS=dt=>`${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:${pad2(dt.getSeconds())}`;
 
 /* the classic advertising pose — day 28 so no month is too short for it */
 export const MARKETING_TIME={h:10,m:9,s:36,date:28};
@@ -95,7 +94,3 @@ export function useSceneClock(){const d=useApp().d;
    return()=>cancelAnimationFrame(raf)}
   iv=setInterval(()=>bump(n=>n+1),200);return()=>clearInterval(iv)},[t.mode,t.sweep,running]);
  return sceneClock(d,Date.now())}
-
-/* back-compat for callers that only wanted the three classic angles */
-export function useTime(){const c=useSceneClock();
- return{h:c.ang.hour,m:c.ang.min,s:c.secAng,g:c.ang.gmt}}
