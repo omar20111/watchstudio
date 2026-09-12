@@ -80,7 +80,12 @@ export function drProfile(ctx,d,o={}){const s=o.scale||1,cx=o.cx||0,cy=o.cy||0;
  /* ---- crystal ---- */
  const cw=wCase*0.40;
  ctx.beginPath();ctx.moveTo(cx-cw,top);
- if(d.parts.crystal.variant==='flat')ctx.lineTo(cx-cw,top-crysH*0.45),ctx.lineTo(cx+cw,top-crysH*0.45);
+ const shape=caseOf(d).crystal;
+ if(shape==='flat')ctx.lineTo(cx-cw,top-crysH*0.45),ctx.lineTo(cx+cw,top-crysH*0.45);
+ else if(shape==='box'){/* vertical walls and a flat top, eased at the corners */
+  const h=top-crysH*0.9,rc=Math.min(cw*0.06,crysH*0.2);
+  ctx.lineTo(cx-cw,h+rc);ctx.quadraticCurveTo(cx-cw,h,cx-cw+rc,h);
+  ctx.lineTo(cx+cw-rc,h);ctx.quadraticCurveTo(cx+cw,h,cx+cw,h+rc)}
  else ctx.quadraticCurveTo(cx,top-crysH*2.1,cx+cw,top);
  ctx.lineTo(cx+cw,top);ctx.closePath();
  const cg=ctx.createLinearGradient(cx-cw,top-crysH*2,cx+cw,top);

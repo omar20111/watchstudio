@@ -38,7 +38,7 @@ const COMBOS=[
  ['diver bezel + steel bracelet',    d=>{d.parts.bezel.variant='diver';d.parts.strap.variant='steel';d.parts.case.variant='sport'}],
  ['GMT bezel + steel bracelet',      d=>{d.parts.bezel.variant='gmt';d.parts.strap.variant='steel'}],
  ['fluted bezel + dress dial',       d=>{d.parts.bezel.variant='fluted';d.parts.dial.variant='guilloche';d.parts.markers.variant='roman'}],
- ['domed crystal + polished case',   d=>{d.parts.crystal.variant='dome';d.parts.case.finish='polished';d.case.crystalMm=2.6},
+ ['domed crystal + polished case',   d=>{d.case.crystal='dome';d.parts.case.finish='polished';d.case.crystalMm=2.6},
   /* the height has to reach the geometry, or this combo tests the default crystal */
   d=>Math.abs(G.crystalMmOf(d)-2.6)<1e-9||`crystal height ${G.crystalMmOf(d)}mm, expected 2.6mm`],
 ];

@@ -11,7 +11,7 @@ export const TT=()=>({s:1,r:0,x:0,y:0,o:1});
 /* Bump whenever the shape of a saved project changes; migrateProject walks
    old files forward rather than letting hydrate() silently drop what it does
    not recognise. */
-export const SCHEMA_VERSION=5;
+export const SCHEMA_VERSION=6;
 
 /* Flat dimensions that survive at the top level. Case ARCHITECTURE moved into
    the nested `case` object — see migrateProject for the v4 -> v5 move. */
@@ -32,7 +32,8 @@ export const DEF={caseMm:40,strapMm:'auto',
   markers:{variant:'batons',lume:'#dff3e4',glow:false,t:TT()},
   hands:{variant:'dauphine',hourVariant:'',minVariant:'',metal:'steel',finish:'polished',lume:'#dff3e4',glow:false,
    secColor:'#e8482c',gmt:false,gmtColor:'#e8c766',smallsec:false,tH:TT(),tM:TT(),tS:TT()},
-  crystal:{variant:'dome',finish:'polished',opacity:0.65,t:TT()}}};
+  /* no `variant`: the crystal's shape is case.crystal (see migrateProject v6) */
+  crystal:{finish:'polished',opacity:0.65,t:TT()}}};
 
 /* Walk an older saved project forward. Runs BEFORE hydrate so hydrate only
    ever sees current-shape input.
@@ -43,7 +44,10 @@ export function migrateProject(o){
  if(!o||typeof o!=='object')return o;
  const p={...o},d=p.d&&typeof p.d==='object'?{...p.d}:null;
  if(!d)return p;
- const v=+p.schemaVersion||0;
+ /* Autosaves never carried a version before v6, so a missing one has to be
+    inferred from shape rather than assumed to be 0 — assuming 0 re-ran the v4
+    migration on every load. A nested `case` object only exists from v5 on. */
+ const v=+p.schemaVersion||(d.case&&typeof d.case==='object'?5:0);
  if(v<5){
   const c={...DEF_CASE(),...(d.case||{})};
   const num=x=>{const n=+x;return Number.isFinite(n)?n:null};
@@ -52,10 +56,16 @@ export function migrateProject(o){
   const l2l=num(d.lugToLugMm),cm=num(d.caseMm)||40;
   /* lugToLug = caseMm + 2*(lugLen*0.55)  ->  lugLen = (l2l-caseMm)/1.1 */
   if(l2l!=null&&l2l>cm)c.lugLenMm=Math.round(((l2l-cm)/1.1)*100)/100;
-  if(d.parts&&d.parts.crystal&&['flat','dome','box'].includes(d.parts.crystal.variant))
-   c.crystal=d.parts.crystal.variant;
   d.case=c;
   delete d.caseThickMm;delete d.lugToLugMm;delete d.crystalMm;delete d.rehautMm;
+ }
+ /* v6: one field for the crystal's shape. v5 had two — case.crystal fed the
+    thickness stack and parts.crystal.variant fed the drawing — and they drifted.
+    The drawing is what the user designed by eye, so the old variant wins. */
+ if(v<6&&d.parts&&d.parts.crystal){
+  const parts={...d.parts},cr={...parts.crystal};
+  if(['flat','dome','box'].includes(cr.variant))d.case={...DEF_CASE(),...(d.case||{}),crystal:cr.variant};
+  delete cr.variant;parts.crystal=cr;d.parts=parts;
  }
  p.d=d;p.schemaVersion=SCHEMA_VERSION;return p}
 
@@ -63,8 +73,8 @@ export function migrateProject(o){
    Every mutable nest is deep-copied: `upd` clones the whole design per edit,
    but anything that slipped in by reference here would be shared with the
    caller's object and the first in-place edit would corrupt history. */
-export function hydrate(saved){const d=clone(DEF);if(!saved)return d;
- const s=(migrateProject({d:saved,schemaVersion:saved.__v||0}).d)||saved;
+export function hydrate(saved,schemaVersion){const d=clone(DEF);if(!saved)return d;
+ const s=(migrateProject({d:saved,schemaVersion}).d)||saved;
  for(const k of DIMS)if(s[k]!=null)d[k]=s[k];
  d.bg=s.bg??d.bg;d.bgCustom=s.bgCustom??null;d.shadow=s.shadow!==false;
  d.view=s.view==='product'||s.view==='sheet'?s.view:'edit';
@@ -88,12 +98,12 @@ const strip=customs=>{const out={};
   for(const id in customs[part])out[part][id]={name:customs[part][id].name}}
  return out};
 const persist=get=>{clearTimeout(pT);pT=setTimeout(()=>{
- try{localStorage.setItem('ws:auto',JSON.stringify({d:get().d,customs:strip(get().customs),name:get().projName}))}
+ try{localStorage.setItem('ws:auto',JSON.stringify({d:get().d,customs:strip(get().customs),name:get().projName,schemaVersion:SCHEMA_VERSION}))}
  catch(e){const now=Date.now();if(now-autoWarnedAt>30000){autoWarnedAt=now;
   toast('Browser storage is full — changes are NOT being saved')}}},600)};
 
-const initStore=(set,get)=>({
- d:hydrate((loadAuto()||{}).d),customs:(loadAuto()||{}).customs||{},projName:(loadAuto()||{}).name||'My Watch',
+const initStore=(set,get)=>{const auto=loadAuto()||{};return{
+ d:hydrate(auto.d,auto.schemaVersion),customs:auto.customs||{},projName:auto.name||'My Watch',
  sel:'case',past:[],future:[],_tag:null,_t:0,vault:{ok:true,message:null},
  select:p=>set({sel:p}),
  upd(fn,tag){const s=get();const next=clone(s.d);fn(next);const now=Date.now();
@@ -165,7 +175,7 @@ const initStore=(set,get)=>({
   const idx=JSON.parse(localStorage.getItem('ws:idx')||'[]');if(!idx.includes(name))idx.push(name);
   localStorage.setItem('ws:idx',JSON.stringify(idx));set({projName:name});return true}catch(e){toast('Browser storage is full — remove old projects/uploads.');return false}},
  loadProject(name){try{const r=JSON.parse(localStorage.getItem('ws:p:'+name)||'null');
-  if(r){set({d:hydrate(r.d),customs:r.customs||{},projName:name,past:[],future:[],_tag:null});
+  if(r){set({d:hydrate(r.d,r.schemaVersion),customs:r.customs||{},projName:name,past:[],future:[],_tag:null});
    /* resolve the blobs this project references out of the vault. Projects
       saved before the vault existed carry data: URLs inline; rehydrateImages
       keeps those as-is when the vault has no matching id. */
@@ -177,8 +187,10 @@ const initStore=(set,get)=>({
   localStorage.setItem('ws:p:'+n2,JSON.stringify({...r,name:n2,ts:Date.now()}));
   idx.push(n2);localStorage.setItem('ws:idx',JSON.stringify(idx))}catch(e){toast('Browser storage is full')}},
  delProject(name){localStorage.removeItem('ws:p:'+name);localStorage.setItem('ws:idx',JSON.stringify((JSON.parse(localStorage.getItem('ws:idx')||'[]')).filter(n=>n!==name)))},
- importState(o){set({d:hydrate(o.d),customs:o.customs||{},projName:o.name||'Imported watch',past:[],future:[],_tag:null});
-  get().rehydrateImages&&get().rehydrateImages();persist(get)}});
+ /* both callers (project file, share link) have already run migrateProject, so
+    an absent version means the design is current, not that it is v0 */
+ importState(o){set({d:hydrate(o.d,o.schemaVersion??SCHEMA_VERSION),customs:o.customs||{},projName:o.name||'Imported watch',past:[],future:[],_tag:null});
+  get().rehydrateImages&&get().rehydrateImages();persist(get)}}};
 
 export const store=(()=>{let st;const subs=new Set();const get=()=>st;const set=p=>{st=Object.assign({},st,typeof p==='function'?p(st):p);subs.forEach(f=>f())};const api={set,setState:set,get,getState:get,subscribe:f=>{subs.add(f);return()=>subs.delete(f)}};st=initStore(set,get);return api})();
 

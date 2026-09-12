@@ -1,6 +1,6 @@
 /* Right panel: presets, uploads, transforms and part styling. */
 import React from 'react';
-import {PARTS,VARIANTS,VNAME} from '../core/parts.js';
+import {PARTS,VARIANTS,VNAME,variantOf,applyVariant} from '../core/parts.js';
 import {strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,bezelMmOf,bezelRangeOf,lugToLugMaxOf,
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
@@ -20,11 +20,11 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
  const upT=(key,patch,tag)=>s.upd(n=>{Object.assign(n.parts[part][key],patch)},tag||('t:'+part+key));
  return<div className="w-[340px] shrink-0 border-l border-white/10 bg-[#141519] overflow-y-auto p-3 space-y-4">
   <div className="flex items-baseline justify-between"><h2 className="text-sm font-semibold text-[#d4af37]">{PARTS.find(x=>x[0]===part)[1]}</h2>
-   <span className="text-[10px] text-neutral-500">{d.active[part]?'custom upload':'preset: '+(VNAME[p.variant]||p.variant)}</span></div>
+   <span className="text-[10px] text-neutral-500">{d.active[part]?'custom upload':'preset: '+(VNAME[variantOf(part,d)]||variantOf(part,d))}</span></div>
   <Section title="Presets"><div className="flex gap-2 flex-wrap">
    {VARIANTS[part].map(v=>
-    <button key={v} title={VNAME[v]||v} onClick={()=>up({variant:v})} className="flex flex-col items-center gap-0.5">
-     <span className={`block rounded-lg overflow-hidden border-2 ${!d.active[part]&&p.variant===v?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
+    <button key={v} title={VNAME[v]||v} onClick={()=>s.upd(n=>applyVariant(n,part,v),'ctl:'+part)} className="flex flex-col items-center gap-0.5">
+     <span className={`block rounded-lg overflow-hidden border-2 ${!d.active[part]&&variantOf(part,d)===v?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
       <img src={getThumb(part,v,d)} className="w-14 h-14 object-cover" alt={v}/></span>
      <span className="text-[9px] text-neutral-500">{VNAME[v]||v}</span></button>)}
    {Object.entries(customs).map(([id,cu])=>

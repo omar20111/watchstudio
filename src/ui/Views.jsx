@@ -6,7 +6,7 @@
 import React from 'react';
 import {CAN,PX,METALS} from '../core/constants.js';
 import {VNAME} from '../core/parts.js';
-import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf} from '../core/geometry.js';
+import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,caseOf} from '../core/geometry.js';
 import {buildLayers,layerAngle} from '../core/layers.js';
 import {useSceneClock,marketingClock} from '../core/time.js';
 import {drProfile,drBack} from '../core/render/profile.js';
@@ -148,7 +148,7 @@ export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
      <Row l="Case type" v={VNAME[P.case.variant]||P.case.variant}/>
      <Row l="Bezel type" v={VNAME[P.bezel.variant]||P.bezel.variant}/>
      {P.bezel.variant==='diver'||P.bezel.variant==='gmt'?<Row l="Insert" v={P.bezel.insertColor}/>:null}
-     <Row l="Crystal" v={`${VNAME[P.crystal.variant]||P.crystal.variant} sapphire`}/>
+     <Row l="Crystal" v={`${VNAME[caseOf(d).crystal]} sapphire`}/>
      <Row l="Strap" v={`${VNAME[P.strap.variant]||P.strap.variant} · ${mm(strapMmOf(d))}`}/>
      <Row l="Hand set" v={VNAME[P.hands.variant]||P.hands.variant}/>
      <Row l="Dial text" v={[P.dial.text.top,P.dial.text.bottom].filter(Boolean).join(' / ')||'—'}/>

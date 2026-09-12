@@ -63,6 +63,28 @@ expect(thumbs===want,`expected ${want} thumbnails, got ${thumbs}`);
 const hy=M.hydrate({parts:{dial:{color:'#123456'}}});
 expect(hy.parts.dial.color==='#123456','hydrate dropped a saved dial colour');
 expect(hy.parts.case.metal===M.DEF.parts.case.metal,'hydrate did not fill unsaved fields from defaults');
+
+/* ---- persistence round trips ----
+   hydrate used to read a version nothing wrote, so every load re-ran the v4
+   migration and overwrote case.crystal with the drawing's crystal preset. */
+const rt=o=>JSON.parse(JSON.stringify(o));
+{const bx=M.clone(M.DEF);bx.case.crystal='box';
+ const h=M.hydrate(rt(bx),M.SCHEMA_VERSION);
+ expect(M.caseOf(h).crystal==='box',`a saved box crystal reloaded as ${M.caseOf(h).crystal}`);
+ const h2=M.hydrate(rt(h));
+ expect(M.caseOf(h2).crystal==='box',`an unversioned current design lost its box crystal (${M.caseOf(h2).crystal})`)}
+{/* v5 autosave: nested case, no version, and the stale second crystal field */
+ const v5=M.clone(M.DEF);v5.case.crystal='box';v5.parts.crystal.variant='flat';
+ const h=M.hydrate(rt(v5));
+ expect(M.caseOf(h).crystal==='flat','v5 migration should keep the crystal that was drawn (flat)');
+ expect(!('variant' in h.parts.crystal),'v6 still carries parts.crystal.variant after migration');
+ expect(M.caseOf(M.hydrate(rt(h))).crystal==='flat','migrating twice changed the crystal')}
+{/* v4 project: flat architecture fields, no version */
+ const v4={caseMm:40,lugToLugMm:50.4,crystalMm:2.2,parts:{crystal:{variant:'flat'}}};
+ const h=M.hydrate(rt(v4));
+ expect(M.caseOf(h).crystal==='flat',`v4 crystal migrated to ${M.caseOf(h).crystal}`);
+ expect(M.lugToLugOf(h)===50.4,`v4 lug-to-lug 50.4 became ${M.lugToLugOf(h)}`);
+ expect(M.caseOf(h).crystalMm===2.2,`v4 crystal height 2.2 became ${M.caseOf(h).crystalMm}`)}
 const m1=renderToString(React.createElement(M.SaveModal,{onClose:()=>{}}));
 const m2=renderToString(React.createElement(M.ProjectsModal,{onClose:()=>{}}));
 expect(m1.length>0&&m2.length>0,'a modal rendered empty');

@@ -1,6 +1,6 @@
 /* Spec-sheet (txt) export. */
 import {PX,METALS} from '../core/constants.js';
-import {strapMmOf} from '../core/geometry.js';
+import {strapMmOf,caseOf} from '../core/geometry.js';
 import {store} from '../state/store.js';
 
 export function exportSpec(){const s=store.getState(),d=s.d,P=d.parts;
@@ -10,7 +10,7 @@ export function exportSpec(){const s=store.getState(),d=s.d,P=d.parts;
  `Dial: ${P.dial.variant} · ${P.dial.color} · text "${P.dial.text.top}" / "${P.dial.text.bottom}" (${P.dial.text.font}, ink ${P.dial.text.color})`,
  `Markers: ${P.markers.variant} · lume ${P.markers.lume}${P.markers.glow?' (glow on)':''}`,
  `Hands: ${P.hands.variant} · ${METALS[P.hands.metal].name} · second ${P.hands.secColor} · lume ${P.hands.lume}`,`Crown: ${P.crown.variant} · ${METALS[P.crown.metal].name}`,'',
- `Crystal: ${P.crystal.variant} · gloss ${Math.round(P.crystal.opacity*100)}%`,'',
+ `Crystal: ${caseOf(d).crystal} · ${caseOf(d).crystalMm} mm · gloss ${Math.round(P.crystal.opacity*100)}%`,'',
  `Hand lengths: hour 55% · minute 80% · second 90% + counterweight (of dial radius)`,`Presentation: bg=${d.bg}, shadow=${d.shadow?'on':'off'}, time=${d.time.mode==='live'?'live':'set '+d.time.h+':'+d.time.m}`,'',
  'Custom uploads:'];
  for(const[part,m]of Object.entries(s.customs))for(const[id,cu]of Object.entries(m))L.push(` · ${part}: ${cu.name}`);

@@ -26,7 +26,7 @@ export function decodeDesign(code){
  try{const json=new TextDecoder().decode(unb64url(code));
   const o=migrateProject(JSON.parse(json));
   if(!o||!o.d||!o.d.parts)return null;
-  return{d:hydrate(o.d),name:o.name||'Shared watch'}}
+  return{d:hydrate(o.d,o.schemaVersion),name:o.name||'Shared watch'}}
  catch(e){return null}}
 
 export function shareLink(){const st=store.getState();
