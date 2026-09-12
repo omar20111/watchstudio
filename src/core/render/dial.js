@@ -7,10 +7,14 @@ import {circGrain,SHADOW} from './material.js';
 
 export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  const W=ctx.canvas.width,H=ctx.canvas.height;
+ /* flat: pigment and printing only. The sunburst sweep, the highlight, the edge
+    vignette and the text emboss are all light, and 3D lighting supplies them
+    from the real surface — painting them too would light the dial twice. */
+ const flat=o.mode==='flat';
  ctx.save();ctx.beginPath();ctx.arc(C,C,r,0,7);ctx.clip();
  ctx.fillStyle=col;ctx.fillRect(0,0,W,H);
 
- if(o.variant==='sunburst'){if(ctx.createConicGradient){const g=ctx.createConicGradient(0.8,C,C);
+ if(o.variant==='sunburst'){if(!flat&&ctx.createConicGradient){const g=ctx.createConicGradient(0.8,C,C);
    const st=[[0,'rgba(255,255,255,.20)'],[.25,'rgba(0,0,0,.16)'],[.5,'rgba(255,255,255,.20)'],[.75,'rgba(0,0,0,.16)'],[1,'rgba(255,255,255,.20)']];
    st.forEach(s=>g.addColorStop(...s));ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
   for(let i=0;i<240;i++){const a=i*1.5*Math.PI/180;ctx.beginPath();ctx.moveTo(C,C);ctx.lineTo(C+r*Math.sin(a),C-r*Math.cos(a));
@@ -38,30 +42,31 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   ctx.fillStyle=circGrain(ctx,0,r,.8);ctx.fillRect(0,0,W,H);ctx.restore()}
  if(o.finish==='matte')noiseFill(ctx,.10,'overlay',.8);
 
- if(o.finish!=='matte'){let g=ctx.createRadialGradient(C-r*0.4,C-r*0.42,0,C-r*0.4,C-r*0.42,r*1.5);
+ if(!flat&&o.finish!=='matte'){let g=ctx.createRadialGradient(C-r*0.4,C-r*0.42,0,C-r*0.4,C-r*0.42,r*1.5);
   g.addColorStop(0,`rgba(255,255,255,${o.finish==='polished'?.22:.15})`);g.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
- let g=ctx.createRadialGradient(C,C,r*0.62,C,C,r);
- g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.34)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ if(!flat){let g=ctx.createRadialGradient(C,C,r*0.62,C,C,r);
+  g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.34)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
 
  if(o.variant==='chrono'){for(const deg of[90,180,270]){const[x,y]=posAt(deg,r*0.45),rs=r*0.2;
   /* sub-dials are milled into the dial plate: a shadowed wall on the light side
      and a lit wall opposite is what gives them their depth */
-  const wall=ctx.createRadialGradient(x,y,rs*0.72,x,y,rs*1.06);
-  wall.addColorStop(0,'rgba(0,0,0,0)');wall.addColorStop(1,'rgba(0,0,0,.34)');
-  ctx.beginPath();ctx.arc(x,y,rs*1.06,0,7);ctx.fillStyle=wall;ctx.fill();
+  if(!flat){const wall=ctx.createRadialGradient(x,y,rs*0.72,x,y,rs*1.06);
+   wall.addColorStop(0,'rgba(0,0,0,0)');wall.addColorStop(1,'rgba(0,0,0,.34)');
+   ctx.beginPath();ctx.arc(x,y,rs*1.06,0,7);ctx.fillStyle=wall;ctx.fill()}
   ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.fillStyle='rgba(0,0,0,.3)';ctx.fill();
-  const lip=ctx.createLinearGradient(x-rs,y-rs,x+rs,y+rs);
-  lip.addColorStop(0,'rgba(0,0,0,.5)');lip.addColorStop(.5,'rgba(255,255,255,.10)');
-  lip.addColorStop(1,'rgba(255,255,255,.34)');
-  ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.strokeStyle=lip;ctx.lineWidth=2.4;ctx.stroke();
+  if(!flat){const lip=ctx.createLinearGradient(x-rs,y-rs,x+rs,y+rs);
+   lip.addColorStop(0,'rgba(0,0,0,.5)');lip.addColorStop(.5,'rgba(255,255,255,.10)');
+   lip.addColorStop(1,'rgba(255,255,255,.34)');
+   ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.strokeStyle=lip;ctx.lineWidth=2.4;ctx.stroke()}
   /* snailed sub-dial */
   const sg=ctx.createRadialGradient(x,y,0,x,y,rs);
   for(let i=0;i<=14;i++)sg.addColorStop(i/14,i%2?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)');
   ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.fillStyle=sg;ctx.fill();
   for(let i=0;i<12;i++){const a=i*30*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*rs*0.86,y-Math.cos(a)*rs*0.86);ctx.lineTo(x+Math.sin(a)*rs*0.72,y-Math.cos(a)*rs*0.72);ctx.strokeStyle='rgba(240,240,245,.7)';ctx.lineWidth=1.5;ctx.stroke()}
-  const ha=(deg+140)*Math.PI/180;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(ha)*rs*0.7,y-Math.cos(ha)*rs*0.7);ctx.strokeStyle='rgba(240,240,245,.85)';ctx.lineWidth=2;ctx.stroke();
-  ctx.beginPath();ctx.arc(x,y,2.5,0,7);ctx.fillStyle='#e8e8ea';ctx.fill()}}
+  /* the register hands: painted for the 2D drawing, real meshes in 3D */
+  if(!flat){const ha=(deg+140)*Math.PI/180;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(ha)*rs*0.7,y-Math.cos(ha)*rs*0.7);ctx.strokeStyle='rgba(240,240,245,.85)';ctx.lineWidth=2;ctx.stroke();
+   ctx.beginPath();ctx.arc(x,y,2.5,0,7);ctx.fillStyle='#e8e8ea';ctx.fill()}}}
 
  if(o.text&&(o.text.top||o.text.bottom)){const t=o.text;
   const ink=t.color==='auto'?(lumOf(col)>0.55?'#26282c':'#e9e4d6'):t.color;
@@ -71,9 +76,9 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   /* pad printing sits proud of the dial: a hairline shadow under it and a lit
      top edge, so the branding reads as applied ink rather than a text layer */
   const line=(s,fs,yy)=>{ctx.font=fnt(fs);
-   ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillText(s,C+SHADOW.dx*fs*0.07,yy+SHADOW.dy*fs*0.07);
+   if(!flat){ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillText(s,C+SHADOW.dx*fs*0.07,yy+SHADOW.dy*fs*0.07)}
    ctx.fillStyle=ink;ctx.fillText(s,C,yy);
-   ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillText(s,C-SHADOW.dx*fs*0.03,yy-SHADOW.dy*fs*0.03)};
+   if(!flat){ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillText(s,C-SHADOW.dx*fs*0.03,yy-SHADOW.dy*fs*0.03)}};
   if(t.top)line(t.font==='caps'?t.top.toUpperCase():t.top,r*0.105,C-r*0.40);
   if(t.bottom)line(t.font==='caps'?t.bottom.toUpperCase():t.bottom,r*0.075,C+(o.variant==='chrono'?r*0.70:r*0.46));
   try{ctx.letterSpacing='0px'}catch(e){}}

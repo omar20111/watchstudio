@@ -35,8 +35,12 @@ export function crystalMaterial(finish='polished',gloss=.65,crystalMm=1.6){
     crystals are AR coated; the coating takes it to ~1%, leaving the Fresnel
     rise at the rim as the visible glass */
  const k=.22*(AR[finish]??.75)*(.4+gloss);
+ /* `thickness` drives a screen-space refraction offset. The lathe is a single
+    shell, so the full crystal height over-shifts at the grazing rim and draws
+    ghost copies of the indices; a fraction of it keeps the visible bend without
+    the doubling. */
  return new MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:.02,
-  transmission:1,ior:1.77,thickness:crystalMm,specularIntensity:Math.min(1,k),
+  transmission:1,ior:1.77,thickness:Math.min(.35,crystalMm*.2),specularIntensity:Math.min(1,k),
   specularColor:new Color((AR[finish]??.75)<.5?'#b9c2ff':'#dfe6ff'),envMapIntensity:1,side:DoubleSide})}
 
 /* printed or painted surfaces carrying a baked 2D canvas */

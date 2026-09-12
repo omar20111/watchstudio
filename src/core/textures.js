@@ -53,7 +53,14 @@ function fixedPattern(ctx,img,scale){const p=ctx.createPattern(img,'repeat');
  return p}
 
 /* unmasked — callers that already hold a keepAlpha/clip use this directly */
-export function noiseFill(ctx,a=0.06,mode='overlay',scale=1){ctx.save();ctx.globalAlpha=a;ctx.globalCompositeOperation=mode;ctx.fillStyle=fixedPattern(ctx,NOISE,scale);ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.restore()}
+export function noiseFill(ctx,a=0.06,mode='overlay',scale=1){ctx.save();ctx.globalAlpha=a;ctx.globalCompositeOperation=mode;ctx.fillStyle=fixedPattern(ctx,NOISE,scale);
+ /* A tall bake (the 3D strap) translates the sheet into the middle of its
+    canvas; filling (0,0,w,h) in user space would then leave the far end bare.
+    Only a pure translate is corrected, so every other caller is unchanged. */
+ const m=ctx.getTransform&&ctx.getTransform();
+ if(m&&!m.b&&!m.c&&(m.e||m.f))ctx.fillRect(-m.e/m.a,-m.f/m.d,ctx.canvas.width/m.a,ctx.canvas.height/m.d);
+ else ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);
+ ctx.restore()}
 
 /* procedural leather mat backdrop (512² tile) */
 export const LEATHER=(()=>{const c=document.createElement('canvas');c.width=c.height=512;const x=c.getContext('2d');

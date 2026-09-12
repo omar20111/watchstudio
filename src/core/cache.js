@@ -1,5 +1,5 @@
 /* LRU caches: full-size part canvases + preset thumbnails. */
-import {CAN} from './constants.js';
+import {CAN,STRAP_REACH_3D} from './constants.js';
 import {clone,clamp,mk} from './utils.js';
 import {frameBox} from './geometry.js';
 import {srcOf,applyVariant} from './parts.js';
@@ -18,12 +18,24 @@ const dimsKey=d=>{const c=d.case||{};
 
 const cache=new Map();
 /* everything procOpts feeds a renderer, so the key moves whenever the bake would */
-const procKey=(part,d,sub)=>{const p=d.parts[srcOf(part)];
- return JSON.stringify([part,sub,dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
+const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
+ return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
   part==='hands'?d.parts.hands.secColor:0,part==='markers'?d.parts.hands.metal:0,part==='markers'?d.parts.dial.color:0])};
-export function getProc(part,d,sub){const key=procKey(part,d,sub);
+
+/* Most bakes are the 1200² sheet. A 3D strap runs far past the sheet edge as it
+   curves away, so its flat bake is a tall canvas with the sheet centred in it. */
+export const bakeSize=(part,mode)=>part==='strap'&&mode==='flat'?{w:CAN,h:2*STRAP_REACH_3D+120}:{w:CAN,h:CAN};
+
+/* A 3D design holds about a dozen flat, shape and lume bakes; each 1200² canvas
+   is 5.8 MB of backing store, so this keeps roughly two designs warm. */
+const CACHE_MAX=32;
+export function getProc(part,d,sub,mode){const key=procKey(part,d,sub,mode);
  if(cache.has(key)){const v=cache.get(key);cache.delete(key);cache.set(key,v);return v}
- const[cv,ctx]=mk(CAN);DR[part](ctx,procOpts(part,d,sub));cache.set(key,cv);if(cache.size>26)cache.delete(cache.keys().next().value);return cv}
+ const{w,h}=bakeSize(part,mode);
+ const cv=document.createElement('canvas');cv.width=w;cv.height=h;const ctx=cv.getContext('2d');
+ if(h!==CAN)ctx.translate(0,(h-CAN)/2);          /* the sheet stays centred */
+ DR[part](ctx,procOpts(part,d,sub,mode));
+ cache.set(key,cv);if(cache.size>CACHE_MAX)cache.delete(cache.keys().next().value);return cv}
 
 /* A preset thumbnail is the design with that preset applied, baked through the
    same procOpts as the stage. It used to build its own option object, which

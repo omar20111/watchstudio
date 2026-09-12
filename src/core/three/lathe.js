@@ -62,7 +62,8 @@ export function headProfiles(d){
  const bh=H.bezelTop-H.seat,eb=Math.min(.3,bh*.28);
  P.bezelFlank=[V(rBezOut,H.seat),V(rBezOut,H.bezelTop-eb),...round(V(rBezOut,H.bezelTop-eb),V(rBezOut,H.bezelTop),V(rBezOut-eb,H.bezelTop)),
   V(rBezOut-eb,H.bezelTop),V(rGripIn,H.bezelTop)];
- if(Rr.rotating)P.bezelTop=[V(rGripIn,H.bezelTop),V(rInCham,H.bezelTop)];
+ /* an insert, or an engraved tachymeter scale, needs a flat face to sit on */
+ if(Rr.rotating||d.parts.bezel.variant==='tachy')P.bezelTop=[V(rGripIn,H.bezelTop),V(rInCham,H.bezelTop)];
  else{const crown=bh*.18,mid=(rGripIn+rInCham)/2;
   P.bezelTop=[V(rGripIn,H.bezelTop),...round(V(rGripIn,H.bezelTop),V(mid,H.bezelTop+crown*1.6),V(rInCham,H.bezelTop),8),V(rInCham,H.bezelTop)]}
  const innerDrop=Math.min(bh*.45,(rInCham-rBezIn)*1.6);

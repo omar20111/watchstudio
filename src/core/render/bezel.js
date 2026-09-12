@@ -45,9 +45,22 @@ export function bezelRings(g,variant){const{rBezOut,rBezIn}=g,W=rBezOut-rBezIn;
  const rGripIn=rBezOut-W*(rot?0.15:0.11);
  return{W,rot,rGripIn,rTopOut:rGripIn,rInsOut:rGripIn-W*0.03,rInCham:rBezIn+W*0.10}}
 
+/* tachymeter scale, engraved into a fixed bezel's top face */
+function tachyScale(ctx,m,rTopOut,rInCham,W){
+ const pin=lumOf(m.base)>0.5?'#15181c':'#dfe3e8',rm=(rTopOut+rInCham)/2;
+ for(let i=0;i<120;i++){const a=i*3;const[x0,y0]=posAt(a,rTopOut-4),[x1,y1]=posAt(a,rTopOut-4-W*(i%5?0.12:0.22));
+  engrave(ctx,x0,y0,x1,y1,i%5?1.4:2.4,pin)}
+ ctx.fillStyle=pin;ctx.font=`700 ${W*0.30}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';
+ for(const v of[60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,170,180,190,200,225,250,300,400]){
+  const deg=(360*60/v)%360;const[x,y]=posAt(deg,rm-W*0.04);
+  ctx.save();ctx.translate(x,y);ctx.rotate(deg*Math.PI/180);ctx.fillText(String(v),0,0);ctx.restore()}}
+
 export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
  const m=METALS[o.metal]||METALS.steel;
  const{W,rot,rGripIn,rTopOut,rInCham}=bezelRings(o.g,o.variant);
+ const flat=o.mode==='flat';
+ /* print: just the engraving of a fixed bezel, as a decal for the lathed ring */
+ if(o.mode==='print'){if(o.variant==='tachy'&&o.which!=='insert')tachyScale(ctx,m,rTopOut,rInCham,W);return}
 
  const rotating=o.variant==='diver'||o.variant==='gmt';
  const wantInsert=o.which==='insert';
@@ -84,16 +97,17 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
    if(o.variant==='gmt'){ctx.save();ctx.beginPath();ctx.moveTo(C,C);
     ctx.arc(C,C,rInsOut+2,0,Math.PI);ctx.closePath();
     ctx.fillStyle=shade(ins,.55);ctx.fill();ctx.restore()}
+   if(flat)return;                                /* the sheen is light, not ink */
    const g=ctx.createLinearGradient(C-rInsOut,C-rInsOut,C+rInsOut*.5,C+rInsOut);
    g.addColorStop(0,'rgba(255,255,255,.20)');g.addColorStop(.32,'rgba(255,255,255,.04)');
    g.addColorStop(.64,'rgba(0,0,0,.24)');g.addColorStop(1,'rgba(255,255,255,.10)');
    ctx.fillStyle=g;ctx.fillRect(C-rInsOut,C-rInsOut,rInsOut*2,rInsOut*2)});
   /* inner shadow so the insert sits in a recess */
-  ctx.save();ringPath(ctx,C,C,rInsOut,rInsIn);ctx.clip();
-  const sg=ctx.createRadialGradient(C,C,rInsIn,C,C,rInsOut);
-  sg.addColorStop(0,'rgba(0,0,0,.45)');sg.addColorStop(.18,'rgba(0,0,0,0)');
-  sg.addColorStop(.84,'rgba(0,0,0,0)');sg.addColorStop(1,'rgba(0,0,0,.42)');
-  ctx.fillStyle=sg;ctx.fillRect(C-rInsOut,C-rInsOut,rInsOut*2,rInsOut*2);ctx.restore();
+  if(!flat){ctx.save();ringPath(ctx,C,C,rInsOut,rInsIn);ctx.clip();
+   const sg=ctx.createRadialGradient(C,C,rInsIn,C,C,rInsOut);
+   sg.addColorStop(0,'rgba(0,0,0,.45)');sg.addColorStop(.18,'rgba(0,0,0,0)');
+   sg.addColorStop(.84,'rgba(0,0,0,0)');sg.addColorStop(1,'rgba(0,0,0,.42)');
+   ctx.fillStyle=sg;ctx.fillRect(C-rInsOut,C-rInsOut,rInsOut*2,rInsOut*2);ctx.restore()}
 
   const pin=lumOf(ins)>0.5?'#15181c':'#e9ecef';
   const rMid=(rInsOut+rInsIn)/2;
@@ -113,12 +127,14 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
     ctx.fillText(String(v),0,0);ctx.restore()}}
   /* lume pip in a polished metal surround */
   const[px,py]=posAt(0,rMid-(o.variant==='gmt'?W*0.02:W*0.06));
-  ctx.beginPath();ctx.arc(px,py,W*0.19,0,7);ctx.fillStyle=tone(m,.86);ctx.fill();
-  ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1.4;ctx.stroke();
+  ctx.beginPath();ctx.arc(px,py,W*0.19,0,7);ctx.fillStyle=flat?m.base:tone(m,.86);ctx.fill();
+  if(!flat){ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1.4;ctx.stroke()}
   ctx.beginPath();ctx.arc(px,py,W*0.13,0,7);
-  const lg=ctx.createLinearGradient(px,py-W*0.13,px,py+W*0.13);
-  lg.addColorStop(0,'rgba(255,255,255,.55)');lg.addColorStop(.3,o.lume||'#dff3e4');
-  lg.addColorStop(1,shade(o.lume||'#dff3e4',.3));ctx.fillStyle=lg;ctx.fill();
+  if(flat)ctx.fillStyle=o.lume||'#dff3e4';
+  else{const lg=ctx.createLinearGradient(px,py-W*0.13,px,py+W*0.13);
+   lg.addColorStop(0,'rgba(255,255,255,.55)');lg.addColorStop(.3,o.lume||'#dff3e4');
+   lg.addColorStop(1,shade(o.lume||'#dff3e4',.3));ctx.fillStyle=lg}
+  ctx.fill();
   return}                                          /* insert layer ends here */
 
  if(o.variant==='fluted'){const N=84;
@@ -133,14 +149,7 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
    ctx.save();ctx.globalCompositeOperation='overlay';
    ctx.fillStyle=circGrain(ctx,rInCham,rTopOut,o.finish==='brushed'?.95:.30);
    ctx.fillRect(C-rTopOut,C-rTopOut,rTopOut*2,rTopOut*2);ctx.restore()});
-  if(o.variant==='tachy'){
-   const pin=lumOf(m.base)>0.5?'#15181c':'#dfe3e8',rm=(rTopOut+rInCham)/2;
-   for(let i=0;i<120;i++){const a=i*3;const[x0,y0]=posAt(a,rTopOut-4),[x1,y1]=posAt(a,rTopOut-4-W*(i%5?0.12:0.22));
-    engrave(ctx,x0,y0,x1,y1,i%5?1.4:2.4,pin)}
-   ctx.fillStyle=pin;ctx.font=`700 ${W*0.30}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';
-   for(const v of[60,65,70,75,80,85,90,95,100,110,120,130,140,150,160,170,180,190,200,225,250,300,400]){
-    const deg=(360*60/v)%360;const[x,y]=posAt(deg,rm-W*0.04);
-    ctx.save();ctx.translate(x,y);ctx.rotate(deg*Math.PI/180);ctx.fillText(String(v),0,0);ctx.restore()}}}
+  if(o.variant==='tachy')tachyScale(ctx,m,rTopOut,rInCham,W)}
 
  /* inner chamfer falling away to the crystal */
  band(ctx,rInCham,rBezIn,bevelGrad(ctx,m,C,C,{facing:'in',lo:.06,hi:.92,tight:1.4}));

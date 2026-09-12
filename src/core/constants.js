@@ -4,6 +4,11 @@
 
 export const CAN=1200, C=600, PX=18;
 
+/* How far from the dial centre a strap is drawn, in px. The 2D sheet stops it
+   46 px short of the edge; a 3D strap curves away out of frame, so its flat
+   bake reaches much further (on a taller canvas — see cache.js bakeSize). */
+export const STRAP_REACH_2D=C-46, STRAP_REACH_3D=1650;
+
 /* Materials. hi/base/lo drive the UI swatch and the body ramp; dk is the deep
    reflection shadow, kind picks the reflection model, rough blurs the studio
    bands and refl scales their contrast. */
