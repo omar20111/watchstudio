@@ -20,6 +20,7 @@ import {paintBackground} from '../../export/background.js';
 import {sceneClock} from '../time.js';
 import {buildHead,poseHead,applyPose,disposeHead,headKey,pickPart3D} from './watch.js';
 import {studioEnvironment} from './studio.js';
+import {webglState,markWebglFailed} from './support.js';
 
 export const SHEET=CAN/PX;
 export const CAMERAS=['front','three-quarter','profile'];
@@ -151,7 +152,15 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
 /* One offscreen view shared by the design sheet and every export, so a page of
    drawings costs one WebGL context rather than one per picture. */
 let still=null;
-const stillView=()=>still||(still=createView(document.createElement('canvas'),{preserveDrawingBuffer:true}));
+function stillView(){if(still)return still;
+ if(!webglState().ok)throw new Error('3D rendering needs WebGL, which this browser is not providing');
+ const c=document.createElement('canvas');
+ try{still=createView(c,{preserveDrawingBuffer:true})}
+ catch(e){markWebglFailed('failed',e);throw e}
+ /* a lost context cannot draw again: forget this view so the next still builds
+    a fresh one (its GPU resources went with the context, so nothing to dispose) */
+ c.addEventListener('webglcontextlost',()=>{still=null},{once:true});
+ return still}
 
 async function ready(v,d,customs){let p=v.setDesign(d,customs);
  /* uploads load asynchronously; wait, then rebuild with them in place */

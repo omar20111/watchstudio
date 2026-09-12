@@ -142,5 +142,27 @@ console.log('EXTRAS layers='+L.length+' center='+center+' lug='+lugHit+' strap='
 const out=renderToString(React.createElement(M.App));
 expect(out.length>1000,`<App/> server render is suspiciously short (${out.length} chars)`);
 console.log('RENDER-TO-STRING ('+out.length+' chars)');
+
+/* ---- no WebGL: the flat 2D drawing takes over ----
+   Before this, a browser without WebGL 2 threw into the error boundary and its
+   "Try again" threw again. */
+{expect(M.webglState().ok,'the mocked browser should report WebGL as available');
+ const d=M.clone(M.DEF),clock=M.sceneClock(d,0);
+ const prep=await M.prepareFlat(d,{});
+ expect(prep.below.width===M.CAN,`the flat static stack should be ${M.CAN}px, got ${prep.below.width}`);
+ const over=prep.over.map(l=>l.key).join(',');
+ expect(over==='hour,min,sec,crystal',`only the hands and crystal should draw per tick, got ${over}`);
+ const[,ctx]=M.mk(600);let threw=null;try{M.drawFlat(ctx,prep,clock,.5)}catch(e){threw=e}
+ expect(!threw,'drawFlat threw: '+(threw&&threw.message));
+ expect((await M.prepareFlat(d,{},{mult:2})).below.width===M.CAN*2,'a 2x flat export should re-render at 2400px');
+ const tq=M.clone(M.DEF);tq.camera='three-quarter';
+ expect(M.stageCamera(tq,{})==='three-quarter','with WebGL the stage keeps a three-quarter camera');
+ M.markWebglFailed('lost');
+ expect(!M.webglState().ok&&M.webglState().reason==='lost','markWebglFailed did not switch views to the flat drawing');
+ expect(M.stageCamera(tq,{})==='front','without WebGL the stage must fall back to the front camera');
+ expect(M.exportCamera(tq,{})==='front-2d','without WebGL the PNG export must be the flat front drawing');
+ const flatOut=renderToString(React.createElement(M.App));
+ expect(/graphics driver stopped responding/.test(flatOut),'the app does not explain why the watch went flat');
+ expect(M.retryWebgl()&&M.webglState().ok,'retryWebgl did not restore 3D once WebGL was available again')}
 console.log(fails?`SMOKE FAIL (${fails})`:'SMOKE PASS');
 if(fails)process.exit(1);

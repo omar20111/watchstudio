@@ -13,9 +13,11 @@ import {LEATHER} from '../core/textures.js';
 import {useSceneClock,fmtChrono} from '../core/time.js';
 import {useApp,store,patchPartT} from '../state/store.js';
 import {GOLD} from './primitives.jsx';
-import {useWatchView} from './WatchCanvas.jsx';
+import {useWatchView,RestoringNotice} from './WatchCanvas.jsx';
+import {FlatWatch} from './FlatWatch.jsx';
 import {SHEET,profileLayout} from '../core/three/view.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
+import {webglState} from '../core/three/support.js';
 const {useEffect,useMemo,useRef}=React;
 
 /* The only part of the stage that has to re-render with the clock, kept in its
@@ -23,7 +25,9 @@ const {useEffect,useMemo,useRef}=React;
 function ChronoReadout(){const c=useSceneClock();
  return<span className="text-[10px] text-neutral-400 tabular-nums pl-1" aria-live="off">chrono {fmtChrono(c.chrono.ms)}</span>}
 
+/* the flat 2D drawing only has a front */
 export const stageCamera=(d,customs)=>{
+ if(!webglState().ok)return'front';
  const c=['front','three-quarter','profile'].includes(d.camera)?d.camera:'front';
  return c==='three-quarter'&&hasStructuralUpload(d,customs)?'front':c};
 
@@ -31,10 +35,10 @@ export function Stage(){const s=useApp();const d=s.d;
  const structural=hasStructuralUpload(d,s.customs);
  const camera=stageCamera(d,s.customs);
  const innerRef=useRef();const drag=useRef(null);const down=useRef(null);
- const{host,canvas,view,box,redraw}=useWatchView({camera,orbit:true});
+ const{host,canvas,view,box,redraw,gen,lost,flat}=useWatchView({camera,orbit:true});
  const fit=Math.max(220,Math.min(box.w,box.h)-56);const size=fit*d.zoom;
  /* 1 mm = size/SHEET px: the sheet square below and the front camera agree */
- useEffect(()=>{if(view.current){view.current.setFrame({pxPerMm:size/SHEET,zoom:d.zoom});redraw()}},[size,d.zoom,camera]);
+ useEffect(()=>{if(view.current){view.current.setFrame({pxPerMm:size/SHEET,zoom:d.zoom});redraw()}},[size,d.zoom,camera,gen]);
  /* encoded once — this used to re-encode a 512² PNG on every render, 60 times a
     second while the seconds hand swept */
  const leather=useMemo(()=>LEATHER.toDataURL(),[]);
@@ -43,8 +47,14 @@ export function Stage(){const s=useApp();const d=s.d;
 
  /* pointer -> sheet px, through the sheet-sized square centred on the stage */
  const toSheet=e=>{const r=innerRef.current.getBoundingClientRect();const k=size/CAN;return[(e.clientX-r.left)/k,(e.clientY-r.top)/k]};
- const pickAt=e=>{const r=canvas.current.getBoundingClientRect();const st=store.getState();
-  return view.current?view.current.pick(e.clientX-r.left,e.clientY-r.top,st.sel):null};
+ const inSheet=e=>{const[px,py]=toSheet(e);return px>=0&&px<=CAN&&py>=0&&py<=CAN};
+ /* The flat drawing has no geometry to cast a ray into, so there a drag moves
+    the part already selected in the parts list, from anywhere on the sheet. */
+ const pickAt=e=>{const st=store.getState();
+  if(flat)return inSheet(e)?st.sel:null;
+  if(!view.current||!canvas.current)return null;
+  const r=canvas.current.getBoundingClientRect();
+  return view.current.pick(e.clientX-r.left,e.clientY-r.top,st.sel)};
  const angleAt=(px,py)=>Math.atan2(py-C,px-C)*180/Math.PI;
  const end=()=>{drag.current=null;if(host.current)host.current.style.cursor='default'};
 
@@ -103,11 +113,14 @@ export function Stage(){const s=useApp();const d=s.d;
      drag latched, so the part followed the cursor with no button held */
   onPointerCancel={end} onLostPointerCapture={end}>
 
-  <canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label={`Watch, ${camera} view`}/>
+  {!flat&&<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label={`Watch, ${camera} view`}/>}
+  {lost&&<RestoringNotice/>}
   {camera==='profile'&&<canvas ref={overlay} className="absolute inset-0 w-full h-full pointer-events-none"/>}
 
-  {/* the sheet: invisible, but it is the coordinate frame for guides and drags */}
+  {/* the sheet: invisible in 3D, but it is the coordinate frame for guides and
+      drags — and in the flat drawing it is the drawing itself */}
   <div ref={innerRef} className="absolute pointer-events-none" style={{width:size,height:size,left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
+   {flat&&<FlatWatch size={size} className="absolute inset-0"/>}
    {camera==='front'&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
     {frames(s.sel,d).map((f,i)=>f.t==='c'
      ?<circle key={i} cx={C} cy={C} r={f.r} fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>
@@ -117,15 +130,17 @@ export function Stage(){const s=useApp();const d=s.d;
   </div>
 
   <div data-ui="1" className="absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10" style={{zIndex:50}}>
-   {camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
+   {flat?'Flat 2D drawing · pick a part in the list, then drag to move it · Alt-drag rotate · drag a diver bezel to turn it · arrows nudge · 1–8 select · Ctrl+Z undo'
+    :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
     :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
     :'Side elevation and caseback, measured · V camera'}</div>
 
   <div data-ui="1" role="group" aria-label="Camera" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
    {[['front','Front'],['three-quarter','¾'],['profile','Side']].map(([id,label])=>{
-    const off=id==='three-quarter'&&structural;
+    const off=(id!=='front'&&flat)||(id==='three-quarter'&&structural);
     return<button key={id} className={`chip ${camera===id?'on':''}`} disabled={off} aria-pressed={camera===id}
-     title={off?'An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ¾ view is unavailable while one is in use':`${label} camera`}
+     title={flat&&id!=='front'?`The ${label} view needs 3D graphics (WebGL), which this browser isn’t providing`
+      :off?'An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ¾ view is unavailable while one is in use':`${label} camera`}
      style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
      onClick={()=>s.setD(n=>{n.camera=id})}>{label}</button>})}
    {camera==='three-quarter'&&<button className="chip" title="Reset the orbit" onClick={()=>{view.current&&view.current.fit();redraw();s.setD(n=>{n.zoom=1})}}>Reset</button>}

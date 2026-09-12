@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+**Added**
+- **Works without WebGL.** A browser with no WebGL 2 (hardware acceleration
+  off, remote desktops, older machines) used to crash into the error screen,
+  whose "Try again" crashed again. It now shows the flat 2D drawing — the lit
+  part artwork stacked with transforms, clock angles, tints and glow — with a
+  banner saying why and what still works. Dragging moves the part selected in
+  the list; the ¾ and side cameras are disabled with a reason; PNG export and
+  the layered ZIP use the flat front view; the design sheet says which views
+  need 3D. `?2d` forces this mode. (`core/three/support.js`, `export/flat.js`,
+  `ui/FlatWatch.jsx`)
+- **GPU context loss recovery.** When the browser drops the WebGL context the
+  view pauses with a notice and is rebuilt when the context returns; if it has
+  not returned after 6 s, every view switches to the flat drawing.
+
 ## v6 — the watch is 3D
 
 The 2D canvas renderer had reached its ceiling: every surface knew its radius

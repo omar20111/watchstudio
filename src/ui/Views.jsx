@@ -9,25 +9,31 @@ import {VNAME} from '../core/parts.js';
 import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,caseOf} from '../core/geometry.js';
 import {marketingClock} from '../core/time.js';
 import {useApp} from '../state/store.js';
-import {useWatchView} from './WatchCanvas.jsx';
+import {useWatchView,RestoringNotice} from './WatchCanvas.jsx';
+import {FlatWatch} from './FlatWatch.jsx';
 import {renderStill} from '../core/three/view.js';
 import {headKey} from '../core/three/watch.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
+import {useWebgl} from '../core/three/support.js';
+import {flatCanvas} from '../export/flat.js';
 const {useEffect,useState}=React;
 
 /* ---------------------------------------------------------------- product */
 
 export function ProductRender(){const s=useApp();const d=s.d;
  const camera=hasStructuralUpload(d,s.customs)?'front':'three-quarter';
- const{host,canvas,view,redraw}=useWatchView({camera,orbit:true});
- useEffect(()=>{if(view.current){view.current.setFrame({zoom:1});redraw()}},[camera]);
+ const{host,canvas,view,redraw,box,gen,lost,flat}=useWatchView({camera,orbit:true});
+ useEffect(()=>{if(view.current){view.current.setFrame({zoom:1});redraw()}},[camera,gen]);
  return<div ref={host} className="flex-1 min-h-0 relative overflow-hidden"
   style={{background:'radial-gradient(115% 85% at 50% 8%, #4a4e56 0%, #2c2f35 46%, #141519 100%)'}}>
-  <canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>
+  {flat?<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <FlatWatch size={Math.max(220,Math.min(box.w*.78,box.h*.82))} label="Product render of the watch, flat 2D drawing"/></div>
+   :<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>}
+  {lost&&<RestoringNotice/>}
   <div className="absolute bottom-4 left-0 right-0 text-center text-[11px] tracking-[.24em] text-neutral-500 uppercase pointer-events-none">
    {s.projName} · {d.caseMm} mm · {(METALS[d.parts.case.metal]||{}).name}
   </div>
-  <div className="absolute top-3 left-3 text-[10px] text-neutral-500 pointer-events-none">Drag to turn the watch</div>
+  <div className="absolute top-3 left-3 text-[10px] text-neutral-500 pointer-events-none">{flat?'Flat 2D drawing — turning the watch needs WebGL':'Drag to turn the watch'}</div>
  </div>}
 
 /* ---------------------------------------------------------------- sheet */
@@ -50,19 +56,31 @@ function Dim({x1,y1,x2,y2,label,vertical}){
 /* Stills for the sheet, rendered at 2x and re-rendered only when the design
    itself changes — a technical drawing does not tick, so these read the frozen
    marketing pose and never touch a live clock. */
-function useSheetStills(d,customs){const[img,setImg]=useState({});
- const key=headKey(d,customs)+JSON.stringify([d.parts.hands.tH,d.parts.hands.tM,d.parts.hands.tS,d.parts.bezel.rot]);
+function useSheetStills(d,customs){const[img,setImg]=useState({});const gl=useWebgl();
+ const key=headKey(d,customs)+JSON.stringify([d.parts.hands,d.parts.bezel.rot,
+  Object.fromEntries(Object.entries(d.parts).map(([k,p])=>[k,p.t]))]);
  useEffect(()=>{let alive=true;
   (async()=>{const clock=marketingClock(d);
    /* drawings on paper: no table, so no drop shadow */
-   const url=async(camera,w,h)=>(await renderStill({...d,shadow:false},customs,{w,h,camera,clock})).toDataURL('image/png');
-   const front=await url('front',600,600);if(!alive)return;setImg(o=>({...o,front}));
-   const side=await url('side',680,440);if(!alive)return;setImg(o=>({...o,side}));
-   const back=await url('back',440,440);if(!alive)return;setImg(o=>({...o,back}))})();
-  return()=>{alive=false}},[key]);
+   const dd={...d,shadow:false};
+   /* No WebGL: the front elevation is the flat drawing; the side and caseback
+      are only ever built in 3D, so they say so instead of spinning forever. */
+   if(!gl.ok){const front=(await flatCanvas(dd,customs,{size:600,clock,background:false,shadow:false})).toDataURL('image/png');
+    if(alive)setImg({front,side:'unavailable',back:'unavailable'});return}
+   const url=async(camera,w,h)=>(await renderStill(dd,customs,{w,h,camera,clock})).toDataURL('image/png');
+   try{
+    const front=await url('front',600,600);if(!alive)return;setImg(o=>({...o,front}));
+    const side=await url('side',680,440);if(!alive)return;setImg(o=>({...o,side}));
+    const back=await url('back',440,440);if(!alive)return;setImg(o=>({...o,back}))}
+   catch(e){console.error('WatchStudio: sheet render failed',e)}})();
+  return()=>{alive=false}},[key,gl.ok]);
  return img}
 
 const Pending=({w,h})=><div style={{width:w,height:h}} className="flex items-center justify-center text-[10px] text-neutral-400 bg-neutral-100">rendering…</div>;
+const Unavailable=({w,h})=><div style={{width:w,height:h}} className="flex items-center justify-center text-center px-6 text-[10px] leading-4 text-neutral-500 bg-neutral-100">
+ This view is built in 3D and needs WebGL, which this browser isn’t providing.</div>;
+/* a still, a placeholder while it renders, or a note that it cannot be rendered here */
+const Still=({src,w,h,alt})=>src==='unavailable'?<Unavailable w={w} h={h}/>:src?<img src={src} width={w} height={h} alt={alt} className="block"/>:<Pending w={w} h={h}/>;
 
 export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
  const size=300,pw=340,ph=220;
@@ -100,11 +118,11 @@ export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
 
     <div className="flex-1 flex flex-col gap-6">
      <div>
-      {img.side?<img src={img.side} width={pw} height={ph} alt="Side elevation" className="block"/>:<Pending w={pw} h={ph}/>}
+      <Still src={img.side} w={pw} h={ph} alt="Side elevation"/>
       <div className="text-[10px] tracking-[.2em] uppercase text-neutral-500">Side profile · {mm(caseThickOf(d))} thick</div>
      </div>
      <div>
-      {img.back?<img src={img.back} width={ph} height={ph} alt="Caseback" className="block"/>:<Pending w={ph} h={ph}/>}
+      <Still src={img.back} w={ph} h={ph} alt="Caseback"/>
       <div className="text-[10px] tracking-[.2em] uppercase text-neutral-500">Caseback · {caseOf(d).caseback}</div>
      </div>
     </div>

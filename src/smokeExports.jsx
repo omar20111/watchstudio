@@ -14,3 +14,8 @@ export {clone,mk} from './core/utils.js';
 export {SaveModal,ProjectsModal} from './ui/Modals.jsx';
 export {exportSpec} from './export/spec.js';
 export {exportProjectFile} from './export/projectFile.js';
+export {prepareFlat,drawFlat} from './export/flat.js';
+export {webglState,markWebglFailed,retryWebgl} from './core/three/support.js';
+export {stageCamera} from './ui/Stage.jsx';
+export {exportCamera} from './export/png.js';
+export {sceneClock} from './core/time.js';
