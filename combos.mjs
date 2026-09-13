@@ -33,6 +33,7 @@ const {PX,CAN,C}=await import('./src/core/constants.js');
 const L3=await import('./src/core/three/lathe.js');
 const TR=await import('./src/core/three/tracer.js');
 const RL=await import('./src/core/three/relief.js');
+const {bakeSize}=await import('./src/core/cache.js');
 
 let fails=0;
 const bad=(name,msg)=>{fails++;console.log(`  FAIL  [${name}] ${msg}`)};
@@ -204,7 +205,21 @@ for(const variant of['leather','rubber','nato','mesh'])for(const caseMm of[34,40
  if(!(bk.z0<bt.z0-5&&bk.z1>bt.z0))bad(tag,'the buckle does not start in the strap end and run past it');
  if(Math.abs(bk.y0-sp.groundY)>.05)bad(tag,`the buckle floats ${(bk.y0-sp.groundY).toFixed(2)}mm off the table`);
  const kb=boundsOf(keepers.geometry);
- if(!(kb.x1-kb.x0>wide*.86))bad(tag,'the keepers are narrower than the strap they hold')}
+ if(!(kb.x1-kb.x0>wide*.86))bad(tag,'the keepers are narrower than the strap they hold');
+ /* each piece as long as a strap is sold: the tail piece measured to its tip,
+    the buckle piece to the end of its buckle, both from the spring bar */
+ const SL=G.strapLengthsOf(d),zAt=s=>sp.start+sp.pos(s)[0];
+ if(!(SL.short>=66&&SL.short<=80&&SL.long>=100&&SL.long<=128&&SL.long-SL.short>=30))bad(tag,`strap pieces ${SL.short}/${SL.long}mm are not a two-piece strap's lengths`);
+ if(Math.abs(sp.start-G.springBarMm(d))>1e-9)bad(tag,'the strap does not start at the spring bar');
+ if(Math.abs(bb.z1-zAt(SL.bottom))>.3)bad(tag,`the tail piece ends ${(bb.z1-zAt(SL.bottom)).toFixed(2)}mm off its ${SL.long}mm length`);
+ if(Math.abs(-bk.z0-zAt(SL.top)-SL.buckle)>.6)bad(tag,`the buckle piece ends ${(-bk.z0-zAt(SL.top)-SL.buckle).toFixed(2)}mm off its ${SL.short}mm length`);
+ for(const which of['top','bottom']){const tex=w.getObjectByName('strap:'+which).material.map.image;
+  if(tex.height>4096)bad(tag,`the ${which} strap bake is ${tex.height}px tall, past a phone GPU's 4096`)}}
+/* the longest strap there can be still bakes within a phone's texture limit */
+for(const variant of['classic','sport'])for(const strapMm of[12,'auto',26]){
+ const d=M.clone(M.DEF);d.caseMm=46;d.case.lugLenMm=12;d.parts.case.variant=variant;d.strapMm=strapMm;
+ for(const which of['top','bottom']){const{h}=bakeSize('strap','flat',d,which);
+  if(h>4096)bad(`strap bake ${variant}/${strapMm}/${which}`,`${h}px tall, past 4096`)}}
 
 /* wear: exposed metal wears and nothing under the crystal does; every brushed
    surface has UVs to grain along (without them the highlight blows out white);

@@ -6,18 +6,18 @@
 import {C,CAN,PX,METALS,STRAP_REACH_2D,STRAP_REACH_3D} from '../constants.js';
 import {shade,lighten} from '../utils.js';
 import {noiseFill} from '../textures.js';
-import {strapEndFactor,STRAP_TAIL_MM,STRAP_HOLES_MM} from '../geometry.js';
+import {strapEndFactor,strapTaperEnd,STRAP_TAIL_MM,STRAP_HOLES_MM} from '../geometry.js';
 import {axisGrad,lineGrain,envLevel,tone} from './material.js';
 
 export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';const col=o.color||'#6b4a2f',st=o.stitch||'#e0cfa6',m=METALS[o.metal]||METALS.steel;
- const flat=o.mode==='flat',reach=flat?STRAP_REACH_3D:STRAP_REACH_2D;
+ const flat=o.mode==='flat',reach=flat?(o.strapReach||STRAP_REACH_3D):STRAP_REACH_2D;
  const y0=top?C-R*0.55:C+R*0.55, y1=top?C-reach:C+reach, dir=top?-1:1;
  /* A 3D strap (not a bracelet) is cut to the outline its mesh has: it ends at
     y1 in a tail or a squared buckle end. The 2D strap runs off the sheet under
     a rounded end nobody sees. */
  const shaped=flat&&o.variant!=='steel';
  const wAt=y=>{const p=Math.abs(y-y0)/Math.abs(y1-y0);
-  return sw*(1-0.14*p)*(shaped?strapEndFactor(o.which,Math.abs(y1-y)/PX):1)};
+  return sw*(1-(1-strapTaperEnd)*p)*(shaped?strapEndFactor(o.which,Math.abs(y1-y)/PX):1)};
  const endLen=(top?2:STRAP_TAIL_MM+1)*PX;
  const path=()=>{ctx.beginPath();
   if(shaped){const ys=[];for(let i=0;i<=26;i++)ys.push(y0+(y1-dir*endLen-y0)*i/26);

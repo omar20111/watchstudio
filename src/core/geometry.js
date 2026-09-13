@@ -221,6 +221,28 @@ export function strapEndFactor(which,toTip){
  if(which==='bottom')return toTip>=STRAP_TAIL_MM?1:ell(toTip,STRAP_TAIL_MM);
  return toTip>=STRAP_END_ROUND_MM?1:.8+.2*ell(toTip,STRAP_END_ROUND_MM)}
 
+/* ==================== STRAP LENGTHS ====================
+   A two-piece strap is sold by the length of each piece from the spring bar:
+   on a 20 mm strap about 75 mm for the buckle piece, buckle included, and
+   115-120 mm for the piece with the holes, which is what reaches round the
+   wrist. Narrower straps are cut a little shorter, wider ones longer. The
+   spring bar sits in the lug near its tip. */
+export const strapTaperEnd=.86;                   /* the strap's width at its ends, of the lug width */
+export function springBarMm(d){const g=geoOf(d),lugW=g.R*(d.parts.case.variant==='sport'?.17:.135);
+ return(g.R+g.lugExt-lugW*.85)/PX}
+/* a tongue buckle's frame around a strap end of half-width `a` mm: its wire,
+   its length along the strap, and how far it reaches past the strap's fold */
+export function buckleOf(a){const wire=Math.min(2.2,Math.max(1.5,a*.19)),L=Math.max(13,a*1.5);
+ return{wire,L,reach:L-1.2*wire}}
+export function strapLengthsOf(d){const w=strapMmOf(d);
+ const short=clamp(55+w,66,80),long=clamp(78+2*w,100,128);
+ const buckle=buckleOf(w*strapTaperEnd/2).reach;
+ /* the strap pieces themselves, past the spring bar: the buckle piece's
+    leather ends at the fold, the buckle frame carries on past it */
+ return{top:short-buckle,bottom:long,short,long,buckle}}
+/* the sheet pixel, from the centre, where each piece ends */
+export const strapReachPx=(d,which)=>(springBarMm(d)+strapLengthsOf(d)[which])*PX;
+
 /* ==================== DIAL CONSTRUCTION ====================
    The dial plate's layout in sheet px, read by the 2D dial and markers, the 3D
    plate, and the checks — so a date window cut into the 3D plate sits exactly

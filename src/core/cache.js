@@ -1,7 +1,7 @@
 /* LRU caches: full-size part canvases + preset thumbnails. */
-import {CAN,STRAP_REACH_3D} from './constants.js';
+import {C,CAN,STRAP_REACH_3D} from './constants.js';
 import {clone,clamp,mk} from './utils.js';
-import {frameBox,dialDayOf} from './geometry.js';
+import {frameBox,dialDayOf,strapReachPx} from './geometry.js';
 import {srcOf,applyVariant} from './parts.js';
 import {DR,procOpts} from './render/index.js';
 
@@ -29,23 +29,32 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
   part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d)]:0,
   part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0,
   /* an hour hand is as long as the markers it reaches are deep */
-  part==='hands'?d.parts.markers.variant:0])};
+  part==='hands'?d.parts.markers.variant:0,
+  /* a 3D strap is cut to its length from the spring bar, which a sport case's
+     broader lugs move */
+  part==='strap'&&mode==='flat'?d.parts.case.variant:0])};
 
 /* Most bakes are the 1200² sheet. A 3D strap runs far past the sheet edge as it
-   curves away, so its flat bake is a tall canvas with the sheet centred in it. */
-export const bakeSize=(part,mode)=>part==='strap'&&mode==='flat'?{w:CAN,h:2*STRAP_REACH_3D+120}:{w:CAN,h:CAN};
+   curves away, so its flat bake is a tall canvas reaching from just past the
+   sheet's centre to the strap's end; `ty` moves sheet coordinates into it. Each
+   piece has its own, so the long piece stays within a phone GPU's 4096 px. */
+export const STRAP_BAKE_MARGIN=60;
+export function bakeSize(part,mode,d,sub){
+ if(!(part==='strap'&&mode==='flat'))return{w:CAN,h:CAN,ty:0};
+ const reach=d&&sub?strapReachPx(d,sub):STRAP_REACH_3D,h=Math.ceil(reach)+2*STRAP_BAKE_MARGIN;
+ return{w:CAN,h,ty:sub==='top'?h-STRAP_BAKE_MARGIN-C:STRAP_BAKE_MARGIN-C}}
 
 /* A 3D design holds about a dozen flat, shape and lume bakes; each 1200² canvas
    is 5.8 MB of backing store, so this keeps roughly two designs warm. */
 const CACHE_MAX=32;
 export function getProc(part,d,sub,mode){const key=procKey(part,d,sub,mode);
  if(cache.has(key)){const v=cache.get(key);cache.delete(key);cache.set(key,v);return v}
- const{w,h}=bakeSize(part,mode);
+ const{w,h,ty}=bakeSize(part,mode,d,sub);
  /* shape and lume bakes exist to be read back (relief.js): keep their pixels in
     CPU memory, or every readback waits on a copy back from the GPU */
  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
  const ctx=cv.getContext('2d',mode==='shape'||mode==='lume'?{willReadFrequently:true}:undefined);
- if(h!==CAN)ctx.translate(0,(h-CAN)/2);          /* the sheet stays centred */
+ if(ty)ctx.translate(0,ty);
  DR[part](ctx,procOpts(part,d,sub,mode));
  cache.set(key,cv);if(cache.size>CACHE_MAX)cache.delete(cache.keys().next().value);return cv}
 

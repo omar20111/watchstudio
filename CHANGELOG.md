@@ -59,6 +59,15 @@
   longer hand keeps its width and shape rather than growing fatter. The hands
   sit a little higher, so the hour hand clears the tallest applied index.
   Checked for every index style at 34, 40 and 46 mm (`combos.mjs`).
+- **Straps as long as the real thing** (`geometry.js strapLengthsOf`). Both
+  strap pieces used to run the same length, so the watch lay on two equal
+  stubs. A two-piece strap is sold by the length of each piece from the spring
+  bar, and now each is cut to that. On a 20 mm strap the buckle piece is 75 mm,
+  buckle included, and the piece with the holes is 118 mm. Narrower straps are
+  a little shorter and wider ones a little longer. Each piece has its own bake,
+  only as tall as that piece is long, so even the longest strap stays inside a
+  phone GPU's 4096 px texture limit. Checked by measuring the built meshes
+  (`combos.mjs`). Bracelets keep their length until they get a clasp.
 - **A welcome for first-time visitors** (`ui/Welcome.jsx`). A gallery of all
   15 designs, shown as real renders, to start from — or a blank watch — then
   three quick steps (case, dial, strap) over the live editor, with the full

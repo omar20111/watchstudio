@@ -17,7 +17,7 @@ import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeom
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
 import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
-        strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM} from '../geometry.js';
+        strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
@@ -133,7 +133,7 @@ function strapMaterial(map,p){const v=p.variant;
     normal map the weave that breaks its reflections into a soft shimmer */
  if(v==='mesh'){const mm=new MeshPhysicalMaterial({map,color:0xffffff,metalness:1,roughness:.5,alphaTest:.5,
    envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
-  mm.normalMap=strapNormalOf('mesh');mm.normalScale=new Vector2(1.3,1.3);return mm}
+  mm.normalMap=strapNormalOf('mesh',map.image.height);mm.normalScale=new Vector2(1.3,1.3);return mm}
  const mat=new MeshPhysicalMaterial({map,metalness:0,alphaTest:.5,
   roughness:v==='rubber'?.5:v==='nato'?.88:.62,
   sheen:v==='nato'||v==='leather'?.6:0,sheenRoughness:.7,sheenColor:new Color(p.color||'#6b4a2f').multiplyScalar(.6),
@@ -141,12 +141,15 @@ function strapMaterial(map,p){const v=p.variant;
  /* the grain, tiled in millimetres: the strap's u spans the sheet across it and
     its v the tall flat bake along it (strapGeometry) */
  const kind=STRAP_GRAIN_MM[v]?v:'leather';
- mat.normalMap=strapNormalOf(kind);mat.normalScale=new Vector2(1,1).multiplyScalar(kind==='leather'?.55:kind==='nato'?.45:.3);
+ mat.normalMap=strapNormalOf(kind,map.image.height);mat.normalScale=new Vector2(1,1).multiplyScalar(kind==='leather'?.55:kind==='nato'?.45:.3);
  return mat}
+/* one grain texture per kind and bake height: each strap piece's bake is as
+   tall as that piece is long */
 const strapNormals=new Map();
-const strapNormalOf=kind=>{if(!strapNormals.has(kind)){const tile=STRAP_GRAIN_MM[kind],{h:Hc}=bakeSize('strap','flat');
-  const t=strapGrainMap(kind).clone();t.repeat.set(SHEET/tile,Hc/PX/tile);strapNormals.set(kind,t)}
- return strapNormals.get(kind)};
+const strapNormalOf=(kind,Hc)=>{const key=kind+':'+Hc;
+ if(!strapNormals.has(key)){const tile=STRAP_GRAIN_MM[kind];
+  const t=strapGrainMap(kind).clone();t.repeat.set(SHEET/tile,Hc/PX/tile);strapNormals.set(key,t)}
+ return strapNormals.get(key)};
 
 /* ---------------------------------------------------------------- strap */
 
@@ -168,9 +171,10 @@ const STRAP_FORM={
 /* section points: up each rolled edge, across the crown, across the underside */
 const RING={edge:7,top:11,bottom:3},RING_N=2*RING.edge+RING.top+RING.bottom;
 
-function strapForm(d){const sp=strapPath(d),widthAt=strapWidthAt(d),T=sp.T;
+function strapForm(d,which){const sp=strapPath(d),widthAt=strapWidthAt(d,strapReachPx(d,which)),T=sp.T;
  const f=STRAP_FORM[d.parts.strap.variant]||STRAP_FORM.leather;
- const sA=-1.2,sEnd=STRAP_REACH_3D/PX-sp.start;
+ /* each piece its own length past the spring bar (strapLengthsOf) */
+ const sA=-1.2,sEnd=strapLengthsOf(d)[which];
  /* half-width a, crown and edge heights c and e above the underside k0, edge roll r */
  const at=(s,which)=>{const toTip=sEnd-s,endF=strapEndFactor(which,toTip);
   let b=T*(1-f.taper*smoothstep(0,sEnd,s));
@@ -198,9 +202,9 @@ const onPath=(P,dir,x,k)=>[x,P.y+P.ca*k,P.z-dir*P.sa*k];
 const pathMatrix=(P,dir)=>new Matrix4().makeTranslation(0,P.y,P.z).multiply(new Matrix4().makeRotationX(-dir*P.ang));
 
 function strapGeometry(d,dir){
- const which=dir<0?'top':'bottom',{sp,f,sA,sEnd,at}=strapForm(d);
- const{h:Hc}=bakeSize('strap','flat'),off=(Hc-CAN)/2,M=RING_N;
- const vAt=s=>1-(C+dir*(sp.start+s)*PX+off)/Hc;
+ const which=dir<0?'top':'bottom',{sp,f,sA,sEnd,at}=strapForm(d,which);
+ const{h:Hc,ty}=bakeSize('strap','flat',d,which),M=RING_N;
+ const vAt=s=>1-(C+dir*(sp.start+s)*PX+ty)/Hc;
  /* stations even down the run, bunched toward the tip where the outline turns */
  const endLen=which==='bottom'?STRAP_TAIL_MM:5,st=[];
  for(let i=0;i<150;i++)st.push(sA+(sEnd-endLen-sA)*i/150);
@@ -228,7 +232,7 @@ function strapGeometry(d,dir){
 /* Two keepers round the buckle strap: loops hugging its section with rounded
    rims, the fixed one just behind the fold and the floating one beyond it. */
 function strapKeepers(d){
- const{sp,sEnd,at}=strapForm(d),out=[];
+ const{sp,sEnd,at}=strapForm(d,'top'),out=[];
  for(const back of[8,17.5]){const s=sEnd-back,sec=at(s,'top'),len=3.6,g=.6,b=.28;
   const grow=k=>strapRing({a:sec.a+k,c:sec.c+2*k,e:sec.e+2*k,r:sec.r+k,k0:sec.k0-k}).map(([x,y])=>new Vector2(x,y));
   const sh=new Shape(grow(g));sh.holes.push(new Path(grow(.05)));
@@ -242,8 +246,8 @@ function strapKeepers(d){
    far bar. Built with u running away from the watch (-z), then placed on the
    path at the strap's end. */
 function strapBuckle(d){
- const{sp,sEnd,at}=strapForm(d),sec=at(sEnd-6,'top');
- const wire=Math.min(2.2,Math.max(1.5,sec.a*.19)),W=2*sec.a+2*wire+.8,L=Math.max(13,sec.a*1.5),t=Math.min(1.9,sec.c*.8);
+ const{sp,sEnd,at}=strapForm(d,'top'),sec=at(sEnd-6,'top');
+ const{wire,L}=buckleOf(sec.a),W=2*sec.a+2*wire+.8,t=Math.min(1.9,sec.c*.8);
  const near=-wire*.7,far=near+L-wire,cu=(near+far)/2;
  const sh=roundRectPath(new Shape(),0,cu,W,L,wire*1.8);
  sh.holes.push(roundRectPath(new Path(),0,cu,W-2*wire,L-2*wire,wire*.7));
@@ -264,8 +268,8 @@ function roundRectPath(p,cx,cy,w,h,r){const x0=cx-w/2,x1=cx+w/2,y0=cy-h/2,y1=cy+
 
 /* The strap's width at arc length s past the spring bar, mm — the taper every
    strap and bracelet shares with its flat bake. */
-function strapWidthAt(d){const g=geoOf(d),sp=strapPath(d),s0px=g.R*.55;
- return s=>{const sPx=(sp.start+s)*PX,p=Math.min(1,Math.max(0,(sPx-s0px)/(STRAP_REACH_3D-s0px)));return g.sw*(1-.14*p)/PX}}
+function strapWidthAt(d,reach=STRAP_REACH_3D){const g=geoOf(d),sp=strapPath(d),s0px=g.R*.55;
+ return s=>{const sPx=(sp.start+s)*PX,p=Math.min(1,Math.max(0,(sPx-s0px)/(reach-s0px)));return g.sw*(1-(1-strapTaperEnd)*p)/PX}}
 
 /* one link: a rounded block pw wide and pl long, t thick, centred on the origin,
    thickness along +y, length along z */

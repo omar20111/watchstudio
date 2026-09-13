@@ -15,7 +15,7 @@
    normals out of the metal. */
 import {Vector2,LatheGeometry,Shape} from 'three';
 import {PX} from '../constants.js';
-import {geoOf,caseOf,thicknessStack,crownAng,strapMmOf} from '../geometry.js';
+import {geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -120,7 +120,7 @@ export function lugParts(d){
   /* where the drop starts and where it is complete, in mm from the centre */
   z0:R*.9/PX,z1:outer/PX,
   /* spring bar: near the tip, where case.js drills the lug hole */
-  springZ:(outer-lugW*.85)/PX}}
+  springZ:springBarMm(d)}}
 
 /* Crown guards on the sport case, swung to the crown's bearing */
 export function guardShapes(d){
