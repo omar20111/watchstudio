@@ -12,7 +12,8 @@
     "combos": "esbuild combos.mjs --bundle --format=esm --platform=node --jsx=automatic --external:react --external:react-dom --outfile=node_modules/.combos-out.mjs && node node_modules/.combos-out.mjs",
     "assert": "esbuild assertrun.mjs --bundle --format=esm --platform=node --jsx=automatic --external:react --external:react-dom --outfile=node_modules/.assert-out.mjs && node node_modules/.assert-out.mjs",
     "test": "npm run assert && npm run smoke && npm run combos",
-    "refs": "node scripts/refs.mjs"
+    "refs": "node scripts/refs.mjs",
+    "e2e": "vite build && node e2e/run.mjs"
   },
   "dependencies": {
     "qrcode-generator": "^2.0.4",
@@ -26,6 +27,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "esbuild": "^0.28.2",
+    "gltf-validator": "^2.0.0-dev.3.10",
     "playwright-core": "^1.63.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.2",

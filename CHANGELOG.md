@@ -41,6 +41,17 @@
   - Unlumed numerals and wedges in a dark metal on a dark dial are printed in
     cream instead, so a black-handed pilot's watch keeps legible numerals.
   - Dial text in Arabic keeps its letters joined (no letter spacing).
+- **A welcome for first-time visitors** (`ui/Welcome.jsx`). A gallery of all
+  15 designs, shown as real renders, to start from — or a blank watch — then
+  three quick steps (case, dial, strap) over the live editor, with the full
+  editor one click away. Visitors arriving on a share link or with a design of
+  their own go straight to the editor; the ⋯ menu reopens the gallery.
+- **Browser tests in the project** (`e2e/`, `npm run e2e`). The checks that
+  used to live outside the repository now run against the built app in a real
+  browser: welcome and quick start, tilt and editing, Wear, phone gestures,
+  logo upload, AR, Photo, and GLB validity. GitHub runs them on every push
+  (reporting, not yet blocking deploys). The built app exposes its live view
+  to them when opened with `?e2e`.
 - **Your logo on the dial** (`core/logo.js`, `ui/LogoControls.jsx`). In the Dial
   panel, add a PNG, SVG or JPG (optionally removing a white background). It is
   **printed** on the dial — in the dial's ink or its own colours — or

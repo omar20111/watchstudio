@@ -56,8 +56,17 @@ npm install        # once
 npm run dev        # dev server with hot reload
 npm run build      # → dist/index.html (single portable file)
 npm test           # boot invariants + smoke + combination checks (headless)
+npm run e2e        # build, then drive the real app in a browser (e2e/)
 npm run refs       # pixel reference renders of every theme (drives Edge/Chrome)
 ```
+
+`npm run e2e` serves the built app and checks, in a real browser with WebGL and
+touch input: the welcome gallery and quick start, tilting and editing, the
+Wear setting, pinch and two-finger gestures on a phone, logo upload, AR (QR
+hand-off, a Quick Look USDZ, a refused WebXR session), Photo, and a GLB that
+passes the Khronos validator. It uses Edge on Windows and Chrome elsewhere
+(`E2E_CHANNEL` to choose); `E2E_ONLY=touch,logo` runs a subset. WebGL is
+software-rendered there, so a full run takes about ten minutes.
 
 `npm run refs -- --camera three-quarter` (or `side`, `back`) renders other
 cameras; `--only diver,dress` limits the themes. The headless tests cannot see

@@ -22,6 +22,8 @@ export function TopBar({onModal}){const s=useApp();
  const moreBtn=useRef();
  /* tier 'wide' leaves the row below 1540 px, 'mid' below 1330 px, 'narrow' below 640 px */
  const actions=[
+  /* tier 'menu' never sits in the row */
+  {tier:'menu',label:'Gallery',icon:'✦',run:()=>onModal('gallery'),aria:'Open the gallery of designs to start from'},
   {tier:'narrow',label:'Save',icon:'💾',run:()=>onModal('save'),cls:'text-[#e8c766]'},
   {tier:'narrow',label:'Projects',icon:'🗂',run:()=>onModal('projects')},
   {tier:'narrow',label:'Reset',icon:'⟲',run:()=>onModal('reset')},
@@ -34,8 +36,9 @@ export function TopBar({onModal}){const s=useApp();
    title:'3D model (.glb) at real size, for Blender, AR viewers and product renderers'},
   {tier:'mid',label:'PNG 2×',icon:'⤓',run:()=>exportPNG(2),cls:'text-[#d4af37]',aria:'Export a 2x PNG'},
   {tier:'mid',label:'PNG 4×',icon:'⤓',run:()=>exportPNG(4),cls:'text-[#d4af37]',aria:'Export a 4x PNG'}];
- const inRow=a=>a.tier==='narrow'?!narrow:a.tier==='mid'?mid:wide;
+ const inRow=a=>a.tier==='menu'?false:a.tier==='narrow'?!narrow:a.tier==='mid'?mid:wide;
  const hidden=actions.filter(a=>!inRow(a));
+ const act=label=>actions.find(a=>a.label===label);
  const btn=a=><button key={a.label} className={`btn ${a.cls||''}`} aria-label={a.aria} title={a.title} onClick={a.run}>{a.icon} {a.label}</button>;
  const views=[['edit','Edit','Edit'],['product','Product render','Render'],['sheet','Design sheet','Sheet']];
 
@@ -46,15 +49,15 @@ export function TopBar({onModal}){const s=useApp();
   {!narrow&&<input className="bg-transparent border border-white/10 rounded px-2 py-1 text-xs w-32" aria-label="Project name" value={s.projName} onChange={e=>store.get().rename(e.target.value)}/>}
   <button className="btn" disabled={!s.past.length} onClick={s.undo} title="Undo (Ctrl+Z)" aria-label="Undo">↶{narrow?'':' Undo'}</button>
   <button className="btn" disabled={!s.future.length} onClick={s.redo} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷{narrow?'':' Redo'}</button>
-  {!narrow&&btn(actions[2])}
+  {!narrow&&btn(act('Reset'))}
   <div className="flex items-center gap-1 ml-1 pl-2 border-l border-white/10">
    {views.map(([id,label,short])=>
     <button key={id} className={`chip ${s.d.view===id?'on':''}`} title={label} aria-label={label}
      onClick={()=>s.setD(n=>{n.view=id})}>{narrow?short:label}</button>)}
   </div>
-  {!narrow&&<>{btn(actions[0])}{btn(actions[1])}</>}
+  {!narrow&&<>{btn(act('Save'))}{btn(act('Projects'))}</>}
   <div className="flex-1"/>
-  {actions.filter(a=>a.tier!=='narrow'&&inRow(a)).map(btn)}
+  {actions.filter(a=>a.tier!=='narrow'&&a.tier!=='menu'&&inRow(a)).map(btn)}
   {hidden.length>0&&<button ref={moreBtn} className="btn shrink-0" aria-haspopup="menu" aria-expanded={!!menu} aria-label="More actions"
    onClick={()=>setMenu(m=>m?null:moreBtn.current.getBoundingClientRect())}>⋯{narrow?'':' More'}</button>}
   {menu&&<MoreMenu rect={menu} items={hidden} onClose={()=>setMenu(null)}/>}

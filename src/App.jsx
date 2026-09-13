@@ -13,6 +13,7 @@ import {hasStructuralUpload} from './core/three/uploads.js';
 import {useWebgl,webglState,retryWebgl,WEBGL_MESSAGE} from './core/three/support.js';
 import {SaveModal,ProjectsModal,SharedModal} from './ui/Modals.jsx';
 import {ARModal} from './ui/ARModal.jsx';
+import {Welcome,QuickStart,shouldWelcome} from './ui/Welcome.jsx';
 import {ProductRender,DesignSheet} from './ui/Views.jsx';
 import {Modal} from './ui/primitives.jsx';
 import {strapMmOf} from './core/geometry.js';
@@ -55,6 +56,9 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
  const[modal,setModal]=useState(null);
  const[shared,setShared]=useState(null);
  const[drawer,setDrawer]=useState(null);         /* narrow screens: 'parts' | 'controls' | null */
+ /* the first-visit gallery, and the three quick steps after choosing from it */
+ const[welcome,setWelcome]=useState(()=>typeof window!=='undefined'&&shouldWelcome());
+ const[quick,setQuick]=useState(false);
  const close=()=>setModal(null);
  /* resolve uploaded blobs from the vault once, after mount */
  useEffect(()=>{store.get().rehydrateImages&&store.get().rehydrateImages()},[]);
@@ -65,6 +69,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
  useEffect(()=>{let live=true;
   readShareFromLocation().then(sh=>{if(!sh||!live)return;
    history.replaceState(null,'',location.pathname+location.search);
+   setWelcome(false);
    if(store.get().hasWork())setShared(sh);
    else store.get().importState({d:sh.d,name:sh.name,customs:{}})});
   return()=>{live=false}},[]);
@@ -110,7 +115,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
   window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h)},[]);
  const vault=s.vault||{ok:true};
  return<div className="h-full flex flex-col">
-  <TopBar onModal={setModal}/>
+  <TopBar onModal={m=>m==='gallery'?setWelcome(true):setModal(m)}/>
   <WebglBanner/>
   {/* A banner, not a toast: the failure this reports is silent data loss, and
       a message that fades after two seconds is how it went unnoticed before. */}
@@ -127,6 +132,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
    <div className="relative flex-1 flex min-h-0 overflow-hidden">
     <div className={`drawer-left ${drawer==='parts'?'open':''}`}><PartsList/></div>
     <Stage onAR={()=>setModal('ar')}/>
+    {quick&&<QuickStart onClose={()=>setQuick(false)}/>}
     <div className={`drawer-right ${drawer==='controls'?'open':''}`}><Controls/></div>
     <button className="drawer-tab drawer-tab-left btn" aria-expanded={drawer==='parts'} aria-label="Parts, themes and scene"
      onClick={()=>setDrawer(x=>x==='parts'?null:'parts')}>{drawer==='parts'?'‹':'☰'}</button>
@@ -142,6 +148,8 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
   {modal==='save'&&<SaveModal onClose={close}/>}
   {modal==='projects'&&<ProjectsModal onClose={close}/>}
   {modal==='ar'&&<ARModal onClose={close}/>}
+  {welcome&&<Welcome onClose={()=>setWelcome(false)}
+   onStart={()=>{setWelcome(false);setQuick(true);s.setD(n=>{n.view='edit';n.camera='three-quarter'})}}/>}
   {modal==='reset'&&<Modal title="Reset design" onClose={close}>
    <p className="text-xs text-neutral-400 mb-3">Every part returns to its default preset. Saved projects are not affected.</p>
    <div className="flex gap-2"><button className="btn flex-1" onClick={close}>Cancel</button>

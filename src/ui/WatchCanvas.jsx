@@ -28,6 +28,7 @@ const {useEffect,useRef,useState}=React;
 /* how long a lost context may take to come back before we give up on 3D */
 const RESTORE_WAIT_MS=6000;
 const dprOf=()=>Math.min(2,window.devicePixelRatio||1);
+const exposeView=()=>(import.meta.env&&import.meta.env.DEV)||window.__E2E__===true||/[?&]e2e(&|=|$)/.test(location.search);
 
 export function useWatchView({camera='front',orbit=false}={}){
  const gl=useWebgl();
@@ -47,8 +48,9 @@ export function useWatchView({camera='front',orbit=false}={}){
   let v;
   try{v=createView(cvs)}catch(e){markWebglFailed('failed',e);return}
   view.current=v;dirty.current=true;
-  /* dev only: the live view, for the console and the browser checks */
-  if(import.meta.env&&import.meta.env.DEV)window.__watchView=v;
+  /* the live view, for the console and the browser checks (e2e/): in development,
+     or in any build opened with ?e2e */
+  if(exposeView())window.__watchView=v;
   const r=host.current.getBoundingClientRect();v.resize(r.width,r.height,dprOf());
   let raf=null,lastD=null,lastC=null,lastBuild=-1e9,lastDraw=-1e9,giveUp=null,slow=0;
   v.onDirty(()=>{lastD=null;dirty.current=true});   /* an upload finished loading */
@@ -80,7 +82,7 @@ export function useWatchView({camera='front',orbit=false}={}){
   return()=>{cancelAnimationFrame(raf);clearTimeout(giveUp);
    cvs.removeEventListener('webglcontextlost',onLost);cvs.removeEventListener('webglcontextrestored',onRestored);
    v.dispose();view.current=null;
-   if(import.meta.env&&import.meta.env.DEV&&window.__watchView===v)window.__watchView=null}},[gl.ok,gen]);
+   if(exposeView()&&window.__watchView===v)window.__watchView=null}},[gl.ok,gen]);
 
  /* the caller frames the camera (setFrame) in its own effect, after this one */
  useEffect(()=>{const v=view.current;if(v){v.setCamera(camera);dirty.current=true}},[camera,gen,gl.ok]);

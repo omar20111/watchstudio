@@ -27,6 +27,23 @@ jobs:
         with:
           path: dist
 
+  # The browser checks (e2e/): the built app driven in Chrome with software
+  # WebGL. They are slow and newer than the rest, so for now they report on
+  # every push without holding back a deploy.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run e2e
+        env:
+          E2E_CHANNEL: chrome
+
   deploy:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
