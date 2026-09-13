@@ -126,6 +126,8 @@ src/
   keys nudge (Shift = 5×) · `[` `]` rotate · `1–8` select part · `F` fit
 - **¾**: drag to orbit · click a part to select it · scroll to zoom
 - **Side**: measured side elevation and caseback
+- **Product render**: drag to turn · pick a surface and a lens blur · **📷
+  Photo** path traces a photo-quality still of the view, saved as a PNG
 - **Touch**: drag a part to move it · pinch to zoom · two fingers to tilt the
   front view · the ☰ and ✎ tabs open the parts and the part's controls · ⋯
   holds saving and exports

@@ -229,6 +229,44 @@ for(const variant of['leather','rubber','nato'])for(const caseMm of[34,40,46]){
   ['rubber',W.strapGrainMap('rubber'),0],['nato',W.strapGrainMap('nato'),1,true]])
   if(seam(t,ch,rows)>2.5)bad('wear textures',`${name} has a seam where it tiles (${seam(t,ch,rows).toFixed(2)}x the step inside)`)}
 
+/* photo staging: every surface builds, its textures tile, and the path tracer's
+   panorama is the same room the live views reflect — brightest at 12, with the
+   softbox straight up and the dark background below the table's reach */
+{const Sf=await import('./src/core/three/surfaces.js'),St=await import('./src/core/three/studio.js');
+ /* The step across the tile's edge, against the largest step between any two
+    neighbouring columns (rows) inside it: a woven or quantised pattern has
+    steps of its own, and only an edge sharper than all of them is a seam. */
+ const seam=(t,ch,rows)=>{const{data,width:w,height:h}=t.image;
+  const px=(i,j)=>rows?data[(i*w+j)*4+ch]:data[(j*w+i)*4+ch],n=rows?h:w,m=rows?w:h;
+  const step=(i0,i1)=>{let s=0;for(let j=0;j<m;j+=3)s+=Math.abs(px(i0,j)-px(i1,j));return s};
+  let inner=0;for(let i=0;i<n-1;i++)inner=Math.max(inner,step(i,i+1));
+  return step(n-1,0)/Math.max(1,inner)};
+ const seamX=(t,ch)=>seam(t,ch,false),seamY=(t,ch)=>seam(t,ch,true);
+ for(const id of Sf.SURFACE_IDS){const m=Sf.surfaceMesh(id,-5);
+  if(id==='none'){if(m)bad('surfaces','"none" should build no mesh');continue}
+  if(!m){bad('surfaces',`${id} built nothing`);continue}
+  if(Math.abs(m.position.y+5)>1e-9)bad('surfaces',`${id} is not at the table height`);
+  for(const[k,t]of[['colour',m.material.map],['normal',m.material.normalMap]]){
+   const sx=seamX(t,0),sy=seamY(t,0);
+   if(sx>1.25||sy>1.25)bad('surfaces',`${id} ${k} map has a seam where it tiles (${sx.toFixed(2)} / ${sy.toFixed(2)})`)}}
+ const eq=St.studioEquirect(256,128),{data,width:w,height:h}=eq.image;
+ const at=(u,v)=>data[(Math.min(h-1,Math.floor(v*h))*w+Math.min(w-1,Math.floor(u*w)))*4];
+ /* three's equirect: u = atan2(z, x)/2pi + .5, so -z (12) is u=.25 and +z (6) is u=.75 */
+ if(!(at(.25,.5)>at(.75,.5)))bad('studio panorama',`12 o'clock (${at(.25,.5).toFixed(2)}) should be brighter than 6 (${at(.75,.5).toFixed(2)})`);
+ if(!(at(.5,.99)>1))bad('studio panorama',`straight up should see the softbox (${at(.5,.99).toFixed(2)})`);
+ /* dark walls at 3 and 9 o'clock (+x is u=.5) */
+ if(!(at(.5,.5)<at(.25,.5)))bad('studio panorama','3 o\'clock should be darker than 12');
+ /* 30 degrees up falls between the horizon band's top and the softbox's rim: the dark room */
+ if(!(at(.5,.5+30/180)<.05))bad('studio panorama',`the gap above the horizon should be dark (${at(.5,.5+30/180).toFixed(3)})`);
+ /* a photo carries the wear as roughness: more wear, duller; the dial never */
+ const Wr=await import('./src/core/three/wear.js');
+ const rough=level=>{const d=M.clone(M.DEF);d.case.wear=level;d.parts.case.finish='polished';const w=M.buildHead(d,{});
+  const flank=w.getObjectByName('flank'),dial=w.getObjectByName('dial');
+  return[Wr.wearRoughness(flank.material),dial?Wr.wearRoughness(dial.material):0]};
+ const[n,l,wo]=['new','light','worn'].map(rough);
+ if(!(n[0]<l[0]&&l[0]<wo[0]))bad('photo wear',`flank roughness should rise with wear (${n[0].toFixed(3)}, ${l[0].toFixed(3)}, ${wo[0].toFixed(3)})`);
+ if(n[1]||l[1]||wo[1])bad('photo wear','the dial should not wear in a photo')}
+
 /* dimension sweep: extreme parameter values must not invert the stack or push
    a part off the sheet — these are exactly the corners the UI sliders allow */
 for(const caseMm of[34,40,46])for(const bezelMm of[1.2,2.5,5.5]){

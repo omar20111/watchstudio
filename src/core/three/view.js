@@ -22,6 +22,7 @@ import {buildHead,poseHead,applyPose,disposeHead,headKey,pickPart3D} from './wat
 import {studioEnvironment} from './studio.js';
 import {createAO} from './ao.js';
 import {webglState,markWebglFailed} from './support.js';
+import {surfaceMesh} from './surfaces.js';
 
 export const SHEET=CAN/PX;
 export const CAMERAS=['front','three-quarter','profile'];
@@ -61,6 +62,12 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  /* catches the watch's shadow on the table without drawing a table */
  const ground=new Mesh(new PlaneGeometry(260,260),new ShadowMaterial({opacity:.32}));
  ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+ /* the product render's surface (surfaces.js): when there is one it takes the
+    shadow, and the shadow-only ground steps aside */
+ let surface=null,surfaceId='none';
+ const placeSurface=()=>{if(surface){scene.remove(surface);surface.geometry.dispose();surface.material.dispose();surface=null}
+  if(watch&&surfaceId!=='none'){surface=surfaceMesh(surfaceId,watch.userData.groundY-.03);if(surface)scene.add(surface)}};
+ const groundOn=d=>d.shadow!==false&&!surface;
 
  const front=new OrthographicCamera(-1,1,1,-1,.1,2000);   /* placed by aim() */
  const tq=new PerspectiveCamera(19,1,1,4000);
@@ -117,14 +124,17 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     if(watch){scene.remove(watch);disposeHead(watch)}
     watch=buildHead(d,customs,{aniso:renderer.capabilities.getMaxAnisotropy()});scene.add(watch);
     /* the watch rests on its strap, so the table is wherever the strap lands */
-    ground.position.y=watch.userData.groundY-.02;
+    ground.position.y=watch.userData.groundY-.02;placeSurface();
     target.set(0,watch.userData.heights.dial,0);aim();
     if(watch.userData.pending)watch.userData.pending.then(()=>{built='';if(onDirty)onDirty()})}
-   applyPose(watch,d);ground.visible=d.shadow!==false;
+   applyPose(watch,d);ground.visible=groundOn(d);
    return watch.userData.pending},
   /* would setDesign rebuild? (lets a caller throttle rebuilds but not poses) */
   stale(d,customs={}){return headKey(d,customs)!==built},
-  pose(d){if(watch){applyPose(watch,d);ground.visible=d.shadow!==false}},
+  pose(d){if(watch){applyPose(watch,d);ground.visible=groundOn(d)}},
+  /* 'none' or a surface id; only the product render sets one */
+  setSurface(id='none'){if(id===surfaceId)return;surfaceId=id;placeSurface();if(lastD)ground.visible=groundOn(lastD)},
+  get surface(){return surface},
   setCamera(c){if(c===camera)return;camera=c;aim()},
   /* front: an explicit px-per-mm keeps the stage's overlay aligned; zoom scales
      the other cameras */

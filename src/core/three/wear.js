@@ -28,16 +28,16 @@ const WEAR_TILE_MM=14;
 const GRAIN_MM=[8,2];
 
 /* a small fast deterministic generator (mulberry32) */
-const rng=seed=>()=>{seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);
+export const rng=seed=>()=>{seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);
  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 
 /* tileable value noise on an nx by ny lattice, sampled in lattice units */
-function lattice(nx,ny,r){const a=new Float32Array(nx*ny);for(let i=0;i<a.length;i++)a[i]=r();
+export function lattice(nx,ny,r){const a=new Float32Array(nx*ny);for(let i=0;i<a.length;i++)a[i]=r();
  const g=(i,j)=>a[(((j%ny)+ny)%ny)*nx+(((i%nx)+nx)%nx)];
  return(x,y)=>{const xi=Math.floor(x),yi=Math.floor(y),fx=x-xi,fy=y-yi,sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
   return(g(xi,yi)*(1-sx)+g(xi+1,yi)*sx)*(1-sy)+(g(xi,yi+1)*(1-sx)+g(xi+1,yi+1)*sx)*sy}}
 
-function dataTexture(w,h,rgba,{aniso=8}={}){
+export function dataTexture(w,h,rgba,{aniso=8}={}){
  const t=new DataTexture(rgba,w,h,RGBAFormat);t.colorSpace=NoColorSpace;
  t.wrapS=t.wrapT=RepeatWrapping;t.magFilter=LinearFilter;t.minFilter=LinearMipmapLinearFilter;
  t.generateMipmaps=true;t.anisotropy=aniso;t.needsUpdate=true;return t}
@@ -80,7 +80,7 @@ export const grainMap=()=>once('grain',()=>{const W=512,r=rng(0xb205),a=new Uint
  return dataTexture(W,W,a)});
 
 /* a tangent-space normal map from a tileable height function h(x, y) in pixels */
-function normalsFromHeight(W,h,strength){const H=new Float32Array(W*W);
+export function normalsFromHeight(W,h,strength){const H=new Float32Array(W*W);
  for(let y=0;y<W;y++)for(let x=0;x<W;x++)H[y*W+x]=h(x,y);
  const at=(x,y)=>H[(((y%W)+W)%W)*W+(((x%W)+W)%W)];
  const a=new Uint8Array(W*W*4);
@@ -171,4 +171,19 @@ export function applyWear(mesh,level){const mat=mesh.material;
   sh.vertexShader=VERT_HEAD+sh.vertexShader.replace('#include <begin_vertex>',
    '#include <begin_vertex>\n\tvWearPos=transformed;vWearNrm=objectNormal;vWearUv=uv;');
   sh.fragmentShader=FRAG_HEAD+sh.fragmentShader.replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>'+FRAG_BODY)});
+ wornBy.set(mat,{level,finish:finish==='none'?'polished':finish});
  return true}
+
+/* What a worn material averages to. A path tracer cannot run the wear shader,
+   and baking a scratch map per part would multiply its texture memory; a photo
+   instead gets the wear's mean roughness, so a worn case still photographs
+   duller than a new one. Brushed metal adds a little for the streaks the path
+   tracer cannot draw either. 0 for a material that does not wear. */
+const wornBy=new WeakMap();
+let means=null;
+export function wearRoughness(mat){const w=wornBy.get(mat);if(!w)return 0;
+ if(!means){const{data}=wearMap().image,n=data.length/4;let r=0,g=0,b=0;
+  for(let i=0;i<data.length;i+=4){r+=data[i];g+=data[i+1];b+=data[i+2]}
+  means=[r/n/255,g/n/255,b/n/255]}
+ const k=(WEAR[w.level]||WEAR.light)[w.finish]||WEAR.light.polished;
+ return Math.max(0,k[0]*means[0]+k[2]*means[1]+k[1]*means[2])+(w.finish==='brushed'?.04:0)}

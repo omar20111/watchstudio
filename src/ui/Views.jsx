@@ -17,6 +17,8 @@ import {hasStructuralUpload} from '../core/three/uploads.js';
 import {useWebgl} from '../core/three/support.js';
 import {flatCanvas} from '../export/flat.js';
 import {useTwoFingers,useMedia} from './gestures.js';
+import {PhotoOverlay} from './Photo.jsx';
+import {SURFACES} from '../core/three/surfaces.js';
 const {useEffect,useRef,useState}=React;
 
 /* ---------------------------------------------------------------- product */
@@ -30,16 +32,35 @@ export function ProductRender(){const s=useApp();const d=s.d;
  useEffect(()=>{if(view.current){view.current.setFrame({zoom});redraw()}},[camera,gen,zoom]);
  useTwoFingers(host,{onStart:()=>{pinch0.current=zoom},onPinch:k=>setZoom(Math.min(3,Math.max(.6,pinch0.current*k)))},[gen]);
  const touchUI=useMedia('(pointer: coarse)');
+ /* staging: the surface shows live; the blur is a lens, so only a photo has it */
+ const pr=d.product||{surface:'studio',blur:'soft'};
+ useEffect(()=>{if(view.current){view.current.setSurface(pr.surface);redraw()}},[pr.surface,gen]);
+ const[photo,setPhoto]=useState(false);
+ const setProduct=patch=>s.setD(n=>{n.product={...(n.product||{}),...patch}});
  return<div ref={host} className="flex-1 min-h-0 relative overflow-hidden"
   style={{background:'radial-gradient(115% 85% at 50% 8%, #4a4e56 0%, #2c2f35 46%, #141519 100%)',touchAction:'none'}}>
   {flat?<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <FlatWatch size={Math.max(220,Math.min(box.w*.78,box.h*.82))} label="Product render of the watch, flat 2D drawing"/></div>
    :<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>}
   {lost&&<RestoringNotice/>}
+  {!flat&&!photo&&<div className="absolute top-3 right-3 left-3 sm:left-auto flex flex-wrap justify-end items-center gap-1.5" style={{zIndex:50}}>
+   <div role="group" aria-label="Surface" className="flex flex-wrap items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1">
+    <span className="text-[10px] text-neutral-400 px-1">Surface</span>
+    {SURFACES.map(([id,label])=><button key={id} className={`chip ${pr.surface===id?'on':''}`} aria-pressed={pr.surface===id}
+     onClick={()=>setProduct({surface:id})}>{label}</button>)}</div>
+   <div role="group" aria-label="Lens blur" className="flex items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1"
+    title="How much of the watch falls out of focus in a photo">
+    <span className="text-[10px] text-neutral-400 px-1">Blur</span>
+    {[['off','Off'],['soft','Soft'],['strong','Strong']].map(([id,label])=><button key={id} className={`chip ${pr.blur===id?'on':''}`} aria-pressed={pr.blur===id}
+     onClick={()=>setProduct({blur:id})}>{label}</button>)}</div>
+   <button className="goldbtn" onClick={()=>setPhoto(true)} title="Path trace a photo-quality still of this view">📷 Photo</button>
+  </div>}
+  {photo&&<PhotoOverlay view={view} box={box} onClose={()=>{setPhoto(false);redraw()}}/>}
   <div className="absolute bottom-4 left-0 right-0 text-center text-[11px] tracking-[.24em] text-neutral-500 uppercase pointer-events-none">
    {s.projName} · {d.caseMm} mm · {(METALS[d.parts.case.metal]||{}).name}
   </div>
-  <div className="absolute top-3 left-3 text-[10px] text-neutral-500 pointer-events-none">{flat?'Flat 2D drawing — turning the watch needs WebGL':touchUI?'Drag to turn the watch · pinch to zoom':'Drag to turn the watch'}</div>
+  {/* above the name line: the staging bar holds the top */}
+  <div className="absolute bottom-10 left-0 right-0 text-center text-[10px] text-neutral-500 pointer-events-none">{flat?'Flat 2D drawing — turning the watch needs WebGL':touchUI?'Drag to turn the watch · pinch to zoom':'Drag to turn the watch'}</div>
  </div>}
 
 /* ---------------------------------------------------------------- sheet */

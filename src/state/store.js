@@ -21,6 +21,9 @@ export const DEF={caseMm:40,strapMm:'auto',
  bezelMm:'auto',crownMm:'auto',
  case:DEF_CASE(),
  view:'edit',camera:'front',zoom:1,shadow:true,bg:'studio',bgCustom:null,active:{},
+ /* the product render's staging: the surface the watch lies on, and how much a
+    photo's lens blurs what is out of focus */
+ product:{surface:'studio',blur:'soft'},
  chrono:{running:false,elapsed:0,start:0},
  time:{mode:'live',sweep:true,h:10,m:8,s:36,date:28,gmtOffsetH:0},
  parts:{
@@ -92,6 +95,7 @@ export function hydrate(saved,schemaVersion){const d=clone(DEF);if(!saved)return
  if(s.case)d.case={...d.case,...clone(s.case)};
  if(s.time)d.time={...d.time,...clone(s.time)};
  if(s.chrono)d.chrono={...d.chrono,...clone(s.chrono)};
+ if(s.product)d.product={...d.product,...clone(s.product)};
  if(s.active)d.active=clone(s.active);
  for(const k in d.parts){if(s.parts&&s.parts[k])Object.assign(d.parts[k],clone(s.parts[k]))}
  /* fields earlier builds wrote but nothing ever read — drop them from old saves */

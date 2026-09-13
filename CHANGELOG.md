@@ -28,6 +28,21 @@
   buckle and carries two keepers. The buckle is made in the strap's hardware
   metal; a ceramic or carbon watch gets a steel or black buckle. All three are
   in the GLB.
+- **📷 Photo** (`core/three/photo.js`, `ui/Photo.jsx`). The product render can
+  take a photo-quality still: the view is path traced (three-gpu-pathtracer)
+  from exactly the camera on screen, so the case reflects the strap, the
+  crystal catches the room, shadows fall soft from a real area light, and a
+  lens blurs what is out of focus. It refines over 320 samples (seconds on a
+  desktop GPU, longer on a phone) and can be saved as a PNG at any point; the
+  live view pauses underneath. The room is the same studio the live views
+  reflect, now also generated as a panorama (`studio.js studioEquirect`).
+  Photos carry wear as its average roughness; hairline scratches and brushed
+  streaks are drawn by the live renderer only.
+- **Staging** (`core/three/surfaces.js`). The product render's watch lies on a
+  surface — Studio paper, Slate, Walnut, Marble, Linen or None — generated as
+  seamless textures with a finish to match (polished marble reflects, walnut
+  is varnished, linen matte), fading into the backdrop. Lens blur: Off, Soft
+  or Strong, for photos. Both are saved with the design.
 - **Works on phones and tablets.**
   - *Pinch to zoom* the watch in the editor and the product render. A pinch
     used to zoom the whole page instead, leaving the editor magnified.

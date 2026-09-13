@@ -52,7 +52,10 @@ export function useWatchView({camera='front',orbit=false}={}){
   const r=host.current.getBoundingClientRect();v.resize(r.width,r.height,dprOf());
   let raf=null,lastD=null,lastC=null,lastBuild=-1e9,lastDraw=-1e9,giveUp=null,slow=0;
   v.onDirty(()=>{lastD=null;dirty.current=true});   /* an upload finished loading */
-  const loop=t=>{const st=store.getState();
+  /* `paused`: something else is using the GPU over this view (a photo being
+     path traced) — skip frames until it is done */
+  const loop=t=>{if(v.paused){raf=requestAnimationFrame(loop);return}
+   const st=store.getState();
    if(st.d!==lastD||st.customs!==lastC){dirty.current=true;
     if(v.stale(st.d,st.customs)&&t-lastBuild<90)v.pose(st.d);
     else{v.setDesign(st.d,st.customs);lastBuild=t;lastD=st.d;lastC=st.customs}}
