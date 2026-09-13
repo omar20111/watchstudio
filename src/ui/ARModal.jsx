@@ -60,9 +60,15 @@ export function ARModal({onClose}){const s=useApp();
   catch(e){console.error('WatchStudio: AR session failed',e);setXr(null);
    setErr('AR could not start on this device. Check that Google Play Services for AR is installed, and that the camera is allowed for this site.')}};
 
- const openQL=async()=>{setErr('');setBusy(true);
-  try{const st=store.getState();
-   openQuickLook(await designToUSDZ(st.d,st.customs),st.projName.replace(/\s+/g,'_'))}
+ /* The model takes seconds to build, and iOS may refuse to open Quick Look
+    that long after the tap. Keep what was built: a second tap on the button
+    then opens it at once, inside its own tap. */
+ const built=useRef(null);
+ const openQL=async()=>{setErr('');const st=store.getState(),key=JSON.stringify([st.d,Object.keys(st.customs||{})]);
+  const name=st.projName.replace(/\s+/g,'_');
+  if(built.current&&built.current.key===key){openQuickLook(built.current.bytes,name);return}
+  setBusy(true);
+  try{const bytes=await designToUSDZ(st.d,st.customs);built.current={key,bytes};openQuickLook(bytes,name)}
   catch(e){console.error('WatchStudio: USDZ export failed',e);setErr('The AR model could not be built on this device.')}
   finally{setBusy(false)}};
 
