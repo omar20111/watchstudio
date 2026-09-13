@@ -1,4 +1,5 @@
-/* Dial renderer: sunburst / matte / chrono / guilloché / fumé + track + text. */
+/* Dial renderer: sunburst / matte / chrono / guilloché / fumé / enamel /
+   tapisserie + track + text. */
 import {C} from '../constants.js';
 import {lumOf,lighten,shade} from '../utils.js';
 import {posAt} from '../geometry.js';
@@ -23,6 +24,10 @@ function drDateWheel(ctx,o){const L=o.layout,win=L&&L.win;if(!win)return;
  ctx.restore()}
 
 const roundRect=(ctx,x,y,w,h,rr)=>{ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,rr)};
+
+/* one tapisserie pyramid, in sheet px: a little over a millimetre on a 40 mm
+   watch. Shared with the 3D dial, whose normal map is laid on the same grid. */
+export const tapisserieCell=dialR=>dialR*.065;
 
 export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  const W=ctx.canvas.width,H=ctx.canvas.height,L=o.layout||{};
@@ -56,6 +61,24 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
    ctx.strokeStyle=i%2?'rgba(255,255,255,.055)':'rgba(0,0,0,.07)';ctx.stroke()}
   const cg=ctx.createRadialGradient(C,C,0,C,C,r*.18);
   cg.addColorStop(0,'rgba(0,0,0,.22)');cg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=cg;ctx.fillRect(0,0,W,H)}
+
+ /* grand feu enamel: one deep, even glaze. Its depth is the gloss the 3D
+    material gives it; the 2D drawing only suggests the pool of light in it */
+ if(o.variant==='enamel'&&!flat){const eg=ctx.createRadialGradient(C,C-r*.25,0,C,C,r);
+  eg.addColorStop(0,lighten(col,.07));eg.addColorStop(.7,col);eg.addColorStop(1,shade(col,.12));
+  ctx.fillStyle=eg;ctx.fillRect(0,0,W,H)}
+
+ /* tapisserie: a grid of small square pyramids. The grooves between them are
+    ink in every mode; the lit and shaded facets are light, painted only for the
+    2D drawing — in 3D a normal map on the same grid does that */
+ if(o.variant==='tapisserie'){const cell=tapisserieCell(r);
+  const n=Math.ceil(r/cell)+1;
+  if(!flat)for(let i=-n;i<n;i++)for(let j=-n;j<n;j++){const x=C+i*cell,y=C+j*cell;
+   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+cell,y);ctx.lineTo(x+cell/2,y+cell/2);ctx.closePath();ctx.fillStyle='rgba(255,255,255,.09)';ctx.fill();
+   ctx.beginPath();ctx.moveTo(x,y+cell);ctx.lineTo(x+cell,y+cell);ctx.lineTo(x+cell/2,y+cell/2);ctx.closePath();ctx.fillStyle='rgba(0,0,0,.12)';ctx.fill()}
+  ctx.strokeStyle=flat?'rgba(0,0,0,.2)':'rgba(0,0,0,.28)';ctx.lineWidth=Math.max(1,cell*.1);
+  for(let i=-n;i<=n;i++){ctx.beginPath();ctx.moveTo(C+i*cell,C-r);ctx.lineTo(C+i*cell,C+r);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(C-r,C+i*cell);ctx.lineTo(C+r,C+i*cell);ctx.stroke()}}
 
  if(o.variant==='matte'||o.variant==='chrono')noiseFill(ctx,.07,'overlay');
  if(o.finish==='brushed'){ctx.save();ctx.globalCompositeOperation='overlay';
@@ -97,6 +120,8 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   /* pad printing sits proud of the dial: a hairline shadow under it and a lit
      top edge, so the branding reads as applied ink rather than a text layer */
   const line=(s,fs,yy)=>{ctx.font=fnt(fs);
+   /* Arabic is a joined script: letter spacing pulls its letters apart */
+   if(/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(s))try{ctx.letterSpacing='0px'}catch(e){}
    if(!flat){ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillText(s,C+SHADOW.dx*fs*0.07,yy+SHADOW.dy*fs*0.07)}
    ctx.fillStyle=ink;ctx.fillText(s,C,yy);
    if(!flat){ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillText(s,C-SHADOW.dx*fs*0.03,yy-SHADOW.dy*fs*0.03)}};

@@ -1,4 +1,5 @@
-/* Hands renderer: dauphine / baton / sword / mercedes / leaf + second hand.
+/* Hands renderer: dauphine / baton / sword / mercedes / leaf / cathedral /
+   syringe / arrow + second hand.
 
    `shape` bakes the silhouette the 3D hands are extruded from and `lume` the
    compound laid into them; both come from the same measurements as the
@@ -61,6 +62,40 @@ export function drHand(ctx,o){const r=o.g.dialR;const m=METALS[o.metal]||METALS.
   handShadow(ctx,()=>{ctx.beginPath();ctx.roundRect(C-w*0.66,tipY,w*1.32,bY-tipY,w*0.62)},len);
   leaf(wb,bY,tipY);ctx.fillStyle=axisGrad(ctx,m,C-wb,0,C+wb,0);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=1.5;ctx.stroke();
   leaf(wb*0.42,bY-len*0.12,tipY+len*0.14);ctx.fillStyle=lumeFill(ctx,C-wb*.42,0,C+wb*.42,0,lum);ctx.fill();}
+ /* The three shaped hands below share one drawing: a metal outline, a lume
+    inlay cut into it, and optional metal bars left standing across the lume. */
+ else if(o.variant==='cathedral'||o.variant==='syringe'||o.variant==='arrow'){
+  const hour=t==='hour',sw=w*0.34;
+  let outline,inlay,bars=[];
+  if(o.variant==='cathedral'){
+   /* a narrow stem opening into a pointed lancet, its lume split by a crossbar */
+   const ww=w*(hour?1.35:1.0),y1=C-len*(hour?0.2:0.3),yM=C-len*(hour?0.52:0.62);
+   outline=()=>{ctx.beginPath();ctx.moveTo(C,tipY);ctx.quadraticCurveTo(C+ww*1.25,yM,C+ww*0.42,y1);ctx.lineTo(C+sw,y1);
+    ctx.lineTo(C+sw,bY);ctx.lineTo(C-sw,bY);ctx.lineTo(C-sw,y1);ctx.lineTo(C-ww*0.42,y1);ctx.quadraticCurveTo(C-ww*1.25,yM,C,tipY);ctx.closePath()};
+   inlay=()=>{const k=0.62;ctx.beginPath();ctx.moveTo(C,tipY+len*0.09);ctx.quadraticCurveTo(C+ww*1.25*k,yM,C+ww*0.2,y1-len*0.04);
+    ctx.lineTo(C-ww*0.2,y1-len*0.04);ctx.quadraticCurveTo(C-ww*1.25*k,yM,C,tipY+len*0.09);ctx.closePath()};
+   bars=[[yM+len*0.05,ww*2]]}
+  else if(o.variant==='syringe'){
+   /* a thin stem, a lume-filled barrel, then a long needle to the tip */
+   const bw=w*(hour?0.95:0.8),b0=C-len*0.16,b1=C-len*(hour?0.74:0.7);
+   outline=()=>{ctx.beginPath();ctx.moveTo(C-sw,bY);ctx.lineTo(C-sw,b0);ctx.lineTo(C-bw/2,b0-len*0.02);ctx.lineTo(C-bw/2,b1);
+    ctx.lineTo(C-sw*0.45,b1-len*0.04);ctx.lineTo(C-sw*0.2,tipY+len*0.02);ctx.lineTo(C,tipY);ctx.lineTo(C+sw*0.2,tipY+len*0.02);
+    ctx.lineTo(C+sw*0.45,b1-len*0.04);ctx.lineTo(C+bw/2,b1);ctx.lineTo(C+bw/2,b0-len*0.02);ctx.lineTo(C+sw,b0);ctx.lineTo(C+sw,bY);ctx.closePath()};
+   inlay=()=>{ctx.beginPath();ctx.roundRect(C-bw*0.3,b1+len*0.03,bw*0.6,(b0-b1)-len*0.07,bw*0.25)}}
+  else{
+   /* broad arrow: a stem carrying an arrowhead, lume in the head */
+   const aw=w*(hour?1.25:0.9),a0=C-len*(hour?0.58:0.74);
+   outline=()=>{ctx.beginPath();ctx.moveTo(C,tipY);ctx.lineTo(C+aw,a0);ctx.lineTo(C+sw,a0-len*0.01);ctx.lineTo(C+sw,bY);
+    ctx.lineTo(C-sw,bY);ctx.lineTo(C-sw,a0-len*0.01);ctx.lineTo(C-aw,a0);ctx.closePath()};
+   inlay=()=>{const i=len*0.05;ctx.beginPath();ctx.moveTo(C,tipY+i*1.8);ctx.lineTo(C+aw-i*1.6,a0-i*0.55);ctx.lineTo(C-aw+i*1.6,a0-i*0.55);ctx.closePath()}}
+  const cutBars=()=>{for(const[y,bw]of bars){ctx.fillRect(C-bw/2,y-len*0.012,bw,len*0.024)}};
+  if(shape){outline();white();return}
+  if(lumeOnly){inlay();ctx.fillStyle=lum;ctx.fill();
+   if(bars.length){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';cutBars();ctx.restore()}return}
+  handShadow(ctx,()=>{outline()},len);
+  outline();ctx.fillStyle=axisGrad(ctx,m,C-w*1.2,0,C+w*1.2,0);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=1.5;ctx.stroke();
+  inlay();ctx.fillStyle=lumeFill(ctx,C-w*.5,0,C+w*.5,0,lum);ctx.fill();
+  if(bars.length){ctx.fillStyle=axisGrad(ctx,m,C-w,0,C+w,0);cutBars()}}
  else if(o.variant==='mercedes'&&t==='hour'){
   const ww=len*0.13,cy=C-len*0.70,cr=len*0.135;
   const shaft=()=>{ctx.beginPath();ctx.roundRect(C-ww/2,cy,ww,len*0.70+tail,ww/2)};

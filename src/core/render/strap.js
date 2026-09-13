@@ -75,9 +75,18 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
   if(o.variant==='rubber'){g.addColorStop(0,shade(col,.5));g.addColorStop(.15,col);g.addColorStop(.5,lighten(col,.1));g.addColorStop(.85,col);g.addColorStop(1,shade(col,.5))}
   else if(o.variant==='nato'){g.addColorStop(0,shade(col,.4));g.addColorStop(.5,col);g.addColorStop(1,shade(col,.4))}
   else{g.addColorStop(0,shade(col,.55));g.addColorStop(.1,shade(col,.12));g.addColorStop(.46,lighten(col,.16));g.addColorStop(.62,col);g.addColorStop(.9,shade(col,.2));g.addColorStop(1,shade(col,.55))}
-  /* a flat strap is its dye; the rounding across its width is real geometry */
-  ctx.fillStyle=flat?col:g;ctx.fill();
+  /* a flat strap is its dye; the rounding across its width is real geometry.
+     A Milanese band is the metal itself. */
+  const mesh=o.variant==='mesh';
+  ctx.fillStyle=mesh?(flat?m.base:axisGrad(ctx,m,C-sw/2,0,C+sw/2,0)):flat?col:g;ctx.fill();
   ctx.save();path();ctx.clip();
+  /* Milanese: a fine diagonal weave, crossed rows of tiny loops */
+  if(mesh){ctx.lineWidth=1;const pitch=5;
+   for(let k=-sw;k<(yB-yA)+sw;k+=pitch){ctx.beginPath();ctx.moveTo(C-sw,yA+k);ctx.lineTo(C+sw,yA+k+sw*2);
+    ctx.strokeStyle=`rgba(0,0,0,${flat?.1:.18})`;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(C+sw,yA+k);ctx.lineTo(C-sw,yA+k+sw*2);ctx.strokeStyle=`rgba(255,255,255,${flat?.06:.12})`;ctx.stroke()}
+   /* the two edges are folded over: a polished roll down each side */
+   for(const s of[-1,1]){along(y=>C+s*Math.max(0,wAt(y)/2-3),y0-dir*20,y1);ctx.strokeStyle=flat?m.hi:tone(m,.9);ctx.lineWidth=5;ctx.stroke()}}
   if(o.variant==='leather'){
    /* coarse mottle for the hide, fine grain on top of it */
    noiseFill(ctx,.22,'multiply',3.2);noiseFill(ctx,.10,'overlay',.9);
@@ -109,7 +118,7 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
    for(const off of[36,74]){const y=top?y0-dir*off:y0+dir*off-14;ctx.fillStyle=flat?m.base:axisGrad(ctx,m,0,y,0,y+14);ctx.fillRect(C-sw/2-6,y,sw+12,14)}}
   /* the holes down the 6 o'clock strap: dark wells with a pressed rim, painted
      through both faces as a punched hole would show. A NATO's are eyelets. */
-  if(shaped&&!top)for(const mm of STRAP_HOLES_MM){const y=y1-dir*mm*PX,r=(o.variant==='nato'?.7:.78)*PX;
+  if(shaped&&!top&&!mesh)for(const mm of STRAP_HOLES_MM){const y=y1-dir*mm*PX,r=(o.variant==='nato'?.7:.78)*PX;
    ctx.beginPath();ctx.arc(C,y,r+(o.variant==='nato'?4:2.5),0,Math.PI*2);
    ctx.fillStyle=o.variant==='nato'?m.base:shade(col,o.variant==='rubber'?.3:.45);ctx.fill();
    const hg=ctx.createRadialGradient(C,y-r*.25,r*.1,C,y,r);

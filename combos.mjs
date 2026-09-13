@@ -186,7 +186,7 @@ const boundsOf=(geo,keep=()=>true)=>{const p=geo.attributes.position,b={x0:1e9,x
  for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);if(!keep(x,y,z))continue;
   b.x0=Math.min(b.x0,x);b.x1=Math.max(b.x1,x);b.y0=Math.min(b.y0,y);b.y1=Math.max(b.y1,y);b.z0=Math.min(b.z0,z);b.z1=Math.max(b.z1,z)}
  return b};
-for(const variant of['leather','rubber','nato'])for(const caseMm of[34,40,46]){
+for(const variant of['leather','rubber','nato','mesh'])for(const caseMm of[34,40,46]){
  const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap.variant=variant;const tag=`strap ${variant}/${caseMm}`;
  let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
  const mesh=n=>w.getObjectByName(n),sp=L3.strapPath(d),wide=G.strapMmOf(d);

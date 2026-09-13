@@ -71,7 +71,7 @@ export const MIN_BAND_MM=0.8;
 
 /* the fixed contributions to the stack, from the requested parameters */
 export function stackParts(c,bezelVariant){
- const bezel=bezelVariant==='diver'?2.2:bezelVariant==='fluted'?1.8:bezelVariant==='gmt'?2.0:1.3;
+ const bezel=bezelVariant==='diver'?2.2:bezelVariant==='fluted'?1.8:bezelVariant==='gmt'?2.0:bezelVariant==='coin'?1.6:1.3;
  const crystal=c.crystalMm, dial=0.4;
  const movement=c.movement==='quartz'?2.4:c.movement==='manual'?3.2:c.movement==='spring'?4.2:4.6;
  const caseback=c.caseback==='exhibition'?1.5:1.0;

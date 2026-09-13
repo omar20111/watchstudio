@@ -153,7 +153,7 @@ export function crownParts(d){
    in the strap's own (along, up) plane; `dir` is -1 toward 12, +1 toward 6. */
 export function strapPath(d){
  const lp=lugParts(d),v=d.parts.strap.variant;
- const T=v==='nato'?1.3:v==='steel'?3.4:v==='rubber'?3.6:3.1;
+ const T=v==='nato'?1.3:v==='steel'?3.4:v==='rubber'?3.6:v==='mesh'?2.2:3.1;
  const lugDropAtBar=lp.drop*smoothstep(lp.z0,lp.z1,lp.springZ);
  const y0=lp.bottom-lugDropAtBar+lp.thick*.42-T/2;   /* centreline at the spring bar */
  const r1=16,r2=12,th=55*Math.PI/180;

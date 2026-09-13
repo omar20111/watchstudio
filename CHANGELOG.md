@@ -28,6 +28,22 @@
   buckle and carries two keepers. The buckle is made in the strap's hardware
   metal; a ceramic or carbon watch gets a steel or black buckle. All three are
   in the GLB.
+- **New styles.**
+  - *Markers:* **Arabic ١٢** — Eastern Arabic (Arabic-Indic) numerals, raised
+    like the others; and **Wedges**, applied indices ground to a ridge. The
+    existing 12 · 3 · 6 · 9 style is now labelled Numerals.
+  - *Hands:* **Cathedral** (a lume lancet crossed by a metal bar), **Syringe**
+    and **Broad arrow**.
+  - *Dials:* **Enamel**, a deep glossy glaze, and **Tapisserie**, a grid of
+    small pyramids that each catch the light in 3D.
+  - *Bezel:* **Coin edge**, finely knurled round a fixed ring.
+  - *Strap:* **Milanese** mesh, a woven metal band.
+  - Unlumed numerals and wedges in a dark metal on a dark dial are printed in
+    cream instead, so a black-handed pilot's watch keeps legible numerals.
+  - Dial text in Arabic keeps its letters joined (no letter spacing).
+- **Six new themes:** Arabian Heritage, Flieger Pilot, Milanese Dress,
+  Tapisserie Sport, Desert Field and Broad Arrow Diver. Shuffle draws on the
+  new styles too.
 - **📷 Photo** (`core/three/photo.js`, `ui/Photo.jsx`). The product render can
   take a photo-quality still: the view is path traced (three-gpu-pathtracer)
   from exactly the camera on screen, so the case reflects the strap, the

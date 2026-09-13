@@ -1,4 +1,4 @@
-/* Hour markers: batons / dots / roman / arabic / minimal.
+/* Hour markers: batons / dots / roman / arabic / eastern / wedges / minimal.
 
    Applied indices are solid metal blocks pinned to the dial, not printed
    shapes: each has bevelled flanks lit by the studio rig according to where it
@@ -21,14 +21,32 @@ function lumeInset(ctx,w,h,lum){const g=ctx.createLinearGradient(0,-h/2,0,h/2);
  ctx.fillStyle=g;ctx.fillRect(-w/2,-h/2,w,h);
  ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=1;ctx.strokeRect(-w/2,-h/2,w,h)}
 
+/* Eastern Arabic (Arabic-Indic) digits, the numerals of an "Arabic dial".
+   Written most significant first, like any number, so twelve is ١٢. */
+const EASTERN='٠١٢٣٤٥٦٧٨٩';
+export const easternDigits=n=>String(n).replace(/\d/g,c=>EASTERN[+c]);
+/* A face that carries them everywhere: Geeza Pro on Apple devices, Noto Naskh
+   on Android, Segoe UI on Windows — each draws them as proper Arabic digits
+   rather than a fallback's. */
+const EASTERN_FONT='"Geeza Pro","Noto Naskh Arabic","Segoe UI",Tahoma,Arial,sans-serif';
+const NUMERALS=['roman','arabic','eastern'];
+
+/* Applied metal as dark as the dial vanishes into it: black DLC numerals on a
+   black pilot's dial. Indices with no lume to carry them are printed in cream
+   there instead, the way a maker would. null: apply the metal. */
+export const UNLUMED_INDICES=['roman','arabic','eastern','wedges'];
+export function printedIndexInk(variant,frameMetal,dialColor){const m=METALS[frameMetal]||METALS.steel;
+ return UNLUMED_INDICES.includes(variant)&&lumOf(dialColor||'#16324f')<.3&&lumOf(m.base)<.4?'#e9e4d6':null}
+
 export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
  /* Numerals are the widest indices: their tips reach 0.918 r, past a stepped
     dial's chapter step at 0.915 r, where they would sit on the step's wall.
     On a stepped dial they sit a little further in. */
- const numerals=o.variant==='roman'||o.variant==='arabic';
+ const numerals=NUMERALS.includes(o.variant);
  const rad=r*(numerals&&o.layout&&o.layout.stepped?0.78:0.8);
  const m=METALS[o.frameMetal]||METALS.steel;
  const ink=lumOf(o.dialColor||'#16324f')>0.55?'#26282c':'#e9e4d6';
+ const printed=printedIndexInk(o.variant,o.frameMetal,o.dialColor);
  const shape=o.mode==='shape',lumeOnly=o.mode==='lume';
  ctx.textAlign='center';ctx.textBaseline='middle';
 
@@ -88,16 +106,38 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
     lg.addColorStop(0,shade(lum,.26));lg.addColorStop(.3,lum);lg.addColorStop(1,'rgba(255,255,255,.4)');
     ctx.fillStyle=lg;ctx.fill()})}
 
-  else if(o.variant==='roman'||o.variant==='arabic'){
+  /* Wedges: long applied indices tapering to a point toward the centre, ground
+     into two facets along their length like a dauphine hand. Doubled at 12. */
+  else if(o.variant==='wedges'){if(lumeOnly)continue;
+   const len=r*0.17,w=r*0.068;
+   const wedge=(off,side)=>{ctx.save();ctx.translate(x,y);ctx.rotate(rad0);ctx.translate(off,0);ctx.beginPath();
+    /* outer edge at -len/2 (toward the rim), point at +len/2 (toward the centre) */
+    if(side<0){ctx.moveTo(-w/2,-len/2);ctx.lineTo(0,-len/2);ctx.lineTo(0,len/2)}
+    else if(side>0){ctx.moveTo(0,-len/2);ctx.lineTo(w/2,-len/2);ctx.lineTo(0,len/2)}
+    else{ctx.moveTo(-w/2,-len/2);ctx.lineTo(w/2,-len/2);ctx.lineTo(0,len/2)}
+    ctx.closePath();ctx.restore()};
+   const one=off=>{
+    if(shape){wedge(off,0);ctx.fillStyle='#fff';ctx.fill();return}
+    castShadow(ctx,()=>wedge(off,0),{dist:r*0.014,alpha:.34});
+    const nL=rad0-Math.PI,nR=rad0;
+    wedge(off,-1);ctx.fillStyle=printed||tone(m,litFace(nL)*.9+.08);ctx.fill();
+    wedge(off,1);ctx.fillStyle=printed?shade(printed,.12):tone(m,litFace(nR)*.9+.08);ctx.fill();
+    wedge(off,0);ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=1.1;ctx.stroke()};
+   if(h===0){one(-w*0.62);one(w*0.62)}else one(0)}
+
+  else if(NUMERALS.includes(o.variant)){
    if(lumeOnly)continue;                           /* applied numerals carry no lume */
    const RN=['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
-   const txt=o.variant==='roman'?RN[h]:String(h===0?12:h);
-   ctx.font=o.variant==='roman'?`${r*0.17}px Georgia, serif`:`700 ${r*0.19}px system-ui`;
+   const n=h===0?12:h;
+   const txt=o.variant==='roman'?RN[h]:o.variant==='eastern'?easternDigits(n):String(n);
+   ctx.font=o.variant==='roman'?`${r*0.17}px Georgia, serif`
+    :o.variant==='eastern'?`700 ${r*0.21}px ${EASTERN_FONT}`:`700 ${r*0.19}px system-ui`;
+   if('direction'in ctx)ctx.direction='ltr';
    if(shape){ctx.fillStyle='#fff';ctx.fillText(txt,x,y);continue}
    /* applied numerals: a dark impression, then the metal face slightly proud */
    ctx.fillStyle='rgba(0,0,0,.34)';
    ctx.fillText(txt,x+SHADOW.dx*r*0.012,y+SHADOW.dy*r*0.012);
-   ctx.fillStyle=o.frameMetal?tone(m,litFace(rad0-Math.PI/2)*0.5+0.42):ink;
+   ctx.fillStyle=printed||(o.frameMetal?tone(m,litFace(rad0-Math.PI/2)*0.5+0.42):ink);
    ctx.fillText(txt,x,y);
    ctx.fillStyle='rgba(255,255,255,.22)';
    ctx.fillText(txt,x-SHADOW.dx*r*0.004,y-SHADOW.dy*r*0.004)}}}

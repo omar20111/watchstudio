@@ -82,24 +82,84 @@ export const THEMES=[
   P.hands.variant='baton';P.hands.metal='black';P.hands.lume='#d4af37';P.hands.secColor='#d4af37';
   P.strap.variant='rubber';P.strap.color='#15161a';P.strap.metal='black';
   P.crown.variant='oversized';P.crown.metal='black';P.crown.finish='matte';
-  n.case.crystal='flat'}}];
+  n.case.crystal='flat'}},
+ {id:'arabia',name:'Arabian Heritage',apply:n=>{const P=n.parts;n.caseMm=39;
+  P.case.variant='classic';P.case.metal='gold';P.case.finish='polished';
+  P.bezel.variant='coin';P.bezel.metal='gold';P.bezel.finish='polished';
+  P.dial.variant='enamel';P.dial.color='#f1ece0';P.dial.finish='none';P.dial.date='none';P.dial.step='flat';
+  P.dial.text={top:'WatchStudio',bottom:'أوتوماتيك',font:'serif',color:'#6b4a2f'};
+  P.markers.variant='eastern';
+  P.hands.variant='dauphine';P.hands.metal='gold';P.hands.finish='polished';P.hands.secColor='#8a5636';
+  P.strap.variant='leather';P.strap.color='#3b2416';P.strap.stitch='#e0cfa6';P.strap.metal='gold';
+  P.crown.variant='standard';P.crown.metal='gold';P.crown.finish='polished';
+  n.case.crystal='dome'}},
+ {id:'pilot',name:'Flieger Pilot',apply:n=>{const P=n.parts;n.caseMm=42;
+  P.case.variant='classic';P.case.metal='steel';P.case.finish='matte';
+  P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='matte';
+  P.dial.variant='matte';P.dial.color='#121315';P.dial.finish='matte';P.dial.date='none';P.dial.step='flat';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'FLIEGER',font:'caps',color:'auto'};
+  P.markers.variant='arabic';P.markers.lume='#e8e2c8';
+  P.hands.variant='cathedral';P.hands.metal='black';P.hands.finish='polished';P.hands.lume='#e8e2c8';P.hands.secColor='#e8e2c8';
+  P.strap.variant='leather';P.strap.color='#5a3a22';P.strap.stitch='#e8e2c8';P.strap.metal='steel';
+  P.crown.variant='oversized';P.crown.metal='steel';P.crown.finish='matte';
+  n.case.crystal='dome'}},
+ {id:'milano',name:'Milanese Dress',apply:n=>{const P=n.parts;n.caseMm=38;
+  P.case.variant='classic';P.case.metal='steel';P.case.finish='polished';
+  P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='polished';
+  P.dial.variant='sunburst';P.dial.color='#d9dde3';P.dial.finish='none';P.dial.date='6';P.dial.step='flat';
+  P.dial.text={top:'WatchStudio',bottom:'',font:'serif',color:'auto'};
+  P.markers.variant='wedges';
+  P.hands.variant='dauphine';P.hands.metal='steel';P.hands.finish='polished';P.hands.secColor='#2f7de1';
+  P.strap.variant='mesh';P.strap.metal='steel';
+  P.crown.variant='standard';P.crown.metal='steel';P.crown.finish='polished';
+  n.case.crystal='box'}},
+ {id:'royal',name:'Tapisserie Sport',apply:n=>{const P=n.parts;n.caseMm=41;
+  P.case.variant='classic';P.case.metal='steel';P.case.finish='brushed';
+  P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='polished';
+  P.dial.variant='tapisserie';P.dial.color='#1f3d73';P.dial.finish='none';P.dial.date='3';P.dial.step='stepped';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'AUTOMATIC',font:'caps',color:'auto'};
+  P.markers.variant='batons';P.markers.lume='#dff3e4';
+  P.hands.variant='baton';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#dff3e4';P.hands.secColor='#e8e6e0';
+  P.strap.variant='steel';P.strap.metal='steel';P.strap.finish='brushed';
+  P.crown.variant='standard';P.crown.metal='steel';P.crown.finish='brushed';
+  n.case.crystal='flat'}},
+ {id:'desert',name:'Desert Field',apply:n=>{const P=n.parts;n.caseMm=40;
+  P.case.variant='classic';P.case.metal='titanium';P.case.finish='matte';
+  P.bezel.variant='smooth';P.bezel.metal='titanium';P.bezel.finish='matte';
+  P.dial.variant='matte';P.dial.color='#c2ab80';P.dial.finish='matte';P.dial.date='none';P.dial.step='stepped';
+  P.dial.text={top:'WatchStudio',bottom:'FIELD',font:'caps',color:'#2a241a'};
+  P.markers.variant='arabic';
+  P.hands.variant='syringe';P.hands.metal='black';P.hands.finish='polished';P.hands.lume='#f2ead2';P.hands.secColor='#c96a2b';
+  P.strap.variant='nato';P.strap.color='#5e5238';P.strap.stitch='#e0cfa6';P.strap.metal='titanium';
+  P.crown.variant='standard';P.crown.metal='titanium';P.crown.finish='matte';
+  n.case.crystal='dome'}},
+ {id:'arrow',name:'Broad Arrow Diver',apply:n=>{const P=n.parts;n.caseMm=41;
+  P.case.variant='sport';P.case.metal='steel';P.case.finish='brushed';
+  P.bezel.variant='diver';P.bezel.metal='steel';P.bezel.insertColor='#101318';
+  P.dial.variant='matte';P.dial.color='#0f1113';P.dial.finish='none';P.dial.date='none';P.dial.step='stepped';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'300 m',font:'sans',color:'auto'};
+  P.markers.variant='dots';P.markers.lume='#dff3e4';
+  P.hands.variant='arrow';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#dff3e4';P.hands.secColor='#e8482c';
+  P.strap.variant='rubber';P.strap.color='#15161a';P.strap.metal='steel';
+  P.crown.variant='oversized';P.crown.metal='steel';P.crown.finish='brushed';
+  n.case.crystal='dome'}}];
 
 export function shuffleInto(n){const P=n.parts;const metal=pick(['steel','steel','rose','gold','titanium','black','bronze','ceramic','carbon']);
  for(const k of['case','crown','bezel','hands'])P[k].metal=metal;
  if(metal==='carbon'||metal==='ceramic')P.hands.metal=pick(['steel','rose','gold']);
  P.case.finish=pick(['polished','brushed','matte']);P.bezel.finish=pick(['polished','brushed']);
  P.hands.finish=pick(['polished','brushed']);P.dial.finish=pick(['none','polished','matte']);
- P.bezel.variant=pick(['smooth','fluted','diver','gmt','tachy']);
+ P.bezel.variant=pick(['smooth','fluted','coin','diver','gmt','tachy']);
  P.bezel.insertColor=pick(['#101318','#16324f','#4a1f24','#1d3a2a','#1c3f66']);
- P.dial.variant=pick(['sunburst','sunburst','matte','chrono','guilloche','fume']);
+ P.dial.variant=pick(['sunburst','sunburst','matte','chrono','guilloche','fume','enamel','tapisserie']);
  P.dial.color=pick(['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66']);
  P.dial.date=pick(['none','none','3','3','430','6']);P.dial.step=pick(['flat','stepped','stepped']);
- P.markers.variant=pick(['batons','dots','roman','arabic','minimal']);
- P.hands.variant=pick(['dauphine','baton','sword','mercedes','leaf']);
+ P.markers.variant=pick(['batons','dots','roman','arabic','eastern','wedges','minimal']);
+ P.hands.variant=pick(['dauphine','baton','sword','mercedes','leaf','cathedral','syringe','arrow']);
  P.hands.secColor=pick(['#e8482c','#d4af37','#e8e6e0','#2f7de1','#c96a2b']);
  P.crown.variant=pick(['standard','oversized']);
  P.case.variant=pick(['classic','classic','sport']);
- const sv=pick(['leather','rubber','steel','nato']);P.strap.variant=sv;P.strap.metal=metal;
+ const sv=pick(['leather','rubber','steel','nato','mesh']);P.strap.variant=sv;P.strap.metal=metal;
  if(sv==='leather')P.strap.color=pick(['#6b4a2f','#2b2118','#1d3a2a','#4a1f24']);
  else if(sv==='rubber')P.strap.color=pick(['#15161a','#16324f','#1d3a2a','#c96a2b']);
  else if(sv==='nato'){P.strap.color=pick(['#1f3a5f','#1d3a2a','#4a4a4a']);P.strap.stitch=pick(['#e0cfa6','#e8e6e0'])}}

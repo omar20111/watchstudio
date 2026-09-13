@@ -23,7 +23,9 @@ import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
 import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
-import {applyWear,strapGrainMap,STRAP_GRAIN_MM} from './wear.js';
+import {tapisserieCell} from '../render/dial.js';
+import {printedIndexInk} from '../render/markers.js';
+import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight} from './wear.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
@@ -35,7 +37,10 @@ const INDEX_FORM={
  minimal:{profile:'bevel',height:.3,edge:.1,bevel:.42,pocket:.23},
  dots:{profile:'dome',height:.3,edge:.08,bevel:.9,pocket:.22},
  roman:{profile:'bevel',height:.2,edge:.07,bevel:.6},
- arabic:{profile:'bevel',height:.22,edge:.07,bevel:.55}};
+ arabic:{profile:'bevel',height:.22,edge:.07,bevel:.55},
+ eastern:{profile:'bevel',height:.22,edge:.07,bevel:.6},
+ /* ground to a ridge along the wedge, like a dauphine hand */
+ wedges:{profile:'roof',height:.34,edge:.06}};
 
 /* A dauphine is two ground facets meeting at a ridge; batons and swords are
    bevelled with a flat top carrying the lume; a leaf is rounded. Hour hands
@@ -45,6 +50,8 @@ function handForm(variant,which){
  const tall=which==='hour'?.02:0;
  if(variant==='dauphine')return{profile:'roof',height:.34+tall,edge:.05};
  if(variant==='leaf')return{profile:'dome',height:.3+tall,edge:.05,bevel:.85,pocket:.2+tall};
+ /* shaped pilot hands: a narrow stem, so a shallow bevel keeps it from grinding to a knife edge */
+ if(variant==='cathedral'||variant==='syringe'||variant==='arrow')return{profile:'bevel',height:.26+tall,edge:.09,bevel:.55,pocket:.19+tall};
  const bevel=variant==='sword'?.45:.4;
  return{profile:'bevel',height:.27+tall,edge:.08,bevel,pocket:.2+tall}}
 
@@ -85,7 +92,12 @@ export function headKey(d,customs){
 
 /* ---------------------------------------------------------------- materials */
 
-function dialMaterial(map,p){
+/* tapisserie pyramids as a normal map: 8 to a tile, laid on the dial's own grid */
+let tapNormal=null;
+const tapisserieNormalMap=()=>tapNormal||(tapNormal=normalsFromHeight(512,(x,y)=>{
+ const fx=(x%64)/64,fy=(y%64)/64,dd=Math.max(Math.abs(fx-.5),Math.abs(fy-.5));return dd>.42?0:1-dd/.42},8));
+
+function dialMaterial(map,p,dialR=null){
  const mat=new MeshPhysicalMaterial({map,metalness:0,roughness:.5});
  if(p.variant==='sunburst'){
   /* radial brushing: the highlight sweeps around the dial as the light moves */
@@ -94,6 +106,14 @@ function dialMaterial(map,p){
  else if(p.variant==='matte'||p.variant==='chrono')mat.roughness=.82;
  else if(p.variant==='guilloche'){mat.roughness=.34;mat.clearcoat=.35;mat.clearcoatRoughness=.2}
  else if(p.variant==='fume'){mat.roughness=.28;mat.clearcoat=.6;mat.clearcoatRoughness=.08}
+ /* enamel: a glassy glaze fired over the colour */
+ else if(p.variant==='enamel'){mat.roughness=.07;mat.clearcoat=1;mat.clearcoatRoughness=.03}
+ else if(p.variant==='tapisserie'&&dialR){mat.roughness=.42;
+  /* the painting's grid starts at the centre in sheet px; the map's UVs run
+     .5 + px/CAN, so a tile of 8 cells repeats CAN/(8 cells) times, shifted to land
+     a cell corner on the centre */
+  const t=tapisserieNormalMap().clone(),R=CAN/(8*tapisserieCell(dialR)),o=-((.5*R*8)%1)/8;
+  t.repeat.set(R,R);t.offset.set(o,o);mat.normalMap=t;mat.normalScale=new Vector2(.9,.9)}
  if(p.finish==='polished'){mat.roughness=Math.min(mat.roughness,.2);mat.clearcoat=Math.max(mat.clearcoat,.5)}
  if(p.finish==='matte')mat.roughness=Math.max(mat.roughness,.85);
  return mat}
@@ -107,6 +127,11 @@ function lumeMaterial(map,lume,glow){
 function strapMaterial(map,p){const v=p.variant;
  if(v==='steel')return new MeshPhysicalMaterial({map,color:0xffffff,metalness:1,roughness:.3,alphaTest:.5,
   envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
+ /* Milanese: a woven metal band; the bake carries the metal's colour, the
+    normal map the weave that breaks its reflections into a soft shimmer */
+ if(v==='mesh'){const mm=new MeshPhysicalMaterial({map,color:0xffffff,metalness:1,roughness:.5,alphaTest:.5,
+   envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
+  mm.normalMap=strapNormalOf('mesh');mm.normalScale=new Vector2(1.3,1.3);return mm}
  const mat=new MeshPhysicalMaterial({map,metalness:0,alphaTest:.5,
   roughness:v==='rubber'?.5:v==='nato'?.88:.62,
   sheen:v==='nato'||v==='leather'?.6:0,sheenRoughness:.7,sheenColor:new Color(p.color||'#6b4a2f').multiplyScalar(.6),
@@ -136,7 +161,8 @@ const strapNormalOf=kind=>{if(!strapNormals.has(kind)){const tile=STRAP_GRAIN_MM
 const STRAP_FORM={
  leather:{pad:.4,crown:.12,edge:.72,roll:.5,taper:.28,inset:.2},
  rubber:{pad:.08,crown:.14,edge:.7,roll:.75,taper:.15,inset:.25},
- nato:{pad:0,crown:0,edge:1,roll:.5,taper:0,inset:.3}};
+ nato:{pad:0,crown:0,edge:1,roll:.5,taper:0,inset:.3},
+ mesh:{pad:0,crown:.05,edge:.85,roll:.45,taper:0,inset:.3}};
 /* section points: up each rolled edge, across the crown, across the underside */
 const RING={edge:7,top:11,bottom:3},RING_N=2*RING.edge+RING.top+RING.bottom;
 
@@ -330,7 +356,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
    const hw=st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel');
    const col=st.color||'#6b4a2f';
    /* satin, not brushed: anisotropy needs a uv the keeper solids do not carry */
-   add(G.strap,'strap:keepers',strapKeepers(d),st.variant==='nato'?Object.assign(metalMaterial(hw,'polished'),{roughness:.34})
+   add(G.strap,'strap:keepers',strapKeepers(d),st.variant==='nato'||st.variant==='mesh'?Object.assign(metalMaterial(hw,'polished'),{roughness:.34})
     :new MeshPhysicalMaterial({color:new Color(st.variant==='leather'?shade(col,.18):col),metalness:0,
       roughness:st.variant==='rubber'?.5:.62,sheen:st.variant==='rubber'?0:.6,sheenRoughness:.7,
       sheenColor:new Color(col).multiplyScalar(.6),clearcoat:st.variant==='rubber'?.25:0,clearcoatRoughness:.4}));
@@ -391,6 +417,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
  if(!uploaded('bezel',G.bezel,H.bezelTop+.02)){
   const flankMat=metalMaterial(bz.metal,bz.finish);
   if(Rr.rotating){flankMat.normalMap=stripeNormalMap(110,'knurl');flankMat.normalScale=new Vector2(.9,.9)}
+  else if(bz.variant==='coin'){flankMat.normalMap=stripeNormalMap(220,'knurl');flankMat.normalScale=new Vector2(.8,.8)}
   add(G.bezel,'bezelFlank',lathe(P.bezelFlank),flankMat);
   const topMat=metalMaterial(bz.metal,bz.finish);
   if(bz.variant==='fluted'){topMat.normalMap=stripeNormalMap(84,'flute');topMat.normalScale=new Vector2(1.4,1.4)}
@@ -419,10 +446,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
  {const du=activeUpload(d,customs,'dial');let src=du&&uploadCanvas('dial',du,parts.dial);
   if(src instanceof Promise){pending.push(src);src=null}
   if(dialUpload||src){
-   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial);
+   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial,Rr.dialR*PX);
    const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180))),mat,{cast:false});
    dial.position.y=H.dial}
-  else{const mat=dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial);
+  else{const mat=dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial,Rr.dialR*PX);
    const plateR=DL.stepped?DL.stepR/PX:Rr.dialR;
    const outline=new Shape();outline.absarc(0,0,plateR,0,Math.PI*2,false);
    for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
@@ -479,7 +506,9 @@ export function buildHead(d,customs={},{aniso=8}={}){
   const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
   const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;
   const rel=reliefFromSilhouette(getProc('markers',d,undefined,'shape'),{...form,lume:lumeCv});
-  if(rel){const m=add(G.markers,'indices',rel.geometry,metalMaterial(frame,'polished'));m.position.y=Hc}
+  const printed=printedIndexInk(mk.variant,frame,parts.dial.color);
+  if(rel){const m=add(G.markers,'indices',rel.geometry,printed?new MeshPhysicalMaterial({color:new Color(printed),metalness:0,roughness:.5,clearcoat:.35,clearcoatRoughness:.3})
+   :metalMaterial(frame,'polished'));m.position.y=Hc}
   if(lumed){
    const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(lumeCv),mk.lume,mk.glow),{cast:false,noPick:true});
    lm.position.y=Hc+form.pocket+.004}}
@@ -527,7 +556,8 @@ export function buildHead(d,customs={},{aniso=8}={}){
  /* every surface: the key light's point glint scaled to its polish (materials.js);
     exposed metal also wears (wear.js) — what sits under the crystal stays new */
  const level=arch.wear;
- for(const p of['case','bezel','crown','strap'])G[p].traverse(o=>{if(o.isMesh&&!o.userData.noPick)applyWear(o,level)});
+ /* a Milanese band is woven, not a surface to scuff: haze on it reads as stains */
+ for(const p of['case','bezel','crown','strap'])G[p].traverse(o=>{if(o.isMesh&&!o.userData.noPick&&!(parts.strap.variant==='mesh'&&/^strap:(top|bottom)$/.test(o.name)))applyWear(o,level)});
  watch.traverse(o=>{if(o.isMesh)softenKeyGlint(o.material)});
 
  watch.userData={heights:H,radii:Rr,groundY,groups:G,

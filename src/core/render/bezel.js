@@ -1,4 +1,4 @@
-/* Bezel renderer: smooth / fluted / diver / GMT / tachymeter.
+/* Bezel renderer: smooth / fluted / coin edge / diver / GMT / tachymeter.
 
    The bezel is a ring with real thickness sitting on the case seat: an outer
    polished chamfer, a grip edge on rotating types, the top face or insert, and
@@ -42,7 +42,7 @@ export function bezelRings(g,variant){const{rBezOut,rBezIn}=g,W=rBezOut-rBezIn;
  const rot=variant==='diver'||variant==='gmt';
  /* the grip is on the bezel's outer FLANK, which from above is a thin ring — it
     must not eat the top face the insert printing has to live on */
- const rGripIn=rBezOut-W*(rot?0.15:0.11);
+ const rGripIn=rBezOut-W*(rot?0.15:variant==='coin'?0.2:0.11);
  return{W,rot,rGripIn,rTopOut:rGripIn,rInsOut:rGripIn-W*0.03,rInCham:rBezIn+W*0.10}}
 
 /* tachymeter scale, engraved into a fixed bezel's top face */
@@ -84,7 +84,9 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
 
  if(!wantInsert){/* fixed bezel: chamfer and grip bake with the rest */
   band(ctx,rBezOut,rGripIn,bevelGrad(ctx,m,C,C,{facing:'out',lo:.10,hi:1,tight:1.2,bias:.05}));
-  if(rot)knurl(ctx,m,rBezOut-1,rGripIn+1,110)}
+  if(rot)knurl(ctx,m,rBezOut-1,rGripIn+1,110);
+  /* coin edge: finer knurling round a fixed ring, like the milled rim of a coin */
+  else if(o.variant==='coin')knurl(ctx,m,rBezOut-1,rGripIn+1,200)}
 
  if(rotating){
   const ins=o.insertColor||(o.variant==='gmt'?'#1c3f66':'#101318');
