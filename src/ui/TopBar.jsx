@@ -4,6 +4,7 @@ import {store,useApp} from '../state/store.js';
 import {exportPNG} from '../export/png.js';
 import {exportSpec} from '../export/spec.js';
 import {exportLayered} from '../export/layered.js';
+import {exportGLB} from '../export/glb.js';
 import {copyShareLink} from '../export/shareUrl.js';
 
 export function TopBar({onModal}){const s=useApp();
@@ -25,6 +26,7 @@ export function TopBar({onModal}){const s=useApp();
   <button className="btn" aria-label="Copy a share link for this design" onClick={copyShareLink}>🔗 Share</button>
   <button className="btn" aria-label="Export the spec sheet as text" onClick={exportSpec}>⤓ Spec sheet</button>
   <button className="btn" aria-label="Export every part's artwork and every view as a ZIP" onClick={exportLayered}>⤓ Layered ZIP</button>
+  <button className="btn" aria-label="Export a 3D model (GLB) for Blender, AR and other 3D apps" title="3D model (.glb) at real size, for Blender, AR viewers and product renderers" onClick={exportGLB}>⤓ 3D model</button>
   <button className="btn text-[#d4af37]" aria-label="Export a 2x PNG" onClick={()=>exportPNG(2)}>⤓ PNG 2×</button>
   <button className="btn text-[#d4af37]" aria-label="Export a 4x PNG" onClick={()=>exportPNG(4)}>⤓ PNG 4×</button>
  </div>}

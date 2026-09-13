@@ -12,9 +12,19 @@ function makeCtx(cv){const base={canvas:cv};
   if(p==='createPattern')return()=>({});
   if(p==='getImageData'||p==='createImageData')return(x,y,w,h)=>({data:new Uint8ClampedArray(Math.max(4,(w||1)*(h||1)*4)),width:w||1,height:h||1});
   if(p==='measureText')return()=>({width:0});
+  /* a real canvas refuses to draw a non-image (e.g. a DataTexture's {data,width,height});
+     a mock that accepts anything hid a GLB export crash from this test */
+  if(p==='drawImage')return img=>{if(!(img instanceof HTMLCanvasElement))throw new TypeError('drawImage: not a drawable image')};
   const fn=()=>undefined;t[p]=fn;return fn},
  set(t,p,v){t[p]=v;return true}})}
-function makeCanvas(){const cv={width:0,height:0,parentNode:null,style:{},toDataURL:()=>'data:image/png;base64,STUB'};
+/* a canvas that passes `instanceof HTMLCanvasElement`, as three's GLTFExporter checks */
+globalThis.HTMLCanvasElement=class{};
+globalThis.ImageData=class{constructor(data,w,h){this.data=data;this.width=w;this.height=h}};
+/* the exporter packs its buffers through FileReader; Node has Blob but not this */
+globalThis.FileReader=class{
+ readAsArrayBuffer(b){b.arrayBuffer().then(r=>{this.result=r;this.onloadend&&this.onloadend()})}
+ readAsDataURL(b){b.arrayBuffer().then(r=>{this.result=`data:${b.type||'application/octet-stream'};base64,`+Buffer.from(r).toString('base64');this.onloadend&&this.onloadend()})}};
+function makeCanvas(){const cv=Object.assign(Object.create(HTMLCanvasElement.prototype),{width:0,height:0,parentNode:null,style:{},toDataURL:()=>'data:image/png;base64,STUB'});
  cv.getContext=function(){return this.__ctx||(this.__ctx=makeCtx(this))};return cv}
 function el(){return{style:{},setAttribute(){},appendChild(){},removeChild(){},remove(){},click(){},addEventListener(){},removeEventListener(){},contains:()=>false,closest:()=>null,querySelector:()=>null,querySelectorAll:()=>[]}}
 
@@ -164,5 +174,32 @@ console.log('RENDER-TO-STRING ('+out.length+' chars)');
  const flatOut=renderToString(React.createElement(M.App));
  expect(/graphics driver stopped responding/.test(flatOut),'the app does not explain why the watch went flat');
  expect(M.retryWebgl()&&M.webglState().ok,'retryWebgl did not restore 3D once WebGL was available again')}
+
+/* ---- 3D model export: structure of the glTF ----
+   Pixels need a real browser (scripts check that); this checks the document. */
+{const d=M.clone(M.DEF);d.parts.bezel.variant='diver';d.parts.dial.variant='sunburst';d.parts.case.finish='brushed';
+ let g=null,err=null;
+ /* the exporter notes each normal it re-normalises; that is its job, not a failure */
+ const warn=console.warn;console.warn=(...a)=>{if(!String(a[0]).includes('GLTFExporter: Creating normalized normal'))warn(...a)};
+ try{g=await M.designToGLTF(d,{},{name:'Smoke watch',binary:false})}catch(e){err=e}
+ finally{console.warn=warn}
+ expect(!err,'designToGLTF threw: '+(err&&err.stack));
+ if(g){const byName=n=>g.nodes.find(x=>x.name===n);
+  const root=g.nodes[g.scenes[0].nodes[0]];
+  expect(root.name==='Smoke watch','the model root should carry the project name');
+  expect(root.scale&&Math.abs(root.scale[0]-M.MM_TO_M)<1e-12,'the model must be scaled from mm to metres');
+  expect(root.extras&&root.extras.spec&&root.extras.spec.dimensionsMm.caseDiameter===40,'the spec should travel in the root extras');
+  for(const p of['strap','case','crown','bezel','dial','markers','hands','crystal'])expect(!!byName(p),`the model is missing its ${p} node`);
+  /* (hand and index solids are traced from pixels, which the mocked canvas has none of) */
+  for(const n of['flank','chamfer','lugs','crownSide','bezelFlank','crystal','bezelIns','dial'])expect(!!byName(n),`the model is missing mesh ${n}`);
+  const used=g.extensionsUsed||[];
+  for(const x of['KHR_materials_transmission','KHR_materials_ior','KHR_materials_clearcoat','KHR_materials_anisotropy'])
+   expect(used.includes(x),`the model should use ${x}`);
+  expect(g.textures&&g.textures.length>=4,`expected the artwork as textures, got ${g.textures&&g.textures.length}`);
+  expect(!g.nodes.some(n=>n.extras&&(n.extras.groups||n.extras.pending||n.extras.alphaCanvas)),'editor bookkeeping leaked into the model');
+  /* posed at 10:09 for a live design: the minute arbor is turned ~55 degrees */
+  const arbor=byName('min');const q=arbor&&arbor.rotation;
+  const deg=q?Math.abs(2*Math.atan2(q[1],q[3])*180/Math.PI):0;
+  expect(Math.abs(deg-57.6)<1,`a live design should export at 10:09:36 (minute hand 57.6deg), got ${deg.toFixed(1)}`)}}
 console.log(fails?`SMOKE FAIL (${fails})`:'SMOKE PASS');
 if(fails)process.exit(1);

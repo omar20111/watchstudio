@@ -15,6 +15,18 @@
 - **GPU context loss recovery.** When the browser drops the WebGL context the
   view pauses with a notice and is rebuilt when the context returns; if it has
   not returned after 6 s, every view switches to the flat drawing.
+- **3D model export (`⤓ 3D model`, .glb).** The editor's own watch as binary
+  glTF, for Blender, product renderers, manufacturers' viewers and AR. At real
+  size (modelled in mm, scaled to metres), posed at the set time or 10:09, one
+  node per design part, the spec in the root's extras, PBR materials kept
+  (transmission, ior, clearcoat, sheen, specular, anisotropy). Tangents are
+  computed so anisotropy and normal maps are portable; the crystal is
+  thin-walled glass. Passes the Khronos glTF Validator with no errors or
+  warnings, and works without WebGL. (`export/glb.js`)
+
+**Fixed**
+- The headless canvas mock accepted any `drawImage` argument, which hid a crash
+  that only a real canvas shows; it now rejects non-images like a browser does.
 
 ## v6 — the watch is 3D
 
