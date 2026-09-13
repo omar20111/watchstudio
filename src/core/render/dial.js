@@ -2,7 +2,7 @@
    tapisserie + track + text. */
 import {C} from '../constants.js';
 import {lumOf,lighten,shade} from '../utils.js';
-import {posAt} from '../geometry.js';
+import {posAt,MINUTE_TRACK_R,TRACK_TICK_PX} from '../geometry.js';
 import {noiseFill} from '../textures.js';
 import {circGrain,SHADOW} from './material.js';
 
@@ -134,7 +134,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  if(L.stepped&&!flat){/* 2D: the step's shadowed wall and lit lip */
   ctx.beginPath();ctx.arc(C,C,L.stepR,0,7);ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=3;ctx.stroke();
   ctx.beginPath();ctx.arc(C,C,L.stepR+2,0,7);ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1.2;ctx.stroke()}
- for(let i=0;i<60;i++){const a=i*6;const len=Math.min(i%5?9:16,r*0.965-trackIn);const[x0,y0]=posAt(a,r*0.965),[x1,y1]=posAt(a,r*0.965-len);
+ for(let i=0;i<60;i++){const a=i*6;const len=Math.min(i%5?TRACK_TICK_PX.minor:TRACK_TICK_PX.major,r*MINUTE_TRACK_R-trackIn);const[x0,y0]=posAt(a,r*MINUTE_TRACK_R),[x1,y1]=posAt(a,r*MINUTE_TRACK_R-len);
   ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.strokeStyle=`rgba(235,236,240,${i%5?0.55:0.85})`;ctx.lineWidth=i%5?1.5:2.5;ctx.stroke()}
  /* the date window, painted: in 3D it is an aperture onto a real wheel */
  if(L.win&&!flat){const w=L.win,dark=lumOf(col)<.5;

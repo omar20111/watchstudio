@@ -1,6 +1,6 @@
 /* Renderer registry + shared option builder. */
 import {clone} from '../utils.js';
-import {geoOf,crownAng,caseOf,dialLayoutOf,dialDayOf} from '../geometry.js';
+import {geoOf,crownAng,caseOf,dialLayoutOf,dialDayOf,handLengthsOf} from '../geometry.js';
 import {srcOf} from '../parts.js';
 import {drStrap} from './strap.js';
 import {drCase} from './case.js';
@@ -30,6 +30,8 @@ export function procOpts(part,d,sub,mode){const src=srcOf(part);const arch=caseO
   /* the dial plate's layout (date window, registers, chapter step) and the day
      on its date wheel: the dial draws them, the markers make room for them */
   layout:dialLayoutOf(d),day:dialDayOf(d),
+  /* the hands' lengths, set by the markers and the minute track they point at */
+  handLen:src==='hands'?handLengthsOf(d):null,
   secColor:d.parts.hands.secColor,dialColor:d.parts.dial.color,
   frameMetal:d.parts.hands.metal,crownAng:crownAng(d),
   lume:d.parts[src].lume||d.parts.markers.lume}}

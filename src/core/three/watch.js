@@ -530,7 +530,9 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const hp=parts.hands;
  {const holder=new Group();holder.name='hand:upload';G.hands.add(holder);
   if(!uploaded('hands',holder,H.dial+.7)){G.hands.remove(holder);
-   const lift={hour:.28,min:.62,sec:.95};
+   /* the hour hand now reaches over the indices' inner ends, so it rides
+      above the tallest of them (wedges, .34 mm); each hand clears the one below */
+   const lift={hour:.36,min:.66,sec:.98};
    for(const k of['hour','min','sec']){
     const hold=new Group();hold.name='hand:'+k;G.hands.add(hold);
     const arbor=new Group();arbor.name=k;arbor.position.y=H.dial+lift[k];arbor.userData.spin=k;hold.add(arbor);

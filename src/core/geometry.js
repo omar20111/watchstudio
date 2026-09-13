@@ -181,6 +181,32 @@ export function geoOf(d){
 
 export const posAt=(deg,r)=>[C+r*Math.sin(deg*Math.PI/180),C-r*Math.cos(deg*Math.PI/180)];
 
+/* ==================== DIAL FURNITURE & HANDS ====================
+   Where the dial's rings are, in dial radii, and how long each hand is — the
+   dial, the markers and the hands all read these, so a hand can be set by what
+   it points at.
+
+   The minute track's ticks run inward from MINUTE_TRACK_R, 16 px at the fives
+   and 9 px between. Every marker style ends on INDEX_OUTER and runs inward by
+   its depth (markers.js). Hands follow the watchmaker's rule: the seconds hand
+   reaches the outer end of the track, the minute hand reaches into it, and the
+   hour hand reaches the inner end of the hour markers — never longer than four
+   fifths of the minute hand, so the two stay distinct over short markers. */
+export const MINUTE_TRACK_R=.965;
+export const TRACK_TICK_PX={major:16,minor:9};
+export const INDEX_OUTER=.885;
+/* radial depth of each marker style; numerals by their typical glyph height */
+export const INDEX_DEPTH={batons:.17,wedges:.17,minimal:.075,dots:.104,roman:.145,arabic:.145,eastern:.145};
+/* the hands' widths and shapes are drawn to these reference lengths, so a
+   hand that grows longer does not also grow fatter */
+export const HAND_REF={hour:.55,min:.8,sec:.9};
+export function handLengthsOf(d){const r=geoOf(d).dialR,v=(d.parts.markers||{}).variant;
+ const sec=MINUTE_TRACK_R-2/r;
+ const min=MINUTE_TRACK_R-TRACK_TICK_PX.minor*.6/r;
+ const inner=INDEX_OUTER-(INDEX_DEPTH[v]??INDEX_DEPTH.batons);
+ const hour=Math.min(Math.max(inner+.012,.6),min*.8);
+ return{hour,min,sec}}
+
 /* ==================== STRAP ENDS ====================
    How a 3D strap ends, shared by its flat bake and its mesh so the painted
    edges and stitching follow the outline the mesh is cut to. The 6 o'clock

@@ -5,6 +5,7 @@
    compound laid into them; both come from the same measurements as the
    painted drawing below. */
 import {C,METALS} from '../constants.js';
+import {HAND_REF} from '../geometry.js';
 import {axisGrad,envGrad,tone,applyFinish} from './material.js';
 
 /* Hands sit clear of the dial on the motion works, so they throw a real shadow.
@@ -15,8 +16,8 @@ import {axisGrad,envGrad,tone,applyFinish} from './material.js';
    spread slightly and softened, which is what a component lying close to the
    dial actually casts under a broad softbox. */
 const handShadow=(ctx,build,len)=>{ctx.save();
- if('filter'in ctx)ctx.filter=`blur(${Math.max(2,len*0.018)}px)`;
- ctx.translate(C,C);ctx.scale(1.012,1.012);ctx.translate(-C,-C+len*0.012);
+ if('filter'in ctx)ctx.filter=`blur(${Math.max(2,Math.min(len,300)*0.018)}px)`;
+ ctx.translate(C,C);ctx.scale(1.012,1.012);ctx.translate(-C,-C+Math.min(len,300)*0.012);
  ctx.fillStyle='rgba(0,0,0,.30)';build();ctx.fill();ctx.restore()};
 
 /* lume is a filled compound, not paint — give it a soft body and a lit top edge */
@@ -25,7 +26,9 @@ function lumeFill(ctx,x0,y0,x1,y1,lum){const g=ctx.createLinearGradient(x0,y0,x1
 
 export function drHand(ctx,o){const r=o.g.dialR;const m=METALS[o.metal]||METALS.steel;const t=o.hand;const lum=o.lume||'#dff3e4';
  const shape=o.mode==='shape',lumeOnly=o.mode==='lume';
- const len=t==='hour'?r*0.55:t==='min'?r*0.80:r*0.90;
+ /* length: what the hand points at (geometry.js handLengthsOf). ref: the length
+    its widths and shapes are drawn to, so a longer hand is not a fatter one */
+ const HL=o.handLen||HAND_REF,len=r*(HL[t]??HAND_REF[t]),ref=r*HAND_REF[t];
  const tail=t==='sec'?r*0.22:r*0.07;
  if(t==='sec'){const col=o.secColor||'#e8482c';
   if(lumeOnly)return;
@@ -38,7 +41,7 @@ export function drHand(ctx,o){const r=o.g.dialR;const m=METALS[o.metal]||METALS.
   ctx.beginPath();ctx.arc(C,C+tail*0.62,10,0,7);ctx.fillStyle=col;ctx.fill();
   ctx.beginPath();ctx.arc(C,C,13,0,7);ctx.fillStyle=envGrad(ctx,m);ctx.fill();
   ctx.beginPath();ctx.arc(C,C,5,0,7);ctx.fillStyle='#1c1e22';ctx.fill();return}
- const w=t==='hour'?len*0.115:len*0.085, tipY=C-len, bY=C+tail;
+ const w=t==='hour'?ref*0.115:ref*0.085, tipY=C-len, bY=C+tail;
  const white=()=>{ctx.fillStyle='#fff';ctx.fill()};
 
  if(o.variant==='dauphine'){
@@ -55,7 +58,7 @@ export function drHand(ctx,o){const r=o.g.dialR;const m=METALS[o.metal]||METALS.
   ctx.beginPath();ctx.moveTo(C,tipY);ctx.lineTo(C,bY);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=1.5;ctx.stroke();
   L();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=1.5;ctx.stroke();Rr();ctx.stroke();}
  else if(o.variant==='leaf'){
-  const wb=t==='hour'?len*0.17:len*0.13;
+  const wb=t==='hour'?ref*0.17:ref*0.13;
   const leaf=(ww,y0,y1)=>{ctx.beginPath();ctx.moveTo(C,y0);ctx.quadraticCurveTo(C-ww,(y0+y1)/2,C,y1);ctx.quadraticCurveTo(C+ww,(y0+y1)/2,C,y0);ctx.closePath()};
   if(shape){leaf(wb,bY,tipY);white();return}
   if(lumeOnly){leaf(wb*0.42,bY-len*0.12,tipY+len*0.14);ctx.fillStyle=lum;ctx.fill();return}
@@ -88,7 +91,7 @@ export function drHand(ctx,o){const r=o.g.dialR;const m=METALS[o.metal]||METALS.
    outline=()=>{ctx.beginPath();ctx.moveTo(C,tipY);ctx.lineTo(C+aw,a0);ctx.lineTo(C+sw,a0-len*0.01);ctx.lineTo(C+sw,bY);
     ctx.lineTo(C-sw,bY);ctx.lineTo(C-sw,a0-len*0.01);ctx.lineTo(C-aw,a0);ctx.closePath()};
    inlay=()=>{const i=len*0.05;ctx.beginPath();ctx.moveTo(C,tipY+i*1.8);ctx.lineTo(C+aw-i*1.6,a0-i*0.55);ctx.lineTo(C-aw+i*1.6,a0-i*0.55);ctx.closePath()}}
-  const cutBars=()=>{for(const[y,bw]of bars){ctx.fillRect(C-bw/2,y-len*0.012,bw,len*0.024)}};
+  const cutBars=()=>{for(const[y,bw]of bars){ctx.fillRect(C-bw/2,y-ref*0.012,bw,ref*0.024)}};
   if(shape){outline();white();return}
   if(lumeOnly){inlay();ctx.fillStyle=lum;ctx.fill();
    if(bars.length){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';cutBars();ctx.restore()}return}
@@ -97,7 +100,7 @@ export function drHand(ctx,o){const r=o.g.dialR;const m=METALS[o.metal]||METALS.
   inlay();ctx.fillStyle=lumeFill(ctx,C-w*.5,0,C+w*.5,0,lum);ctx.fill();
   if(bars.length){ctx.fillStyle=axisGrad(ctx,m,C-w,0,C+w,0);cutBars()}}
  else if(o.variant==='mercedes'&&t==='hour'){
-  const ww=len*0.13,cy=C-len*0.70,cr=len*0.135;
+  const ww=ref*0.13,cy=C-len*0.70,cr=ref*0.135;
   const shaft=()=>{ctx.beginPath();ctx.roundRect(C-ww/2,cy,ww,len*0.70+tail,ww/2)};
   const tip=()=>{ctx.beginPath();ctx.moveTo(C-ww*0.45,cy-cr*0.4);ctx.lineTo(C,tipY);ctx.lineTo(C+ww*0.45,cy-cr*0.4);ctx.closePath()};
   const spokes=()=>{for(const a of[-90,30,150]){const ra=a*Math.PI/180;ctx.beginPath();ctx.moveTo(C,cy);ctx.lineTo(C+Math.cos(ra)*cr,cy+Math.sin(ra)*cr);ctx.stroke()}};

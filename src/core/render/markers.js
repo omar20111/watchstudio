@@ -11,7 +11,7 @@
    the measurements below, so the solid and the painting agree. */
 import {METALS} from '../constants.js';
 import {lumOf,shade} from '../utils.js';
-import {posAt} from '../geometry.js';
+import {posAt,INDEX_OUTER,INDEX_DEPTH} from '../geometry.js';
 import {tone,litFace,castShadow,SHADOW} from './material.js';
 
 /* recessed lume: bright where the wall catches light, shadowed under the far lip */
@@ -45,7 +45,7 @@ export function printedIndexInk(variant,frameMetal,dialColor){const m=METALS[fra
    batons, and a numeral's reach depended on how wide its glyph was — 10 and
    VIII stood out past 1 and V. The ring clears a stepped dial's chapter step
    (0.915 r), so numerals no longer need moving in there. */
-export const INDEX_OUTER=0.885;
+export {INDEX_OUTER};
 
 /* The inked pixels of a numeral drawn centred on the origin (textAlign center,
    baseline middle), sampled every other pixel; null where nothing can be read
@@ -90,7 +90,7 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
   if(o.variant==='batons'||o.variant==='minimal'){
    const mini=o.variant==='minimal';
    if(mini&&h%3)continue;
-   const len=r*(mini?0.075:0.17),w=r*(mini?0.055:0.052);
+   const len=r*INDEX_DEPTH[mini?'minimal':'batons'],w=r*(mini?0.055:0.052);
    const[x,y]=posAt(deg,rOut-len/2);
    const block=(sx,sy,sw,sh)=>{ctx.save();ctx.translate(x,y);ctx.rotate(rad0);
     ctx.beginPath();ctx.rect(-sw/2+sx,-sh/2+sy,sw,sh);ctx.restore()};
@@ -119,7 +119,7 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
    if(h===0&&!mini){bar(-w*0.78);bar(w*0.78)}else bar(0)}
 
   else if(o.variant==='dots'){if(h%3&&h)continue;
-   const rr=r*0.052;
+   const rr=r*INDEX_DEPTH.dots/2;
    /* the triangle at 12 points out to the ring; the dots touch it */
    const[x,y]=posAt(deg,rOut-(h===0?rr*1.7:rr));
    const outline=()=>{ctx.beginPath();
@@ -145,7 +145,7 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
   /* Wedges: long applied indices tapering to a point toward the centre, ground
      into two facets along their length like a dauphine hand. Doubled at 12. */
   else if(o.variant==='wedges'){if(lumeOnly)continue;
-   const len=r*0.17,w=r*0.068;
+   const len=r*INDEX_DEPTH.wedges,w=r*0.068;
    const[x,y]=posAt(deg,rOut-len/2);
    const wedge=(off,side)=>{ctx.save();ctx.translate(x,y);ctx.rotate(rad0);ctx.translate(off,0);ctx.beginPath();
     /* outer edge at -len/2 (toward the rim), point at +len/2 (toward the centre) */

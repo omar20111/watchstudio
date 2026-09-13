@@ -49,6 +49,16 @@
   its own length; numerals are placed by their actual ink, so their farthest
   pixel touches the ring. All styles now end within 0.01 of the radius of each
   other, checked hour by hour on the 3D indices (`e2e/tests/markers.mjs`).
+- **Hands as long as a watchmaker cuts them** (`geometry.js handLengthsOf`).
+  Hand lengths were fixed fractions of the dial radius, so the minute hand
+  stopped short of the minute track and the hour hand floated in the middle
+  of the dial whatever the indices. Now the seconds hand reaches the outer end
+  of the minute track, the minute hand ends inside the track, and the hour hand
+  reaches the inner end of the hour indices, but is never more than 80% of the
+  minute hand. So it is longer over short minimal bars than over batons. A
+  longer hand keeps its width and shape rather than growing fatter. The hands
+  sit a little higher, so the hour hand clears the tallest applied index.
+  Checked for every index style at 34, 40 and 46 mm (`combos.mjs`).
 - **A welcome for first-time visitors** (`ui/Welcome.jsx`). A gallery of all
   15 designs, shown as real renders, to start from — or a blank watch — then
   three quick steps (case, dial, strap) over the live editor, with the full

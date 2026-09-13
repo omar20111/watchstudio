@@ -27,7 +27,9 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
      also prints today's date in the window. Markers leave out the index a date
      window replaces, which depends on the dial's variant too. */
   part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d)]:0,
-  part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0])};
+  part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0,
+  /* an hour hand is as long as the markers it reaches are deep */
+  part==='hands'?d.parts.markers.variant:0])};
 
 /* Most bakes are the 1200² sheet. A 3D strap runs far past the sheet edge as it
    curves away, so its flat bake is a tall canvas with the sheet centred in it. */

@@ -325,5 +325,20 @@ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(cons
  if(pitch-glyphHalf<=halfTravel)bad(tag,`neighbouring days would show (pitch ${pitch.toFixed(1)}px, window ${halfTravel.toFixed(1)}px)`);
 }
 
+/* hands point at what they read: the seconds hand to the outer end of the
+   minute track, the minute hand into it, the hour hand to the inner end of the
+   indices — and each is visibly shorter than the one above it */
+for(const caseMm of[34,40,46])for(const variant of Object.keys(G.INDEX_DEPTH)){
+ const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.markers.variant=variant;
+ const h=G.handLengthsOf(d),r=G.geoOf(d).dialR,tag=`hands ${caseMm}/${variant}`;
+ const trackIn=G.MINUTE_TRACK_R-G.TRACK_TICK_PX.minor/r,idxIn=G.INDEX_OUTER-G.INDEX_DEPTH[variant];
+ if(!(h.sec>h.min&&h.min>h.hour))bad(tag,`lengths out of order: hour ${h.hour.toFixed(3)} min ${h.min.toFixed(3)} sec ${h.sec.toFixed(3)}`);
+ if(h.sec>G.MINUTE_TRACK_R||h.sec<G.MINUTE_TRACK_R-4/r)bad(tag,`seconds hand ends at ${h.sec.toFixed(3)} r, not at the track's edge ${G.MINUTE_TRACK_R} r`);
+ if(h.min<=trackIn||h.min>=G.MINUTE_TRACK_R)bad(tag,`minute hand ends at ${h.min.toFixed(3)} r, outside the minute track ${trackIn.toFixed(3)}-${G.MINUTE_TRACK_R} r`);
+ if(h.hour>h.min*.8+1e-9)bad(tag,`hour hand ${(h.hour/h.min*100).toFixed(0)}% of the minute hand`);
+ if(h.hour<Math.min(idxIn,h.min*.8)-.001)bad(tag,`hour hand ends at ${h.hour.toFixed(3)} r, short of the indices at ${idxIn.toFixed(3)} r`);
+ if(h.hour>G.INDEX_OUTER-.01)bad(tag,`hour hand reaches ${h.hour.toFixed(3)} r, across the indices`);
+}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);
