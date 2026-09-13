@@ -5,8 +5,28 @@ import {posAt} from '../geometry.js';
 import {noiseFill} from '../textures.js';
 import {circGrain,SHADOW} from './material.js';
 
+/* The date wheel under the dial plate, in its own frame. Day k sits at the
+   window angle plus (k-1) steps and is pre-rotated by the same amount: when the
+   wheel turns back by (day-1) steps the day under the window reads upright. */
+const WHEEL_STEP=360/31;
+function drDateWheel(ctx,o){const L=o.layout,win=L&&L.win;if(!win)return;
+ const dark=lumOf(o.color||'#16324f')<.5,paper=dark?'#131417':'#f2efe7',ink=dark?'#e9e6dc':'#1b1c1f';
+ const cr=Math.hypot(win.x-C,win.y-C),span=Math.hypot(win.w,win.h)/2+win.frame*3;
+ /* two separate subpaths: arcs chained in one path are joined by a straight
+    line, which cut a wedge out of the ring right where a 4:30 window looks */
+ ctx.save();ctx.beginPath();ctx.arc(C,C,cr+span,0,Math.PI*2);ctx.closePath();
+ ctx.moveTo(C+Math.max(0,cr-span),C);ctx.arc(C,C,Math.max(0,cr-span),0,Math.PI*2);ctx.closePath();
+ ctx.fillStyle=paper;ctx.fill('evenodd');
+ ctx.fillStyle=ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`700 ${win.h*.72}px system-ui`;
+ for(let k=1;k<=31;k++){const a=win.deg+(k-1)*WHEEL_STEP,[x,y]=posAt(a,cr);
+  ctx.save();ctx.translate(x,y);ctx.rotate((k-1)*WHEEL_STEP*Math.PI/180);ctx.fillText(String(k),0,win.h*.04);ctx.restore()}
+ ctx.restore()}
+
+const roundRect=(ctx,x,y,w,h,rr)=>{ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,rr)};
+
 export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
- const W=ctx.canvas.width,H=ctx.canvas.height;
+ const W=ctx.canvas.width,H=ctx.canvas.height,L=o.layout||{};
+ if(o.which==='dateWheel')return drDateWheel(ctx,o);
  /* flat: pigment and printing only. The sunburst sweep, the highlight, the edge
     vignette and the text emboss are all light, and 3D lighting supplies them
     from the real surface — painting them too would light the dial twice. */
@@ -59,10 +79,11 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
    lip.addColorStop(0,'rgba(0,0,0,.5)');lip.addColorStop(.5,'rgba(255,255,255,.10)');
    lip.addColorStop(1,'rgba(255,255,255,.34)');
    ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.strokeStyle=lip;ctx.lineWidth=2.4;ctx.stroke()}
-  /* snailed sub-dial */
-  const sg=ctx.createRadialGradient(x,y,0,x,y,rs);
-  for(let i=0;i<=14;i++)sg.addColorStop(i/14,i%2?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)');
-  ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.fillStyle=sg;ctx.fill();
+  /* snailed sub-dial — painted for the 2D drawing; in 3D the grooves are a normal
+     map on a register milled into the plate, which catches real light */
+  if(!flat){const sg=ctx.createRadialGradient(x,y,0,x,y,rs);
+   for(let i=0;i<=14;i++)sg.addColorStop(i/14,i%2?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)');
+   ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.fillStyle=sg;ctx.fill()}
   for(let i=0;i<12;i++){const a=i*30*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*rs*0.86,y-Math.cos(a)*rs*0.86);ctx.lineTo(x+Math.sin(a)*rs*0.72,y-Math.cos(a)*rs*0.72);ctx.strokeStyle='rgba(240,240,245,.7)';ctx.lineWidth=1.5;ctx.stroke()}
   /* the register hands: painted for the 2D drawing, real meshes in 3D */
   if(!flat){const ha=(deg+140)*Math.PI/180;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(ha)*rs*0.7,y-Math.cos(ha)*rs*0.7);ctx.strokeStyle='rgba(240,240,245,.85)';ctx.lineWidth=2;ctx.stroke();
@@ -83,7 +104,19 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   if(t.bottom)line(t.font==='caps'?t.bottom.toUpperCase():t.bottom,r*0.075,C+(o.variant==='chrono'?r*0.70:r*0.46));
   try{ctx.letterSpacing='0px'}catch(e){}}
 
- for(let i=0;i<60;i++){const a=i*6;const len=i%5?9:16;const[x0,y0]=posAt(a,r*0.965),[x1,y1]=posAt(a,r*0.965-len);
+ /* on a stepped dial the minute track lives on the chapter ring, outside the step */
+ const trackIn=L.stepped?L.stepR+3:0;
+ if(L.stepped&&!flat){/* 2D: the step's shadowed wall and lit lip */
+  ctx.beginPath();ctx.arc(C,C,L.stepR,0,7);ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=3;ctx.stroke();
+  ctx.beginPath();ctx.arc(C,C,L.stepR+2,0,7);ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1.2;ctx.stroke()}
+ for(let i=0;i<60;i++){const a=i*6;const len=Math.min(i%5?9:16,r*0.965-trackIn);const[x0,y0]=posAt(a,r*0.965),[x1,y1]=posAt(a,r*0.965-len);
   ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.strokeStyle=`rgba(235,236,240,${i%5?0.55:0.85})`;ctx.lineWidth=i%5?1.5:2.5;ctx.stroke()}
+ /* the date window, painted: in 3D it is an aperture onto a real wheel */
+ if(L.win&&!flat){const w=L.win,dark=lumOf(col)<.5;
+  roundRect(ctx,w.x,w.y,w.w+w.frame*2,w.h+w.frame*2,w.rad+w.frame);ctx.fillStyle='rgba(205,208,214,.95)';ctx.fill();
+  roundRect(ctx,w.x,w.y,w.w,w.h,w.rad);ctx.fillStyle=dark?'#131417':'#f2efe7';ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1.2;ctx.stroke();
+  ctx.fillStyle=dark?'#e9e6dc':'#1b1c1f';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font=`700 ${w.h*.72}px system-ui`;ctx.fillText(String(o.day||1),w.x,w.y+w.h*.04)}
  ctx.beginPath();ctx.arc(C,C,r*0.03,0,7);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fill();
  ctx.restore();}

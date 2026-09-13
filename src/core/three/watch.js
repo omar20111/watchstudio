@@ -10,18 +10,19 @@
    One group per design part (strap, case, crown, bezel, dial, markers, hands,
    crystal) carries `userData.part`, so picking and the part transforms address
    the same parts the panels do. */
-import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,BoxGeometry,ExtrudeGeometry,
+import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,BoxGeometry,ExtrudeGeometry,Shape,Path,ShapeGeometry,Matrix4,
         BufferGeometry,Float32BufferAttribute,CanvasTexture,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,
         Color,Vector2} from 'three';
-import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,bezelRotatable,posAt} from '../geometry.js';
+import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM} from '../geometry.js';
+import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
-import {metalMaterial,crystalMaterial,paintedMaterial} from './materials.js';
+import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './materials.js';
 import {extrudeSilhouette} from './tracer.js';
-import {anisotropyMap,stripeNormalMap} from './surface.js';
+import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -126,6 +127,60 @@ function strapGeometry(d,dir){
  geo.setIndex(idx);geo.computeVertexNormals();
  return geo}
 
+/* a rounded rectangle centred on (cx, cy), traced into a Shape or a Path */
+function roundRectPath(p,cx,cy,w,h,r){const x0=cx-w/2,x1=cx+w/2,y0=cy-h/2,y1=cy+h/2;r=Math.min(r,w/2,h/2);
+ p.moveTo(x0+r,y0);p.lineTo(x1-r,y0);p.quadraticCurveTo(x1,y0,x1,y0+r);p.lineTo(x1,y1-r);p.quadraticCurveTo(x1,y1,x1-r,y1);
+ p.lineTo(x0+r,y1);p.quadraticCurveTo(x0,y1,x0,y1-r);p.lineTo(x0,y0+r);p.quadraticCurveTo(x0,y0,x0+r,y0);return p}
+
+/* ---------------------------------------------------------------- bracelet */
+
+/* The strap's width at arc length s past the spring bar, mm — the taper every
+   strap and bracelet shares with its flat bake. */
+function strapWidthAt(d){const g=geoOf(d),sp=strapPath(d),s0px=g.R*.55;
+ return s=>{const sPx=(sp.start+s)*PX,p=Math.min(1,Math.max(0,(sPx-s0px)/(STRAP_REACH_3D-s0px)));return g.sw*(1-.14*p)/PX}}
+
+/* one link: a rounded block pw wide and pl long, t thick, centred on the origin,
+   thickness along +y, length along z */
+function linkBlock(pw,pl,t){const r=Math.min(.7,pw*.22,pl*.22),x=pw/2,z=pl/2;
+ const sh=new Shape();
+ sh.moveTo(-x+r,-z);sh.lineTo(x-r,-z);sh.quadraticCurveTo(x,-z,x,-z+r);sh.lineTo(x,z-r);sh.quadraticCurveTo(x,z,x-r,z);
+ sh.lineTo(-x+r,z);sh.quadraticCurveTo(-x,z,-x,z-r);sh.lineTo(-x,-z+r);sh.quadraticCurveTo(-x,-z,-x+r,-z);
+ const b=Math.min(.38,t*.18,pw*.2);
+ const g=new ExtrudeGeometry(sh,{depth:Math.max(.05,t-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b*.8,bevelOffset:-b*.8,bevelSegments:3,curveSegments:4});
+ g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);return g}
+
+/* A steel bracelet as solid links. Rows of three — two outer links and a centre
+   link — follow the same path the strap does, each row a rigid block placed at
+   its point along the curve, so the rows open up round the bend the way real
+   links hinge. A dark pin under each joint is what the gaps between rows and
+   between the pieces of a row show. The first row is a solid end link filling
+   the space between the lugs. Rows are merged per material: a few meshes, not
+   hundreds, and one node each in a GLB. */
+function braceletParts(d,dir){
+ const sp=strapPath(d),widthAt=strapWidthAt(d),T=sp.T;
+ const w0=widthAt(0),pitch=Math.min(8,Math.max(5.2,w0*.36)),gap=Math.max(.18,pitch*.035);
+ const sEnd=(STRAP_REACH_3D+26)/PX-sp.start;
+ const place=(geo,s,xc=0)=>{const[along,yc,ang]=sp.pos(s);
+  const m=new Matrix4().makeTranslation(0,yc,dir*(sp.start+along))
+   .multiply(new Matrix4().makeRotationX(-dir*ang)).multiply(new Matrix4().makeTranslation(xc,0,0));
+  geo.applyMatrix4(m);return geo};
+ const outer=[],centre=[],pins=[];
+ /* end link: full width, from under the lugs to the first joint */
+ const e0=-1.2,e1=e0+pitch*.95;
+ centre.push(place(linkBlock(widthAt((e0+e1)/2)*.98,e1-e0-gap,T*.96),(e0+e1)/2));
+ for(let s=e1;s+pitch<sEnd;s+=pitch){
+  const mid=s+pitch/2,w=widthAt(mid),pl=pitch-gap;
+  const ow=w*.29,cw=w*.36,seam=(w-2*ow-cw)/2;
+  outer.push(place(linkBlock(ow,pl,T*.9),mid,-(w/2-ow/2)));
+  outer.push(place(linkBlock(ow,pl,T*.9),mid,w/2-ow/2));
+  centre.push(place(linkBlock(cw,pl,T),mid,0));
+  /* the pin at the joint behind this row, and the shadowed seams inside it */
+  const pin=new CylinderGeometry(T*.3,T*.3,w*.96,10);pin.rotateZ(Math.PI/2);pin.translate(0,-T*.12,0);
+  pins.push(place(pin,s));
+  if(seam>.01){const bar=new BoxGeometry(seam+.3,T*.55,pl*.9);
+   for(const sx of[-1,1]){const b2=bar.clone();b2.translate(sx*(cw/2+seam/2),-T*.12,0);pins.push(place(b2,mid))}bar.dispose()}}
+ return{outer:mergeGeometries(outer),centre:mergeGeometries(centre),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p))}}
+
 /* ---------------------------------------------------------------- head */
 
 export function buildHead(d,customs={},{aniso=8}={}){
@@ -135,7 +190,9 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const G={};for(const p of PARTS3D){G[p]=new Group();G[p].name=p;G[p].userData.part=p;watch.add(G[p])}
  const add=(to,name,geo,mat,{cast=true,receive=true,noPick=false}={})=>{
   const m=new Mesh(geo,mat);m.name=name;m.castShadow=cast;m.receiveShadow=receive;
-  if(noPick)m.userData.noPick=true;to.add(m);return m};
+  /* noPick sheets are painted decals (lume) floating on a solid: they must not
+     be clicked, nor read as solid planes by the occlusion pass */
+  if(noPick){m.userData.noPick=true;m.userData.noAO=true}to.add(m);return m};
  const sheet=()=>faceUp(new PlaneGeometry(SHEET,SHEET));
 
  /* An uploaded part is shown face-on at its own height. Returns the mesh, or
@@ -148,7 +205,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
   if(src instanceof Promise){pending.push(src);return null}
   const map=tex(src);
   const mat=new MeshStandardMaterial({map,roughness:.5,metalness:0,alphaTest:.5,...extra});
-  const m=add(to,'upload:'+part,sheet(),mat,{cast:true});m.position.y=y;m.userData.alphaCanvas=src;
+  const m=add(to,'upload:'+part,sheet(),mat,{cast:true});m.position.y=y;m.userData.alphaCanvas=src;m.userData.noAO=true;
   return m};
 
  const cp=crownParts(d),sp=strapPath(d);
@@ -156,7 +213,16 @@ export function buildHead(d,customs={},{aniso=8}={}){
 
  /* ---- strap ---- */
  if(!uploaded('strap',G.strap,sp.pos(0)[1]+sp.T/2))
-  for(const[dir,which]of[[-1,'top'],[1,'bottom']])
+  if(parts.strap.variant==='steel'){const st=parts.strap;
+   /* brushed along the bracelet's length: the grain runs across the links' v, not u.
+      A polished centre link is a touch less than mirror: at a true mirror polish
+      each link reflects one dark studio wall and reads as a black tile. */
+   const brushed=()=>Object.assign(metalMaterial(st.metal,'brushed'),{anisotropyRotation:Math.PI/2});
+   for(const[dir,which]of[[-1,'top'],[1,'bottom']]){const b=braceletParts(d,dir);
+    add(G.strap,'bracelet:'+which+':outer',b.outer,brushed());
+    add(G.strap,'bracelet:'+which+':centre',b.centre,st.finish==='polished'?Object.assign(metalMaterial(st.metal,'polished'),{roughness:.14}):brushed());
+    add(G.strap,'bracelet:'+which+':pins',b.pins,new MeshPhysicalMaterial({color:0x1c1e22,metalness:.7,roughness:.55}),{cast:false})}}
+  else for(const[dir,which]of[[-1,'top'],[1,'bottom']])
    add(G.strap,'strap:'+which,strapGeometry(d,dir),strapMaterial(tex(getProc('strap',d,which,'flat')),parts.strap));
 
  /* ---- case: turned flank, polished chamfer, horns, caseback ---- */
@@ -228,17 +294,64 @@ export function buildHead(d,customs={},{aniso=8}={}){
    const pr=add(G.bezel,'bezelPrint',ring(Rr.rInCham,Rr.rGripIn),paintedMaterial(tex(getProc('bezel',d,undefined,'print')),{alphaTest:.35,roughness:.6}),{cast:false});
    pr.position.y=H.bezelTop+.008}}
 
- /* ---- dial ---- */
+ /* ---- dial ----
+    A plate, not a disc. Its centre is sunk below a chapter ring on a stepped
+    dial; chronograph registers are milled into it; a date window is cut through
+    it onto a wheel below. The plate's outline comes from dialLayoutOf, the same
+    layout the 2D dial is painted from, so apertures and artwork agree. */
+ const DL=dialLayoutOf(d),dialUpload=!!activeUpload(d,customs,'dial');
+ /* the plate's centre height: indices and registers are measured from it */
+ const Hc=H.dial-(!dialUpload&&DL.stepped?DIAL_STEP_MM:0);
+ const mmX=px=>(px-C)/PX,mmY=py=>-(py-C)/PX;         /* sheet px -> shape xy (y toward 12) */
  {const du=activeUpload(d,customs,'dial');let src=du&&uploadCanvas('dial',du,parts.dial);
   if(src instanceof Promise){pending.push(src);src=null}
-  const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial);
-  const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180))),mat,{cast:false});
-  dial.position.y=H.dial}
+  if(dialUpload||src){
+   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial);
+   const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180))),mat,{cast:false});
+   dial.position.y=H.dial}
+  else{const mat=dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial);
+   const plateR=DL.stepped?DL.stepR/PX:Rr.dialR;
+   const outline=new Shape();outline.absarc(0,0,plateR,0,Math.PI*2,false);
+   for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
+   if(DL.win)outline.holes.push(roundRectPath(new Path(),mmX(DL.win.x),mmY(DL.win.y),DL.win.w/PX,DL.win.h/PX,DL.win.rad/PX));
+   const plate=add(G.dial,'dial',faceUp(sheetUV(new ShapeGeometry(outline,48))),mat,{cast:false});
+   plate.position.y=Hc;
+   /* the wall of any recess is the plate's own metal, seen in its own shade */
+   const wallMat=()=>new MeshPhysicalMaterial({color:new Color(shade(parts.dial.color||'#16324f',.35)),roughness:.6});
+   if(DL.stepped){
+    const ring=add(G.dial,'chapterRing',faceUp(sheetUV(new RingGeometry(plateR,Rr.dialR,180,1))),mat,{cast:false});
+    ring.position.y=H.dial;
+    /* the step faces the centre: top to bottom, so the lathe's normals point in */
+    add(G.dial,'chapterStep',lathe([new Vector2(plateR,H.dial),new Vector2(plateR,Hc)],180),wallMat(),{cast:false})}
+   /* registers: a floor below the plate with snailed grooves, and a wall down to it */
+   for(const sd of DL.subdials){const x=mmX(sd.x),y=mmY(sd.y),rs=sd.r/PX;
+    const floor=new CircleGeometry(rs,96);floor.translate(x,y,0);sheetUV(floor);
+    /* uv1 runs 0..1 across the register itself, for its concentric grooves */
+    {const p=floor.attributes.position,u1=new Float32Array(p.count*2);
+     for(let i=0;i<p.count;i++){u1[i*2]=.5+(p.getX(i)-x)/(2*rs);u1[i*2+1]=.5+(p.getY(i)-y)/(2*rs)}
+     floor.setAttribute('uv1',new Float32BufferAttribute(u1,2))}
+    const fm=dialMaterial(mat.map,parts.dial);fm.normalMap=snailNormalMap(16);fm.normalMap.channel=1;fm.normalScale=new Vector2(.55,.55);
+    const f=add(G.dial,'register:'+sd.key,faceUp(floor),fm,{cast:false});f.position.y=Hc-SUBDIAL_DEPTH_MM;
+    const wall=lathe([new Vector2(rs,Hc),new Vector2(rs,Hc-SUBDIAL_DEPTH_MM)],96);wall.translate(x,0,-y);
+    add(G.dial,'registerWall:'+sd.key,wall,wallMat(),{cast:false})}
+   /* date: a polished frame lining the aperture, and the wheel turning below */
+   if(DL.win){const w=DL.win,wx=mmX(w.x),wy=mmY(w.y),ww=w.w/PX,wh=w.h/PX,wr=w.rad/PX,b=w.frame/PX;
+    const wheelY=Hc-.45;
+    const frameShape=roundRectPath(new Shape(),wx,wy,ww+2*b,wh+2*b,wr+b);
+    frameShape.holes.push(roundRectPath(new Path(),wx,wy,ww,wh,wr));
+    const top=Hc+.1,depth=top-wheelY-.05;
+    const fg=new ExtrudeGeometry(frameShape,{depth:Math.max(.05,depth-.06),bevelEnabled:true,bevelThickness:.03,bevelSize:.03,bevelOffset:-.03,bevelSegments:2,curveSegments:6});
+    faceUp(fg);
+    const fr=add(G.dial,'dateFrame',fg,metalMaterial(parts.hands.metal,'polished'),{cast:false});fr.position.y=wheelY+.05;
+    const cr=Math.hypot(w.x-C,w.y-C),span=Math.hypot(w.w,w.h)/2+w.frame*3;
+    const wheel=add(G.dial,'dateWheel',faceUp(sheetUV(new RingGeometry(Math.max(0,cr-span)/PX,(cr+span)/PX,160,1))),
+     paintedMaterial(tex(getProc('dial',d,'dateWheel','flat')),{roughness:.5}),{cast:false});
+    wheel.position.y=wheelY;wheel.userData.spin='dateWheel'}}}
  /* chronograph registers: running seconds at 3, 12-hour at 6, 30-minute at 9 */
- if(parts.dial.variant==='chrono'&&!activeUpload(d,customs,'dial')){const r=Rr.dialR*PX,rs=r*.2,hp=parts.hands;
+ if(parts.dial.variant==='chrono'&&!dialUpload){const r=Rr.dialR*PX,rs=r*.2,hp=parts.hands;
   for(const[deg,key]of[[90,'smallsec'],[180,'chHr'],[270,'chMin']]){
    const[px,py]=posAt(deg,r*.45),reg=new Group();reg.name='reg:'+key;
-   reg.position.set((px-C)/PX,H.dial+.12,(py-C)/PX);reg.userData.spin=key;G.dial.add(reg);
+   reg.position.set((px-C)/PX,Hc-SUBDIAL_DEPTH_MM+.12,(py-C)/PX);reg.userData.spin=key;G.dial.add(reg);
    const len=rs*.72/PX,w=Math.max(.12,len*.08);
    const hand=add(reg,key+'Hand',new BoxGeometry(w,.08,len),metalMaterial(hp.metal,'polished'),{receive:false});
    hand.position.z=-len/2+len*.12;
@@ -249,10 +362,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
  if(!uploaded('markers',G.markers,H.dial+.05,mk.glow?{emissive:new Color(mk.lume),emissiveIntensity:.5}:{})){
   const idxH=mk.variant==='roman'||mk.variant==='arabic'?.2:mk.variant==='dots'?.24:.3;
   const idxGeo=extrudeSilhouette(getProc('markers',d,undefined,'shape'),{depth:idxH,bevel:.035});
-  if(idxGeo){const m=add(G.markers,'indices',idxGeo,metalMaterial(frame,'polished'));m.position.y=H.dial}
+  if(idxGeo){const m=add(G.markers,'indices',idxGeo,metalMaterial(frame,'polished'));m.position.y=Hc}
   if(mk.variant!=='roman'&&mk.variant!=='arabic'){
    const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(getProc('markers',d,undefined,'lume')),mk.lume,mk.glow),{cast:false,noPick:true});
-   lm.position.y=H.dial+idxH+.004}}
+   lm.position.y=Hc+idxH+.004}}
 
  /* ---- hands: each on its own arbor height; `hand:*` carries its transform,
     the arbor inside it turns with the clock ---- */
@@ -281,6 +394,9 @@ export function buildHead(d,customs={},{aniso=8}={}){
   const cr=add(G.crystal,'crystal',lathe(P.crystal,180),
    crystalMaterial(parts.crystal.finish,parts.crystal.opacity,arch.crystalMm),{cast:false,receive:false});
   cr.renderOrder=10}
+
+ /* every surface: the key light's point glint scaled to its polish (materials.js) */
+ watch.traverse(o=>{if(o.isMesh)softenKeyGlint(o.material)});
 
  watch.userData={heights:H,radii:Rr,groundY,groups:G,
   pending:pending.length?Promise.all(pending):null};

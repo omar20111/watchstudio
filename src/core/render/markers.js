@@ -21,13 +21,20 @@ function lumeInset(ctx,w,h,lum){const g=ctx.createLinearGradient(0,-h/2,0,h/2);
  ctx.fillStyle=g;ctx.fillRect(-w/2,-h/2,w,h);
  ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=1;ctx.strokeRect(-w/2,-h/2,w,h)}
 
-export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';const rad=r*0.8;
+export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
+ /* Numerals are the widest indices: their tips reach 0.918 r, past a stepped
+    dial's chapter step at 0.915 r, where they would sit on the step's wall.
+    On a stepped dial they sit a little further in. */
+ const numerals=o.variant==='roman'||o.variant==='arabic';
+ const rad=r*(numerals&&o.layout&&o.layout.stepped?0.78:0.8);
  const m=METALS[o.frameMetal]||METALS.steel;
  const ink=lumOf(o.dialColor||'#16324f')>0.55?'#26282c':'#e9e4d6';
  const shape=o.mode==='shape',lumeOnly=o.mode==='lume';
  ctx.textAlign='center';ctx.textBaseline='middle';
 
- for(let h=0;h<12;h++){const deg=h*30,rad0=deg*Math.PI/180;const[x,y]=posAt(deg,rad);
+ /* a date window takes the place of the index at its hour */
+ const skip=o.layout&&o.layout.win?o.layout.win.skipHour:null;
+ for(let h=0;h<12;h++){if(h===skip)continue;const deg=h*30,rad0=deg*Math.PI/180;const[x,y]=posAt(deg,rad);
 
   if(o.variant==='batons'||o.variant==='minimal'){
    const mini=o.variant==='minimal';

@@ -20,6 +20,7 @@ import {paintBackground} from '../../export/background.js';
 import {sceneClock} from '../time.js';
 import {buildHead,poseHead,applyPose,disposeHead,headKey,pickPart3D} from './watch.js';
 import {studioEnvironment} from './studio.js';
+import {createAO} from './ao.js';
 import {webglState,markWebglFailed} from './support.js';
 
 export const SHEET=CAN/PX;
@@ -36,7 +37,9 @@ export function profileLayout(w,h,d){
  const back={x:0,y:sideH,w,h:backH,ppm:backH*.74/(rCase*2)};
  return{side,back}}
 
-export function createView(canvas,{preserveDrawingBuffer=false}={}){
+/* aoScale: occlusion resolution relative to the canvas — half for live views,
+   where it is recomputed every frame the hands move; full for stills */
+export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  const renderer=new WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer});
  renderer.setClearColor(0x000000,0);
  renderer.outputColorSpace=SRGBColorSpace;
@@ -69,6 +72,7 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
  const orbit=new Spherical(1,(90-36)*Math.PI/180,28*Math.PI/180);
 
  let watch=null,built='',camera='front',w=1,h=1,pxPerMm=null,zoom=1,lastD=null,lastCustoms=null;
+ const ao=createAO(renderer,scene,front);let aoOn=true;const buf=new Vector2();
  let onDirty=null;
 
  const ortho=(cam,vw,vh,ppm,cx=0,cy=0)=>{const hw=vw/2/ppm,hh=vh/2/ppm;
@@ -122,8 +126,14 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
   resize(width,height,dpr=1){w=Math.max(1,Math.round(width));h=Math.max(1,Math.round(height));
    renderer.setPixelRatio(dpr);renderer.setSize(w,h,false);aim()},
   layout,
+  /* ambient occlusion on or off, e.g. when a slow GPU cannot afford it live */
+  setAO(on){aoOn=!!on},
+  get aoOn(){return aoOn},
   render(clock){if(!watch)return;if(clock)poseHead(watch,clock);
-   if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.render(scene,cam());return}
+   if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.render(scene,cam());
+    if(aoOn){renderer.getDrawingBufferSize(buf);ao.apply(cam(),buf.x,buf.y,aoScale)}
+    return}
+   /* the profile is a measured technical drawing: no occlusion shading */
    const L=layout();renderer.setScissorTest(true);
    for(const[c,r]of[[side,L.side],[back,L.back]]){
     /* WebGL viewports count from the bottom */
@@ -133,18 +143,25 @@ export function createView(canvas,{preserveDrawingBuffer=false}={}){
   pick(x,y,sel){if(!watch||camera==='profile')return null;
    const rc=new Raycaster();rc.setFromCamera(new Vector2(x/w*2-1,-(y/h*2-1)),cam());
    return pickPart3D(watch,rc,sel)},
-  /* render one frame to `size` px square in tiles no larger than the GPU allows,
-     handing each tile to `put(sourceCanvas,x,y)` */
+  /* Render one frame to `size` px square in tiles no larger than the GPU allows,
+     handing each tile to `put(src,sx,sy,sw,sh,dx,dy)`. Occlusion is screen-space
+     and looks past a tile's edge, so each tile is rendered with an overlap that
+     is then cropped away — otherwise the seams between tiles show as light lines. */
   renderTiled(clock,size,put){
    const gl=renderer.getContext();
    const max=Math.min(4096,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),renderer.capabilities.maxTextureSize);
+   const pad=aoOn&&size>max?96:0,step=max-2*pad;
    const c=cam();w=h=size;aim();poseHead(watch,clock);
-   for(let ty=0;ty<size;ty+=max)for(let tx=0;tx<size;tx+=max){
-    const tw=Math.min(max,size-tx),th=Math.min(max,size-ty);
-    renderer.setPixelRatio(1);renderer.setSize(tw,th,false);
-    c.setViewOffset(size,size,tx,ty,tw,th);renderer.render(scene,c);put(renderer.domElement,tx,ty)}
+   renderer.setPixelRatio(1);
+   for(let ty=0;ty<size;ty+=step)for(let tx=0;tx<size;tx+=step){
+    const tw=Math.min(step,size-tx),th=Math.min(step,size-ty);
+    const x0=Math.max(0,tx-pad),y0=Math.max(0,ty-pad),x1=Math.min(size,tx+tw+pad),y1=Math.min(size,ty+th+pad);
+    renderer.setSize(x1-x0,y1-y0,false);
+    c.setViewOffset(size,size,x0,y0,x1-x0,y1-y0);renderer.render(scene,c);
+    if(aoOn)ao.apply(c,x1-x0,y1-y0,1);
+    put(renderer.domElement,tx-x0,ty-y0,tw,th,tx,ty)}
    c.clearViewOffset()},
-  dispose(){if(watch)disposeHead(watch);env.dispose();renderer.dispose();watch=null}};
+  dispose(){if(watch)disposeHead(watch);ao.dispose();env.dispose();renderer.dispose();watch=null}};
  return view}
 
 /* ---------------------------------------------------------------- stills */
@@ -155,7 +172,8 @@ let still=null;
 function stillView(){if(still)return still;
  if(!webglState().ok)throw new Error('3D rendering needs WebGL, which this browser is not providing');
  const c=document.createElement('canvas');
- try{still=createView(c,{preserveDrawingBuffer:true})}
+ /* stills and exports take their occlusion at full resolution */
+ try{still=createView(c,{preserveDrawingBuffer:true,aoScale:1})}
  catch(e){markWebglFailed('failed',e);throw e}
  /* a lost context cannot draw again: forget this view so the next still builds
     a fresh one (its GPU resources went with the context, so nothing to dispose) */
@@ -186,5 +204,5 @@ export async function sceneBlob3D(d,customs,{size=CAN,camera='front',clock,backg
  if(background){ctx.save();ctx.scale(size/CAN,size/CAN);await paintBackground(ctx,d);ctx.restore()}
  v.setCamera(camera==='profile'?'front':camera);v.setFrame({pxPerMm:camera==='three-quarter'?null:size/SHEET,zoom:1});
  if(camera==='three-quarter')v.fit();
- v.renderTiled(clock||sceneClock(d,Date.now()),size,(src,x,y)=>ctx.drawImage(src,x,y));
+ v.renderTiled(clock||sceneClock(d,Date.now()),size,(src,sx,sy,sw,sh,dx,dy)=>ctx.drawImage(src,sx,sy,sw,sh,dx,dy,sw,sh));
  return new Promise(r=>out.toBlob(r,'image/png'))}

@@ -7,7 +7,7 @@
      lathe's u runs once around the ring, so N stripes across u are N teeth.
 
    All deterministic, all tiny, all cached. */
-import {DataTexture,RGBAFormat,LinearFilter,ClampToEdgeWrapping,RepeatWrapping,NoColorSpace} from 'three';
+import {DataTexture,RGBAFormat,LinearFilter,LinearMipmapLinearFilter,ClampToEdgeWrapping,RepeatWrapping,NoColorSpace} from 'three';
 
 const tex=(w,h,fn,wrapS=ClampToEdgeWrapping)=>{const a=new Uint8Array(w*h*4);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const[r,g,b]=fn((x+.5)/w,(y+.5)/h),i=(y*w+x)*4;
@@ -27,6 +27,20 @@ export const anisotropyMap=kind=>once('aniso:'+kind,()=>tex(256,256,(u,v)=>{
  let ax=dx/l,ay=dy/l;if(kind==='circular'){const t=ax;ax=-ay;ay=t}
  const s=Math.min(1,l/.02);                        /* no direction at the pinion */
  return[ax*.5+.5,ay*.5+.5,s]}));
+
+/* Snailing: the fine concentric grooves turned into a chronograph register, for a
+   disc whose own UVs run 0..1 across it. Each groove is a shallow sine; the
+   normal leans out and in across it, which is what makes a register shimmer in
+   rings as it turns to the light. */
+export const snailNormalMap=(rings=16)=>once('snail:'+rings,()=>{const t=tex(512,512,(u,v)=>{
+ const x=(u-.5)*2,y=(v-.5)*2,r=Math.hypot(x,y);
+ if(r<1e-4||r>1)return[.5,.5,1];
+ const s=Math.cos(r*rings*Math.PI*2)*.55;          /* slope across the groove */
+ const nx=-s*x/r,ny=-s*y/r,nz=Math.sqrt(Math.max(0,1-nx*nx-ny*ny));
+ return[nx*.5+.5,ny*.5+.5,nz*.5+.5]});
+ /* fine grooves alias into fingerprint rings when a register is seen at a grazing
+    angle; mipmaps and anisotropic filtering average them out instead */
+ t.generateMipmaps=true;t.minFilter=LinearMipmapLinearFilter;t.anisotropy=8;return t});
 
 /* N rounded (flute) or sharp (knurl) ridges around a lathe */
 export const stripeNormalMap=(count,profile='flute')=>once(`stripe:${count}:${profile}`,()=>{

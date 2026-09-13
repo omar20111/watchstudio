@@ -2,7 +2,7 @@
 import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
-        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf} from '../core/geometry.js';
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
 import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
@@ -135,6 +135,20 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      onClick={()=>s.chronoToggle()}>{d.chrono&&d.chrono.running?'■ Stop':'▶ Start'}</button>
     <button className="btn flex-1" aria-label="Reset chronograph" onClick={()=>s.chronoReset()}>↺ Reset</button></div>
    <p className="text-[10px] text-neutral-500">Space starts and stops, R resets. The central seconds hand becomes the chrono seconds.</p>
+  </Section>}
+  {part==='dial'&&!d.active.dial&&<Section title="Dial Construction">
+   {(()=>{const chrono=p.variant==='chrono',at=dialLayoutOf(d).date;
+    return<>
+    <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Date window">
+     <span>Date window</span><div className="flex gap-1">{[['none','None'],['3','3'],['430','4:30'],['6','6']].map(([v,t])=>{
+      const off=chrono&&v==='6';
+      return<button key={v} className={`chip ${at===v?'on':''}`} disabled={off} aria-pressed={at===v}
+       title={off?'A chronograph’s 6 o’clock register and model line leave no room — its date sits at 4:30':v==='none'?'No date':v==='430'?'Date window at 4:30':`Date window at ${t} o’clock`}
+       style={off?{opacity:.35,cursor:'not-allowed'}:undefined} onClick={()=>up({date:v},'date')}>{t}</button>})}</div></div>
+    <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Chapter ring">
+     <span>Chapter ring</span><div className="flex gap-1">{[['flat','Flat'],['stepped','Stepped']].map(([v,t])=>
+      <button key={v} className={`chip ${(p.step||'flat')===v?'on':''}`} aria-pressed={(p.step||'flat')===v} onClick={()=>up({step:v},'step')}>{t}</button>)}</div></div>
+    <p className="text-[10px] text-neutral-500">The window is cut through the dial onto a turning date wheel, and replaces the index at its hour. A stepped dial sinks the centre below the minute track.{chrono?' Registers are milled into the dial.':''}</p></>})()}
   </Section>}
   {part==='dial'&&<Section title="Dial Color"><div className="flex gap-1.5 mb-1">{['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66'].map(c=>
    <button key={c} className="w-6 h-6 rounded-full border border-white/20" style={{background:c}} onClick={()=>up({color:c})}/>)}</div>

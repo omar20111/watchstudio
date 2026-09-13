@@ -20,3 +20,4 @@ export {stageCamera} from './ui/Stage.jsx';
 export {exportCamera} from './export/png.js';
 export {sceneClock} from './core/time.js';
 export {designToGLTF,MM_TO_M} from './export/glb.js';
+export {layerAngle} from './core/layers.js';

@@ -50,7 +50,7 @@ export function useWatchView({camera='front',orbit=false}={}){
   /* dev only: the live view, for the console and the browser checks */
   if(import.meta.env&&import.meta.env.DEV)window.__watchView=v;
   const r=host.current.getBoundingClientRect();v.resize(r.width,r.height,dprOf());
-  let raf=null,lastD=null,lastC=null,lastBuild=-1e9,lastDraw=-1e9,giveUp=null;
+  let raf=null,lastD=null,lastC=null,lastBuild=-1e9,lastDraw=-1e9,giveUp=null,slow=0;
   v.onDirty(()=>{lastD=null;dirty.current=true});   /* an upload finished loading */
   const loop=t=>{const st=store.getState();
    if(st.d!==lastD||st.customs!==lastC){dirty.current=true;
@@ -59,6 +59,12 @@ export function useWatchView({camera='front',orbit=false}={}){
    const tm=st.d.time||{},running=!!(st.d.chrono&&st.d.chrono.running);
    const ticking=tm.mode==='live'||running,smooth=ticking&&(tm.sweep||running);
    if(dirty.current||smooth||(ticking&&t-lastDraw>200)){
+    /* Ambient occlusion roughly doubles the cost of a frame. While the view is
+       redrawing every frame (a sweeping seconds hand), measure it: three
+       seconds' worth of frames slower than ~30 fps turns occlusion off for this
+       live view. Stills and exports keep it — they are drawn once. */
+    if(smooth&&v.aoOn){slow=t-lastDraw>34?slow+1:Math.max(0,slow-2);
+     if(slow>90){v.setAO(false);console.info('WatchStudio: ambient occlusion is off for the live view — this device draws it below 30 fps')}}
     v.render(sceneClock(st.d,Date.now()));dirty.current=false;lastDraw=t}
    raf=requestAnimationFrame(loop)};
   raf=requestAnimationFrame(loop);

@@ -43,4 +43,6 @@ export function layerAngle(key,clock){
   case'chMin':return clock.chrono.ang.min30;     /* 30-minute register at 9 */
   case'chHr':return clock.chrono.ang.hr12;       /* 12-hour register at 6 */
   case'bezelIns':return clock.bezel.rot;
+  /* the date wheel turns back one step a day to bring the day under the window */
+  case'dateWheel':return -((clock.date?clock.date.getDate():1)-1)*360/31;
   default:return 0}}

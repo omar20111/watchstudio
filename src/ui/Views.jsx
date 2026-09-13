@@ -6,7 +6,7 @@
 import React from 'react';
 import {CAN,PX,METALS} from '../core/constants.js';
 import {VNAME} from '../core/parts.js';
-import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,caseOf} from '../core/geometry.js';
+import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,caseOf,dialLayoutOf} from '../core/geometry.js';
 import {marketingClock} from '../core/time.js';
 import {useApp} from '../state/store.js';
 import {useWatchView,RestoringNotice} from './WatchCanvas.jsx';
@@ -158,6 +158,7 @@ export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
      <Row l="Crystal" v={`${VNAME[caseOf(d).crystal]} sapphire`}/>
      <Row l="Strap" v={`${VNAME[P.strap.variant]||P.strap.variant} · ${mm(strapMmOf(d))}`}/>
      <Row l="Hand set" v={VNAME[P.hands.variant]||P.hands.variant}/>
+     <Row l="Date / chapter ring" v={`${(at=>at==='none'?'none':at==='430'?'4:30':at+' o’clock')(dialLayoutOf(d).date)} · ${P.dial.step==='stepped'?'stepped':'flat'}`}/>
      <Row l="Dial text" v={[P.dial.text.top,P.dial.text.bottom].filter(Boolean).join(' / ')||'—'}/>
     </div>
    </div>

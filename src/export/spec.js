@@ -1,6 +1,6 @@
 /* Spec-sheet (txt) export. */
 import {PX,METALS} from '../core/constants.js';
-import {strapMmOf,caseOf,thicknessStack,lugToLugOf,crownMmOf,bezelMmOf} from '../core/geometry.js';
+import {strapMmOf,caseOf,thicknessStack,lugToLugOf,crownMmOf,bezelMmOf,dialLayoutOf} from '../core/geometry.js';
 import {store} from '../state/store.js';
 
 /* a hand-edited project or a future migration can carry a metal id this build
@@ -18,7 +18,7 @@ export function exportSpec(){const s=store.getState(),d=s.d,P=d.parts;
  `Crown: ${P.crown.variant} · ${crownMmOf(d)} mm · ${metal(P.crown.metal)} · at ${c.crownPos==='430'?'4:30':'3 o’clock'}${c.pushers?' · chronograph pushers at 2 and 4':''}`,
  `Strap: ${P.strap.variant} · ${strapMmOf(d)} mm · color ${P.strap.color} · stitch ${P.strap.stitch} · ${metal(P.strap.metal)}`,
  `Bezel: ${P.bezel.variant} · ${bezelMmOf(d)} mm · ${metal(P.bezel.metal)} · ${P.bezel.finish}${insert?' · insert '+P.bezel.insertColor:''}`,
- `Dial: ${P.dial.variant} · ${P.dial.color} · text "${P.dial.text.top}" / "${P.dial.text.bottom}" (${P.dial.text.font}, ink ${P.dial.text.color})`,
+ `Dial: ${P.dial.variant} · ${P.dial.color} · date ${(at=>at==='none'?'none':at==='430'?'4:30':at+' o’clock')(dialLayoutOf(d).date)} · ${P.dial.step==='stepped'?'stepped chapter ring':'flat'} · text "${P.dial.text.top}" / "${P.dial.text.bottom}" (${P.dial.text.font}, ink ${P.dial.text.color})`,
  `Markers: ${P.markers.variant} · lume ${P.markers.lume}${P.markers.glow?' (glow on)':''}`,
  `Hands: ${P.hands.variant} · ${metal(P.hands.metal)} · second ${P.hands.secColor} · lume ${P.hands.lume}`,'',
  `Crystal: ${c.crystal} sapphire · ${c.crystalMm} mm · gloss ${Math.round(P.crystal.opacity*100)}%`,'',

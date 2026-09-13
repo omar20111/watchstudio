@@ -175,6 +175,19 @@ console.log('RENDER-TO-STRING ('+out.length+' chars)');
  expect(/graphics driver stopped responding/.test(flatOut),'the app does not explain why the watch went flat');
  expect(M.retryWebgl()&&M.webglState().ok,'retryWebgl did not restore 3D once WebGL was available again')}
 
+/* ---- v7: dials gained a date window and a chapter step ----
+   new designs get both; a design saved before v7 keeps the look it was drawn with */
+{expect(M.DEF.parts.dial.date==='3'&&M.DEF.parts.dial.step==='stepped','new designs should start with a date at 3 and a stepped dial');
+ const old=M.clone(M.DEF);delete old.parts.dial.date;delete old.parts.dial.step;
+ const h=M.hydrate(JSON.parse(JSON.stringify(old)),6);
+ expect(h.parts.dial.date==='none'&&h.parts.dial.step==='flat',`a v6 design grew a date window or step: ${h.parts.dial.date}/${h.parts.dial.step}`);
+ const cur=M.hydrate(JSON.parse(JSON.stringify(M.DEF)),M.SCHEMA_VERSION);
+ expect(cur.parts.dial.date==='3','a current design lost its date window on reload')}
+/* the date wheel turns so the day sits under the window */
+{const d=M.clone(M.DEF);d.time.mode='set';d.time.date=15;
+ const a=M.layerAngle('dateWheel',M.sceneClock(d,new Date(2026,0,10,12).getTime()));
+ expect(Math.abs(a+14*360/31)<1e-9,`day 15 should turn the wheel back 14 steps, got ${a}`)}
+
 /* ---- 3D model export: structure of the glTF ----
    Pixels need a real browser (scripts check that); this checks the document. */
 {const d=M.clone(M.DEF);d.parts.bezel.variant='diver';d.parts.dial.variant='sunburst';d.parts.case.finish='brushed';
@@ -191,7 +204,7 @@ console.log('RENDER-TO-STRING ('+out.length+' chars)');
   expect(root.extras&&root.extras.spec&&root.extras.spec.dimensionsMm.caseDiameter===40,'the spec should travel in the root extras');
   for(const p of['strap','case','crown','bezel','dial','markers','hands','crystal'])expect(!!byName(p),`the model is missing its ${p} node`);
   /* (hand and index solids are traced from pixels, which the mocked canvas has none of) */
-  for(const n of['flank','chamfer','lugs','crownSide','bezelFlank','crystal','bezelIns','dial'])expect(!!byName(n),`the model is missing mesh ${n}`);
+  for(const n of['flank','chamfer','lugs','crownSide','bezelFlank','crystal','bezelIns','dial','chapterRing','chapterStep','dateFrame','dateWheel'])expect(!!byName(n),`the model is missing mesh ${n}`);
   const used=g.extensionsUsed||[];
   for(const x of['KHR_materials_transmission','KHR_materials_ior','KHR_materials_clearcoat','KHR_materials_anisotropy'])
    expect(used.includes(x),`the model should use ${x}`);

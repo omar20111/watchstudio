@@ -11,7 +11,7 @@ export const TT=()=>({s:1,r:0,x:0,y:0,o:1});
 /* Bump whenever the shape of a saved project changes; migrateProject walks
    old files forward rather than letting hydrate() silently drop what it does
    not recognise. */
-export const SCHEMA_VERSION=6;
+export const SCHEMA_VERSION=7;
 
 /* Flat dimensions that survive at the top level. Case ARCHITECTURE moved into
    the nested `case` object — see migrateProject for the v4 -> v5 move. */
@@ -28,7 +28,8 @@ export const DEF={caseMm:40,strapMm:'auto',
   case:{variant:'classic',metal:'steel',finish:'polished',t:TT()},
   crown:{variant:'standard',metal:'steel',finish:'polished',t:TT()},
   bezel:{variant:'smooth',metal:'steel',finish:'polished',insertColor:'#101318',rot:0,detents:120,dir:'ccw',t:TT()},
-  dial:{variant:'sunburst',color:'#16324f',finish:'none',text:{top:'WatchStudio',bottom:'AUTOMATIC',font:'serif',color:'auto'},t:TT()},
+  /* date: none | 3 | 430 | 6 — a window onto a date wheel; step: flat | stepped chapter ring */
+  dial:{variant:'sunburst',color:'#16324f',finish:'none',date:'3',step:'stepped',text:{top:'WatchStudio',bottom:'AUTOMATIC',font:'serif',color:'auto'},t:TT()},
   markers:{variant:'batons',lume:'#dff3e4',glow:false,t:TT()},
   hands:{variant:'dauphine',metal:'steel',finish:'polished',lume:'#dff3e4',glow:false,
    secColor:'#e8482c',tH:TT(),tM:TT(),tS:TT()},
@@ -66,6 +67,15 @@ export function migrateProject(o){
   const parts={...d.parts},cr={...parts.crystal};
   if(['flat','dome','box'].includes(cr.variant))d.case={...DEF_CASE(),...(d.case||{}),crystal:cr.variant};
   delete cr.variant;parts.crystal=cr;d.parts=parts;
+ }
+ /* v7: dials gained a date window and a stepped chapter ring, both on by default
+    for new designs. A design saved before then was drawn without either, so it
+    keeps that look rather than silently growing a date window. */
+ if(v<7&&d.parts&&d.parts.dial){
+  const parts={...d.parts},dl={...parts.dial};
+  if(dl.date==null)dl.date='none';
+  if(dl.step==null)dl.step='flat';
+  parts.dial=dl;d.parts=parts;
  }
  p.d=d;p.schemaVersion=SCHEMA_VERSION;return p}
 

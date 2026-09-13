@@ -27,7 +27,14 @@ numbers and nothing else:
   `ENV` table in `core/render/material.js` becomes a horizon band, a softbox
   and a table, prefiltered into an environment map. No HDRI file.
 - **Surface detail is generated** (`core/three/surface.js`): sunburst and
-  brushed dials use anisotropy maps; flutes and knurling are normal maps.
+  brushed dials use anisotropy maps; flutes, knurling and register snailing are
+  normal maps.
+- **The dial is a plate** (`core/geometry.js dialLayoutOf`): a date window cut
+  through it onto a turning date wheel, an optional stepped chapter ring, and
+  chronograph registers milled into it. The 2D dial is painted from the same
+  layout, so apertures and artwork agree.
+- **Contact shading is real** (`core/three/ao.js`): ambient occlusion darkens
+  where parts meet — indices on the dial, hands over it, bracelet joints.
 
 The same view (`core/three/view.js`) drives the editor, the product and sheet
 presentations and every export, so what you see and what you export cannot

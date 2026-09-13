@@ -5,7 +5,7 @@ export const THEMES=[
  {id:'diver',name:'Heritage Diver',apply:n=>{const P=n.parts;n.caseMm=42;
   P.case.metal='steel';P.case.finish='brushed';
   P.bezel.variant='diver';P.bezel.metal='steel';P.bezel.insertColor='#101318';
-  P.dial.variant='matte';P.dial.color='#101214';P.dial.text={top:'WATCHSTUDIO',bottom:'200 m',font:'sans',color:'auto'};
+  P.dial.variant='matte';P.dial.color='#101214';P.dial.date='3';P.dial.step='stepped';P.dial.text={top:'WATCHSTUDIO',bottom:'200 m',font:'sans',color:'auto'};
   P.markers.variant='dots';P.markers.lume='#dff3e4';
   P.hands.variant='sword';P.hands.metal='steel';P.hands.lume='#dff3e4';P.hands.secColor='#e8482c';
   P.strap.variant='rubber';P.strap.color='#15161a';P.strap.metal='steel';
@@ -14,7 +14,7 @@ export const THEMES=[
  {id:'dress',name:'Rose Dress',apply:n=>{const P=n.parts;n.caseMm=38;
   P.case.metal='rose';P.case.finish='polished';
   P.bezel.variant='smooth';P.bezel.metal='rose';P.bezel.finish='polished';
-  P.dial.variant='sunburst';P.dial.color='#e8e6e0';P.dial.text={top:'WatchStudio',bottom:'',font:'serif',color:'auto'};
+  P.dial.variant='sunburst';P.dial.color='#e8e6e0';P.dial.date='none';P.dial.step='flat';P.dial.text={top:'WatchStudio',bottom:'',font:'serif',color:'auto'};
   P.markers.variant='roman';
   P.hands.variant='dauphine';P.hands.metal='rose';P.hands.secColor='#8a5636';
   P.strap.variant='leather';P.strap.color='#2b2118';P.strap.stitch='#e0cfa6';
@@ -23,7 +23,7 @@ export const THEMES=[
  {id:'panda',name:'Panda Chrono',apply:n=>{const P=n.parts;n.caseMm=40;
   P.case.metal='steel';P.case.finish='brushed';
   P.bezel.variant='tachy';P.bezel.metal='steel';P.bezel.finish='none';
-  P.dial.variant='chrono';P.dial.color='#eae6db';P.dial.text={top:'WatchStudio',bottom:'CHRONOGRAPH',font:'caps',color:'auto'};
+  P.dial.variant='chrono';P.dial.color='#eae6db';P.dial.date='430';P.dial.step='stepped';P.dial.text={top:'WatchStudio',bottom:'CHRONOGRAPH',font:'caps',color:'auto'};
   P.markers.variant='batons';P.markers.lume='#e8e2c8';
   P.hands.variant='baton';P.hands.metal='steel';P.hands.lume='#e8e2c8';P.hands.secColor='#e8482c';
   P.strap.variant='steel';P.strap.metal='steel';
@@ -32,7 +32,7 @@ export const THEMES=[
  {id:'field',name:'Military Field',apply:n=>{const P=n.parts;n.caseMm=38;
   P.case.metal='steel';P.case.finish='matte';
   P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='matte';
-  P.dial.variant='matte';P.dial.color='#1d3a2a';P.dial.text={top:'WatchStudio',bottom:'FIELD',font:'caps',color:'auto'};
+  P.dial.variant='matte';P.dial.color='#1d3a2a';P.dial.date='none';P.dial.step='stepped';P.dial.text={top:'WatchStudio',bottom:'FIELD',font:'caps',color:'auto'};
   P.markers.variant='arabic';
   P.hands.variant='sword';P.hands.metal='steel';P.hands.lume='#c7f59b';P.hands.secColor='#e0cfa6';
   P.strap.variant='nato';P.strap.color='#1d3a2a';P.strap.stitch='#e0cfa6';P.strap.metal='steel';
@@ -41,7 +41,7 @@ export const THEMES=[
  {id:'gmt',name:'Gulf Racer',apply:n=>{const P=n.parts;n.caseMm=40;
   P.case.metal='steel';P.case.finish='brushed';
   P.bezel.variant='diver';P.bezel.metal='steel';P.bezel.insertColor='#1c3f66';
-  P.dial.variant='sunburst';P.dial.color='#1c3f66';P.dial.text={top:'WatchStudio',bottom:'GMT',font:'sans',color:'auto'};
+  P.dial.variant='sunburst';P.dial.color='#1c3f66';P.dial.date='3';P.dial.step='stepped';P.dial.text={top:'WatchStudio',bottom:'GMT',font:'sans',color:'auto'};
   P.markers.variant='batons';P.markers.lume='#dff3e4';
   P.hands.variant='mercedes';P.hands.metal='steel';P.hands.lume='#dff3e4';P.hands.secColor='#c96a2b';
   P.strap.variant='rubber';P.strap.color='#c96a2b';P.strap.metal='steel';
@@ -50,7 +50,7 @@ export const THEMES=[
  {id:'bronze',name:'Bronze Diver',apply:n=>{const P=n.parts;n.caseMm=42;
   P.case.metal='bronze';P.case.finish='brushed';
   P.bezel.variant='diver';P.bezel.metal='bronze';P.bezel.finish='brushed';P.bezel.insertColor='#1d3a2a';
-  P.dial.variant='fume';P.dial.color='#2f6b4f';P.dial.finish='polished';P.dial.text={top:'WatchStudio',bottom:'BRONZE',font:'caps',color:'auto'};
+  P.dial.variant='fume';P.dial.color='#2f6b4f';P.dial.finish='polished';P.dial.date='none';P.dial.step='stepped';P.dial.text={top:'WatchStudio',bottom:'BRONZE',font:'caps',color:'auto'};
   P.markers.variant='batons';P.markers.lume='#e8d9a8';
   P.hands.variant='sword';P.hands.metal='bronze';P.hands.finish='polished';P.hands.lume='#e8d9a8';P.hands.secColor='#e8c766';
   P.strap.variant='leather';P.strap.color='#4a2f1c';P.strap.stitch='#c9a227';P.strap.metal='bronze';
@@ -59,7 +59,7 @@ export const THEMES=[
  {id:'carbon',name:'Carbon Racer',apply:n=>{const P=n.parts;n.caseMm=44;
   P.case.metal='carbon';P.case.finish='matte';
   P.bezel.variant='tachy';P.bezel.metal='carbon';P.bezel.finish='matte';
-  P.dial.variant='chrono';P.dial.color='#15171b';P.dial.finish='matte';P.dial.text={top:'WATCHSTUDIO',bottom:'CARBON',font:'caps',color:'#e8482c'};
+  P.dial.variant='chrono';P.dial.color='#15171b';P.dial.finish='matte';P.dial.date='430';P.dial.step='stepped';P.dial.text={top:'WATCHSTUDIO',bottom:'CARBON',font:'caps',color:'#e8482c'};
   P.markers.variant='batons';P.markers.lume='#e8e2c8';
   P.hands.variant='baton';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#e8e2c8';P.hands.secColor='#e8482c';
   P.strap.variant='rubber';P.strap.color='#17181c';P.strap.metal='carbon';
@@ -68,7 +68,7 @@ export const THEMES=[
  {id:'ceramic',name:'White Ceramic',apply:n=>{const P=n.parts;n.caseMm=40;
   P.case.metal='ceramic';P.case.finish='polished';
   P.bezel.variant='smooth';P.bezel.metal='ceramic';P.bezel.finish='polished';
-  P.dial.variant='guilloche';P.dial.color='#eceae4';P.dial.finish='polished';P.dial.text={top:'WatchStudio',bottom:'CERAMIQUE',font:'serif',color:'auto'};
+  P.dial.variant='guilloche';P.dial.color='#eceae4';P.dial.finish='polished';P.dial.date='none';P.dial.step='flat';P.dial.text={top:'WatchStudio',bottom:'CERAMIQUE',font:'serif',color:'auto'};
   P.markers.variant='roman';
   P.hands.variant='dauphine';P.hands.metal='rose';P.hands.finish='polished';P.hands.secColor='#c08457';
   P.strap.variant='leather';P.strap.color='#e6e3dc';P.strap.stitch='#c9c4ba';P.strap.metal='ceramic';
@@ -77,7 +77,7 @@ export const THEMES=[
  {id:'noir',name:'Noir DLC',apply:n=>{const P=n.parts;n.caseMm=44;
   P.case.metal='black';P.case.finish='matte';
   P.bezel.variant='smooth';P.bezel.metal='black';P.bezel.finish='matte';
-  P.dial.variant='matte';P.dial.color='#101214';P.dial.text={top:'WATCHSTUDIO',bottom:'NOIR',font:'caps',color:'#d4af37'};
+  P.dial.variant='matte';P.dial.color='#101214';P.dial.date='6';P.dial.step='stepped';P.dial.text={top:'WATCHSTUDIO',bottom:'NOIR',font:'caps',color:'#d4af37'};
   P.markers.variant='minimal';P.markers.lume='#d4af37';
   P.hands.variant='baton';P.hands.metal='black';P.hands.lume='#d4af37';P.hands.secColor='#d4af37';
   P.strap.variant='rubber';P.strap.color='#15161a';P.strap.metal='black';
@@ -93,6 +93,7 @@ export function shuffleInto(n){const P=n.parts;const metal=pick(['steel','steel'
  P.bezel.insertColor=pick(['#101318','#16324f','#4a1f24','#1d3a2a','#1c3f66']);
  P.dial.variant=pick(['sunburst','sunburst','matte','chrono','guilloche','fume']);
  P.dial.color=pick(['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66']);
+ P.dial.date=pick(['none','none','3','3','430','6']);P.dial.step=pick(['flat','stepped','stepped']);
  P.markers.variant=pick(['batons','dots','roman','arabic','minimal']);
  P.hands.variant=pick(['dauphine','baton','sword','mercedes','leaf']);
  P.hands.secColor=pick(['#e8482c','#d4af37','#e8e6e0','#2f7de1','#c96a2b']);

@@ -6,7 +6,7 @@
    Everything is rendered from the SAME marketing clock, so the hands in the
    views and the hands in the per-part files cannot disagree. */
 import {CAN} from '../core/constants.js';
-import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,rehautMmOf} from '../core/geometry.js';
+import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,rehautMmOf,dialLayoutOf} from '../core/geometry.js';
 import {buildLayers} from '../core/layers.js';
 import {marketingClock} from '../core/time.js';
 import {VNAME} from '../core/parts.js';
@@ -45,7 +45,8 @@ export function specData(d,name){
    strap:VNAME[P.strap.variant]||P.strap.variant,
    handSet:VNAME[P.hands.variant]||P.hands.variant,
    markers:VNAME[P.markers.variant]||P.markers.variant,
-   dial:VNAME[P.dial.variant]||P.dial.variant},
+   dial:VNAME[P.dial.variant]||P.dial.variant,
+   dateWindow:dialLayoutOf(d).date,chapterRing:P.dial.step==='stepped'?'stepped':'flat'},
   materials:{
    case:(METALS[P.case.metal]||{}).name,caseFinish:P.case.finish,
    bezel:(METALS[P.bezel.metal]||{}).name,bezelFinish:P.bezel.finish,

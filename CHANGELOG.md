@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+**Added — depth**
+- **Ambient occlusion** (`core/three/ao.js`). three's GTAO, multiplied onto the
+  frame the renderer already draws, so tone mapping, antialiasing and the
+  transparent background are unchanged. Half resolution live, full for stills;
+  export tiles overlap so the effect leaves no seams. The crystal, lume and
+  upload sheets and the shadow-catcher are hidden from its depth pass. If a
+  live view draws below ~30 fps with it for three seconds, it switches off for
+  that view only.
+- **Softer key-light glints** (`materials.js softenKeyGlint`). The key light is
+  a point source; on the crystal and mirror polishes its specular made a tiny
+  camera-flash dot. Its point reflection is now removed on glass and scaled by
+  roughness elsewhere; its shadows and fill are unchanged, and the softbox
+  reflection comes from the environment as before.
+- **Solid bracelet links.** A steel bracelet is rows of outer and centre links
+  following the strap path, hinging round the bend, with dark pins in the
+  joints and an end link between the lugs. Brushed along its length; a
+  polished finish polishes the centre links. Merged per material.
+- **Dial construction** (`geometry.js dialLayoutOf`, shared by the 2D dial, the
+  3D plate and the checks):
+  - *Date window* at 3, 4:30 or 6: an aperture cut through the plate, lined
+    with a polished frame, onto a date wheel that turns to the day. The index
+    at that hour is left out. A chronograph's date at 6 moves to 4:30.
+  - *Stepped chapter ring*: the dial's centre sits 0.18 mm below the ring that
+    carries the minute track. Numerals move in slightly so they clear the step.
+  - *Chronograph registers* are milled 0.28 mm into the plate, with snailed
+    grooves as a normal map.
+  New designs have a date at 3 and a stepped ring; themes choose their own.
+  Schema v7: designs saved earlier keep the flat, no-date dial they had.
+
 **Added**
 - **Works without WebGL.** A browser with no WebGL 2 (hardware acceleration
   off, remote desktops, older machines) used to crash into the error screen,

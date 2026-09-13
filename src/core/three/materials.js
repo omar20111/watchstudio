@@ -46,6 +46,23 @@ export function crystalMaterial(finish='polished',gloss=.65,crystalMm=1.6){
   transmission:1,ior:1.77,thickness:Math.min(.35,crystalMm*.2),specularIntensity:Math.min(1,k),
   specularColor:new Color((AR[finish]??.75)<.5?'#b9c2ff':'#dfe6ff'),envMapIntensity:1,side:DoubleSide})}
 
+/* The key light is a point source. On a mirror polish its specular reflection
+   is a tiny hot dot — a camera flash — where a studio photograph shows the
+   softbox, which the environment map already reflects. The key stays for its
+   shadows and its diffuse fill; only its point reflection is scaled down, fully
+   on glass and more the smoother a surface is. Rougher surfaces keep it, where
+   it is a broad, believable highlight. */
+const ramp=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+export function softenKeyGlint(mat){
+ if(!(mat&&mat.isMeshStandardMaterial))return mat;
+ const scale=mat.transmission>0?0:.2+.8*ramp(.06,.35,mat.roughness);
+ mat.onBeforeCompile=sh=>{sh.uniforms.uKeySpecular={value:scale};
+  sh.fragmentShader='uniform float uKeySpecular;\n'+sh.fragmentShader.replace('#include <lights_fragment_end>',
+   '#include <lights_fragment_end>\n\treflectedLight.directSpecular *= uKeySpecular;\n'+
+   '#ifdef USE_CLEARCOAT\n\tclearcoatSpecularDirect *= uKeySpecular;\n#endif')};
+ mat.customProgramCacheKey=()=>'ws-soft-key-glint';
+ return mat}
+
 /* printed or painted surfaces carrying a baked 2D canvas */
 export function paintedMaterial(map,o={}){
  return new MeshStandardMaterial({map,roughness:o.roughness??.55,metalness:0,

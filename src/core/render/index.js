@@ -1,6 +1,6 @@
 /* Renderer registry + shared option builder. */
 import {clone} from '../utils.js';
-import {geoOf,crownAng,caseOf} from '../geometry.js';
+import {geoOf,crownAng,caseOf,dialLayoutOf,dialDayOf} from '../geometry.js';
 import {srcOf} from '../parts.js';
 import {drStrap} from './strap.js';
 import {drCase} from './case.js';
@@ -27,6 +27,9 @@ export const DR={strap:drStrap,case:drCase,crown:drCrown,bezel:drBezel,rehaut:dr
      'print'   -> only printing/engraving, as a decal on a lathed surface */
 export function procOpts(part,d,sub,mode){const src=srcOf(part);const arch=caseOf(d);
  return{g:geoOf(d),arch,pushers:arch.pushers,...clone(d.parts[src]),which:sub,hand:sub,mode,
+  /* the dial plate's layout (date window, registers, chapter step) and the day
+     on its date wheel: the dial draws them, the markers make room for them */
+  layout:dialLayoutOf(d),day:dialDayOf(d),
   secColor:d.parts.hands.secColor,dialColor:d.parts.dial.color,
   frameMetal:d.parts.hands.metal,crownAng:crownAng(d),
   lume:d.parts[src].lume||d.parts.markers.lume}}

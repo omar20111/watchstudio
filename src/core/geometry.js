@@ -179,6 +179,48 @@ export function geoOf(d){
 
 export const posAt=(deg,r)=>[C+r*Math.sin(deg*Math.PI/180),C-r*Math.cos(deg*Math.PI/180)];
 
+/* ==================== DIAL CONSTRUCTION ====================
+   The dial plate's layout in sheet px, read by the 2D dial and markers, the 3D
+   plate, and the checks — so a date window cut into the 3D plate sits exactly
+   where the 2D dial draws it and where the index it replaces used to be.
+
+   stepped   the centre of the plate is sunk below a chapter ring carrying the
+             minute track; the step sits between the indices and the track
+   subdials  a chronograph's registers, milled into the plate
+   win       the date window: an upright aperture onto a date wheel below */
+export const DATE_POSITIONS=['none','3','430','6'];
+export const DIAL_STEP_MM=.18;          /* depth of the sunk centre below the chapter ring */
+export const SUBDIAL_DEPTH_MM=.28;      /* depth of a register below the plate */
+
+export function dialLayoutOf(d){
+ const r=geoOf(d).dialR,P=(d.parts&&d.parts.dial)||{},chrono=P.variant==='chrono';
+ let date=DATE_POSITIONS.includes(P.date)?P.date:'none';
+ /* a chronograph's 6 o'clock register and model line leave no room at 6 */
+ if(chrono&&date==='6')date='430';
+ const stepped=P.step==='stepped';
+ const subdials=chrono?[[90,'smallsec'],[180,'chHr'],[270,'chMin']].map(([deg,key])=>{
+  const[x,y]=posAt(deg,r*.45);return{deg,key,x,y,r:r*.2}}):[];
+ let win=null;
+ if(date!=='none'){const deg={'3':90,'430':135,'6':180}[date];
+  /* centred where the index was, pulled in at 4:30 so the corners of an upright
+     window clear the step */
+  const at=date==='430'?.75:.77;
+  const[x,y]=posAt(deg,r*at);
+  /* The wheel's days are 360/31 deg apart, about 0.156 r at this radius. The
+     window must stay narrower than that across the wheel's direction of travel,
+     or the neighbouring days show at its edges: at 3 that direction is the
+     window's height, at 6 its width, at 4:30 both. A chronograph's window at 3
+     is also narrower radially, to fit between its register and the track. */
+  const[ww,wh]=date==='3'?[chrono?.18:.22,.165]:date==='6'?[.155,.14]:[.145,.12];
+  win={deg,x,y,w:r*ww,h:r*wh,rad:r*.028,frame:r*.012,skipHour:date==='3'?3:date==='6'?6:null}}
+ return{r,chrono,stepped,stepR:r*.915,subdials,date,win}}
+
+/* the day the date wheel shows: the set date for a posed design, today otherwise */
+export function dialDayOf(d,nowMs=Date.now()){const t=d.time||{},now=new Date(nowMs);
+ if(t.mode!=='set')return now.getDate();
+ const last=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+ return Math.min(clamp(Math.round(+t.date||1),1,31),last)}
+
 /* crown grows with the 'oversized' variant — shared by its frame, hit-box and selection guide */
 const crownScale=d=>d.parts.crown.variant==='oversized'?1.22:1;  /* must match crown.js */
 

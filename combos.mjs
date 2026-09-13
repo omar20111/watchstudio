@@ -171,5 +171,37 @@ for(const caseMm of[34,40,46])for(const lugLenMm of[3,6.5,12]){
  if(Math.abs((g.R+g.lugExt)*2-G.lugToLugOf(d)*PX)>1.5)bad(tag,`lug span ${((g.R+g.lugExt)*2/PX).toFixed(1)}mm != lug-to-lug ${G.lugToLugOf(d)}mm`);
 }
 
+/* dial construction: a date window is cut through the plate, so it has to stay
+   clear of the minute track (or the chapter step), of the registers and of the
+   dial's edge; the wheel under it has to cover it; neighbouring days must not
+   show in it; and the index it replaces has to be the one under it */
+for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(const date of['none','3','430','6'])for(const step of['flat','stepped']){
+ const d=M.clone(M.DEF);d.caseMm=caseMm;Object.assign(d.parts.dial,{variant,date,step});
+ const L=G.dialLayoutOf(d),tag=`dial ${caseMm}/${variant}/date ${date}/${step}`;
+ if(variant==='chrono'&&date==='6'&&L.date!=='430')bad(tag,'a chronograph date at 6 should move to 4:30');
+ if(L.subdials.length!==(variant==='chrono'?3:0))bad(tag,`expected ${variant==='chrono'?3:0} registers, got ${L.subdials.length}`);
+ for(const sd of L.subdials)if(Math.hypot(sd.x-C,sd.y-C)+sd.r>=(step==='stepped'?L.stepR:L.r*.9))bad(tag,`the ${sd.key} register reaches the ${step==='stepped'?'chapter step':'minute track'}`);
+ checkHead(tag,d);
+ if(!L.win){if(date!=='none')bad(tag,'no window for a date');continue}
+ const w=L.win,hx=w.w/2+w.frame,hy=w.h/2+w.frame;
+ const corners=[[-1,-1],[1,-1],[-1,1],[1,1]].map(([sx,sy])=>[w.x+sx*hx,w.y+sy*hy]);
+ const reach=Math.max(...corners.map(([x,y])=>Math.hypot(x-C,y-C)));
+ const limit=step==='stepped'?L.stepR:L.r*.905;       /* long track ticks end at 0.908 r */
+ if(reach>=limit)bad(tag,`window frame reaches ${(reach/L.r).toFixed(3)} r, past ${(limit/L.r).toFixed(3)} r`);
+ for(const sd of L.subdials){
+  const nx=Math.max(w.x-hx,Math.min(sd.x,w.x+hx)),ny=Math.max(w.y-hy,Math.min(sd.y,w.y+hy));
+  if(Math.hypot(sd.x-nx,sd.y-ny)<=sd.r)bad(tag,`window overlaps the ${sd.key} register`)}
+ const cr=Math.hypot(w.x-C,w.y-C),span=Math.hypot(w.w,w.h)/2+w.frame*3;
+ const near=Math.min(...corners.map(([x,y])=>Math.hypot(x-C,y-C)));
+ if(reach>cr+span||near<cr-span)bad(tag,'the date wheel does not cover the window');
+ const want={'3':3,'6':6,'430':null}[L.date];
+ if(w.skipHour!==want)bad(tag,`the window should replace index ${want}, replaces ${w.skipHour}`);
+ /* the wheel's pitch against the window's extent along the wheel's travel there,
+    less half a numeral (bold digits ~0.56 em wide each, ~0.72 em tall) */
+ const pitch=cr*2*Math.PI/31,tx=Math.abs(Math.cos(w.deg*Math.PI/180)),ty=Math.abs(Math.sin(w.deg*Math.PI/180));
+ const font=w.h*.72,halfTravel=tx*w.w/2+ty*w.h/2,glyphHalf=tx*font*.56+ty*font*.36;
+ if(pitch-glyphHalf<=halfTravel)bad(tag,`neighbouring days would show (pitch ${pitch.toFixed(1)}px, window ${halfTravel.toFixed(1)}px)`);
+}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

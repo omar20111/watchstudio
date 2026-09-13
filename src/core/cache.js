@@ -1,7 +1,7 @@
 /* LRU caches: full-size part canvases + preset thumbnails. */
 import {CAN,STRAP_REACH_3D} from './constants.js';
 import {clone,clamp,mk} from './utils.js';
-import {frameBox} from './geometry.js';
+import {frameBox,dialDayOf} from './geometry.js';
 import {srcOf,applyVariant} from './parts.js';
 import {DR,procOpts} from './render/index.js';
 
@@ -22,7 +22,12 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
  return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
   part==='hands'?d.parts.hands.secColor:0,part==='markers'?d.parts.hands.metal:0,part==='markers'?d.parts.dial.color:0,
   /* the caseback prints the engraving and the water resistance, which no other bake reads */
-  part==='caseback'?[(d.case||{}).engraving,(d.case||{}).wrM]:0])};
+  part==='caseback'?[(d.case||{}).engraving,(d.case||{}).wrM]:0,
+  /* the dial draws its date window, registers and chapter step; a painted dial
+     also prints today's date in the window. Markers leave out the index a date
+     window replaces, which depends on the dial's variant too. */
+  part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d)]:0,
+  part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0])};
 
 /* Most bakes are the 1200² sheet. A 3D strap runs far past the sheet edge as it
    curves away, so its flat bake is a tall canvas with the sheet centred in it. */
