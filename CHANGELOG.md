@@ -15,6 +15,19 @@
   camera-flash dot. Its point reflection is now removed on glass and scaled by
   roughness elsewhere; its shadows and fill are unchanged, and the softbox
   reflection comes from the environment as before.
+- **Ground hands and indices** (`core/three/relief.js`). Hands and applied
+  indices are no longer flat slabs: each is a height field over its traced
+  outline. A dauphine has two facets meeting at a ridge, batons and swords a
+  bevel round a flat top with the lume sunk into a channel, leaf hands and
+  dot indices are domed. Hour hands stand a little taller than minute hands.
+- **Straps with a real shape.** A leather, rubber or NATO strap is a solid
+  with a flat underside, rolled edges and a crowned top, instead of an
+  open-ended band. Leather is padded where it leaves the lugs and thins toward
+  its end. The 6 o'clock strap narrows to a rounded tail with five holes, and
+  its stitching follows the tail. The 12 o'clock strap folds round a tongue
+  buckle and carries two keepers. The buckle is made in the strap's hardware
+  metal; a ceramic or carbon watch gets a steel or black buckle. All three are
+  in the GLB.
 - **Solid bracelet links.** A steel bracelet is rows of outer and centre links
   following the strap path, hinging round the bend, with dark pins in the
   joints and an end link between the lugs. Brushed along its length; a

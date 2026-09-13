@@ -173,6 +173,39 @@ for(const[name,apply,check]of COMBOS){
   `bezel ${G.bezelMmOf(d)}mm, rehaut ${G.rehautMmOf(d)}mm, L2L ${G.lugToLugOf(d)}mm`);
 }
 
+/* straps are closed solids: faces out (a positive signed volume), the underside
+   on the table and never through it, the tail narrowing to its tip, the buckle
+   wider than the strap and past its end, each keeper round the strap */
+const volumeOf=geo=>{const p=geo.attributes.position,ix=geo.index;let v=0;
+ const n=ix?ix.count:p.count,at=i=>ix?ix.getX(i):i;
+ for(let i=0;i<n;i+=3){const[a,b,c]=[at(i),at(i+1),at(i+2)];
+  const ax=p.getX(a),ay=p.getY(a),az=p.getZ(a),bx=p.getX(b),by=p.getY(b),bz=p.getZ(b),cx=p.getX(c),cy=p.getY(c),cz=p.getZ(c);
+  v+=(ax*(by*cz-bz*cy)-ay*(bx*cz-bz*cx)+az*(bx*cy-by*cx))/6}
+ return v};
+const boundsOf=(geo,keep=()=>true)=>{const p=geo.attributes.position,b={x0:1e9,x1:-1e9,y0:1e9,y1:-1e9,z0:1e9,z1:-1e9};
+ for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);if(!keep(x,y,z))continue;
+  b.x0=Math.min(b.x0,x);b.x1=Math.max(b.x1,x);b.y0=Math.min(b.y0,y);b.y1=Math.max(b.y1,y);b.z0=Math.min(b.z0,z);b.z1=Math.max(b.z1,z)}
+ return b};
+for(const variant of['leather','rubber','nato'])for(const caseMm of[34,40,46]){
+ const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap.variant=variant;const tag=`strap ${variant}/${caseMm}`;
+ let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+ const mesh=n=>w.getObjectByName(n),sp=L3.strapPath(d),wide=G.strapMmOf(d);
+ const top=mesh('strap:top'),bottom=mesh('strap:bottom'),keepers=mesh('strap:keepers'),buckle=mesh('strap:buckle'),tongue=mesh('strap:tongue');
+ if(!(top&&bottom&&keepers&&buckle&&tongue)){bad(tag,'strap, keepers, buckle or tongue missing');continue}
+ for(const m of[top,bottom,keepers,buckle,tongue])if(!(volumeOf(m.geometry)>0))bad(tag,`${m.name} faces inward (volume ${volumeOf(m.geometry).toFixed(2)})`);
+ const bt=boundsOf(top.geometry),bb=boundsOf(bottom.geometry);
+ for(const[b,n]of[[bt,'top'],[bb,'bottom']])if(b.y0<sp.groundY-1e-3)bad(tag,`the ${n} strap sinks ${(sp.groundY-b.y0).toFixed(2)}mm into the table`);
+ /* the painted taper starts inside the case, so at the spring bar it is a touch under the lug width */
+ if(!(bt.x1-bt.x0<=wide+1e-3&&bt.x1-bt.x0>wide*.97))bad(tag,`strap ${(bt.x1-bt.x0).toFixed(2)}mm wide, lug width ${wide}mm`);
+ const tail=boundsOf(bottom.geometry,(x,y,z)=>z>bb.z1-1);
+ if(!(tail.x1-tail.x0<wide*.45))bad(tag,`the tail is ${(tail.x1-tail.x0).toFixed(2)}mm wide 1mm from its tip`);
+ const bk=boundsOf(buckle.geometry);
+ if(!(bk.x1-bk.x0>wide))bad(tag,'the buckle is narrower than the strap');
+ if(!(bk.z0<bt.z0-5&&bk.z1>bt.z0))bad(tag,'the buckle does not start in the strap end and run past it');
+ if(Math.abs(bk.y0-sp.groundY)>.05)bad(tag,`the buckle floats ${(bk.y0-sp.groundY).toFixed(2)}mm off the table`);
+ const kb=boundsOf(keepers.geometry);
+ if(!(kb.x1-kb.x0>wide*.86))bad(tag,'the keepers are narrower than the strap they hold')}
+
 /* dimension sweep: extreme parameter values must not invert the stack or push
    a part off the sheet — these are exactly the corners the UI sliders allow */
 for(const caseMm of[34,40,46])for(const bezelMm of[1.2,2.5,5.5]){

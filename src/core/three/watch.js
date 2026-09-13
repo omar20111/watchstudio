@@ -2,7 +2,7 @@
 
    Shape comes from the millimetre geometry: metal is lathed or extruded from
    the same outlines the 2D renderers draw (lathe.js), hands and applied indices
-   are extruded from their traced silhouettes (tracer.js). Colour comes from the
+   are ground from their traced silhouettes (relief.js). Colour comes from the
    existing renderers baked `flat` — pigment and printing with no painted light —
    so the dial, insert, strap and lume look as designed while all light and
    shadow is real.
@@ -16,12 +16,16 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM} from '../geometry.js';
+import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
+        strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
 import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
+import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
+import {activeUpload,uploadCanvas} from './uploads.js';
+import {CASEBACK_WINDOW} from '../render/caseback.js';
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
    the floor of the lume channel; numerals carry no lume. */
@@ -42,9 +46,6 @@ function handForm(variant,which){
  if(variant==='leaf')return{profile:'dome',height:.3+tall,edge:.05,bevel:.85,pocket:.2+tall};
  const bevel=variant==='sword'?.45:.4;
  return{profile:'bevel',height:.27+tall,edge:.08,bevel,pocket:.2+tall}}
-import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
-import {activeUpload,uploadCanvas} from './uploads.js';
-import {CASEBACK_WINDOW} from '../render/caseback.js';
 
 const SHEET=CAN/PX;                               /* the 1200 px sheet, in mm */
 export const PARTS3D=['strap','case','crown','bezel','dial','markers','hands','crystal'];
@@ -112,40 +113,109 @@ function strapMaterial(map,p){const v=p.variant;
 
 /* ---------------------------------------------------------------- strap */
 
-/* A strap is a band of real thickness following strapPath, unrolled onto its
-   flat bake: arc length along the band is distance along the drawn strap, so
-   the stitching, keepers and links land where they were drawn. */
+/* A strap is a solid swept along strapPath and unrolled onto its flat bake:
+   arc length along the strap is distance down the drawn strap, so stitching,
+   edges and holes land where they were drawn.
+
+   Its section is cut the way a strap is made: a flat underside lying on the
+   path, rolled edges, a crowned top. Leather is padded where it leaves the lugs
+   and thins toward its end; rubber is rounder; a NATO is flat webbing. The
+   thickness grows up from the underside, so a strap lying on the table stays
+   on it. The 12 o'clock strap is doubled over where it folds round the buckle's
+   bar; the 6 o'clock strap narrows to its tail (strapEndFactor). */
+const STRAP_FORM={
+ leather:{pad:.4,crown:.12,edge:.72,roll:.5,taper:.28,inset:.2},
+ rubber:{pad:.08,crown:.14,edge:.7,roll:.75,taper:.15,inset:.25},
+ nato:{pad:0,crown:0,edge:1,roll:.5,taper:0,inset:.3}};
+/* section points: up each rolled edge, across the crown, across the underside */
+const RING={edge:7,top:11,bottom:3},RING_N=2*RING.edge+RING.top+RING.bottom;
+
+function strapForm(d){const sp=strapPath(d),widthAt=strapWidthAt(d),T=sp.T;
+ const f=STRAP_FORM[d.parts.strap.variant]||STRAP_FORM.leather;
+ const sA=-1.2,sEnd=STRAP_REACH_3D/PX-sp.start;
+ /* half-width a, crown and edge heights c and e above the underside k0, edge roll r */
+ const at=(s,which)=>{const toTip=sEnd-s,endF=strapEndFactor(which,toTip);
+  let b=T*(1-f.taper*smoothstep(0,sEnd,s));
+  if(which==='top'){b*=1+.5*smoothstep(5,3.5,toTip);          /* the fold */
+   b*=.4+.6*Math.sqrt(Math.max(0,(endF-.8)/.2))}                /* rounded over at the end */
+  else b*=.7+.3*endF;
+  const pad=f.pad*smoothstep(-1,5,s)*(1-smoothstep(10,42,s));
+  const a=Math.max(1e-3,widthAt(s)/2*endF),c=b*(1+f.crown+pad),e=b*f.edge*(1+pad*.3);
+  return{a,c,e,r:Math.min(e*f.roll,a*.45),k0:-T/2}};
+ return{sp,f,sA,sEnd,at}}
+
+/* the section as RING_N points (x across, k up from the path), anticlockwise
+   seen from +z: up the right edge, over the crown, down the left, back under */
+function strapRing({a,c,e,r,k0}){const pts=[],h=a-r,hh=Math.max(h,1e-4);
+ for(let i=0;i<RING.edge;i++){const p=-Math.PI/2+Math.PI*i/(RING.edge-1);pts.push([h+r*Math.cos(p),k0+e/2+e/2*Math.sin(p)])}
+ for(let i=1;i<=RING.top;i++){const x=h-2*h*i/(RING.top+1);pts.push([x,k0+e+(c-e)*(1-(x/hh)**2)])}
+ for(let i=0;i<RING.edge;i++){const p=Math.PI/2+Math.PI*i/(RING.edge-1);pts.push([-h+r*Math.cos(p),k0+e/2+e/2*Math.sin(p)])}
+ for(let i=1;i<=RING.bottom;i++)pts.push([-h+2*h*i/(RING.bottom+1),k0]);
+ return pts}
+
+/* the path's frame at arc length s, and a section point placed in it */
+const pathFrame=(sp,s,dir)=>{const[along,y,ang]=sp.pos(s);return{y,z:dir*(sp.start+along),ang,ca:Math.cos(ang),sa:Math.sin(ang)}};
+const onPath=(P,dir,x,k)=>[x,P.y+P.ca*k,P.z-dir*P.sa*k];
+/* the same placement as a matrix, for solids built in section space */
+const pathMatrix=(P,dir)=>new Matrix4().makeTranslation(0,P.y,P.z).multiply(new Matrix4().makeRotationX(-dir*P.ang));
+
 function strapGeometry(d,dir){
- const sp=strapPath(d),g=geoOf(d);
- const{h:Hc}=bakeSize('strap','flat'),off=(Hc-CAN)/2;
- const s0px=g.R*.55,reachPx=STRAP_REACH_3D+26;
- const widthAt=sPx=>{const p=Math.min(1,Math.max(0,(sPx-s0px)/(STRAP_REACH_3D-s0px)));return g.sw*(1-.14*p)/PX};
- const v=d.parts.strap.variant,dome=v==='steel'?.25:v==='nato'?.05:sp.T*.16;
- const N=140,M=12,sA=-1.2,sB=reachPx/PX-sp.start;
+ const which=dir<0?'top':'bottom',{sp,f,sA,sEnd,at}=strapForm(d);
+ const{h:Hc}=bakeSize('strap','flat'),off=(Hc-CAN)/2,M=RING_N;
+ const vAt=s=>1-(C+dir*(sp.start+s)*PX+off)/Hc;
+ /* stations even down the run, bunched toward the tip where the outline turns */
+ const endLen=which==='bottom'?STRAP_TAIL_MM:5,st=[];
+ for(let i=0;i<150;i++)st.push(sA+(sEnd-endLen-sA)*i/150);
+ for(let i=0;i<=48;i++)st.push(sEnd-endLen*(1-i/48)**2);
  const pos=[],uv=[],idx=[];
- /* `inset` samples the texture a little inside the drawn edge: the edge pixel
-    itself is anti-aliased to half alpha, which the alpha test would punch
-    through, striping the band's side walls */
- const vert=(s,x,side,inset=0)=>{const[along,yc,ang]=sp.pos(s);const sPx=(sp.start+s)*PX,w=widthAt(sPx);
-  const xx=x*w/2,k=side==='top'?sp.T/2+dome*(1-x*x):-sp.T/2;
-  const ca=Math.cos(ang),sa=Math.sin(ang);
-  pos.push(xx,yc+ca*k,dir*(sp.start+along)-dir*sa*k);
-  uv.push(.5+(xx-Math.sign(x)*inset)/SHEET,1-(C+dir*sPx+off)/Hc)};
- /* grid of (N+1) stations x cols; `flip` keeps every face pointing outward */
- const grid=(cols,fn,flip)=>{const base=pos.length/3;
-  for(let i=0;i<=N;i++){const s=sA+(sB-sA)*i/N;for(let j=0;j<cols;j++)fn(s,j)}
-  for(let i=0;i<N;i++)for(let j=0;j<cols-1;j++){const a=base+i*cols+j,b=a+cols,c=a+1,e=b+1;
-   if(flip)idx.push(a,c,b,c,e,b);else idx.push(a,b,c,c,b,e)}};
- const up=dir>0;
- const edge=.35;
- grid(M+1,(s,j)=>vert(s,j/M*2-1,'top',j===0||j===M?edge:0),!up);
- grid(M+1,(s,j)=>vert(s,j/M*2-1,'bottom',j===0||j===M?edge:0),up);
- grid(2,(s,j)=>vert(s,1,j?'top':'bottom',edge),!up);
- grid(2,(s,j)=>vert(s,-1,j?'top':'bottom',edge),up);
+ /* `inset` samples the texture just inside the drawn edge: the edge pixel is
+    anti-aliased to half alpha, which the alpha test would punch through */
+ const ringAt=s=>{const sec=at(s,which),P=pathFrame(sp,s,dir),v=vAt(s),lim=Math.max(0,sec.a-f.inset);
+  for(const[x,k]of strapRing(sec)){pos.push(...onPath(P,dir,x,k));uv.push(.5+Math.max(-lim,Math.min(lim,x))/SHEET,v)}
+  return sec};
+ for(const s of st)ringAt(s);
+ for(let i=0;i<st.length-1;i++)for(let j=0;j<M;j++){const a=i*M+j,b=i*M+(j+1)%M,c=a+M,e=b+M;
+  if(dir>0)idx.push(a,b,c,b,e,c);else idx.push(a,c,b,b,c,e)}
+ /* flat caps with their own edge vertices, so the cut end stays crisp instead of
+    averaging into the sides; each faces away along the strap */
+ const cap=(s,facePlusZ)=>{const base=pos.length/3,sec=ringAt(s),P=pathFrame(sp,s,dir);
+  pos.push(...onPath(P,dir,0,sec.k0+sec.e/2));uv.push(.5,vAt(s));const ci=base+M;
+  for(let j=0;j<M;j++){const a=base+j,b=base+(j+1)%M;if(facePlusZ)idx.push(ci,a,b);else idx.push(ci,b,a)}};
+ cap(sA,dir<0);cap(sEnd,dir>0);
  const geo=new BufferGeometry();
  geo.setAttribute('position',new Float32BufferAttribute(pos,3));geo.setAttribute('uv',new Float32BufferAttribute(uv,2));
  geo.setIndex(idx);geo.computeVertexNormals();
  return geo}
+
+/* Two keepers round the buckle strap: loops hugging its section with rounded
+   rims, the fixed one just behind the fold and the floating one beyond it. */
+function strapKeepers(d){
+ const{sp,sEnd,at}=strapForm(d),out=[];
+ for(const back of[8,17.5]){const s=sEnd-back,sec=at(s,'top'),len=3.6,g=.6,b=.28;
+  const grow=k=>strapRing({a:sec.a+k,c:sec.c+2*k,e:sec.e+2*k,r:sec.r+k,k0:sec.k0-k}).map(([x,y])=>new Vector2(x,y));
+  const sh=new Shape(grow(g));sh.holes.push(new Path(grow(.05)));
+  const geo=new ExtrudeGeometry(sh,{depth:len-2*b,bevelEnabled:true,bevelThickness:b,bevelSize:.2,bevelOffset:-.2,bevelSegments:3,curveSegments:1});
+  geo.translate(0,0,-(len-2*b)/2);
+  const m=smooth(geo);m.applyMatrix4(pathMatrix(pathFrame(sp,s,-1),-1));out.push(m)}
+ const k=mergeGeometries(out);out.forEach(g=>g.dispose());return k}
+
+/* A tongue buckle on the 12 o'clock strap, lying unfastened: the frame's near
+   bar hides in the strap's fold, the tongue hinges there and rests across the
+   far bar. Built with u running away from the watch (-z), then placed on the
+   path at the strap's end. */
+function strapBuckle(d){
+ const{sp,sEnd,at}=strapForm(d),sec=at(sEnd-6,'top');
+ const wire=Math.min(2.2,Math.max(1.5,sec.a*.19)),W=2*sec.a+2*wire+.8,L=Math.max(13,sec.a*1.5),t=Math.min(1.9,sec.c*.8);
+ const near=-wire*.7,far=near+L-wire,cu=(near+far)/2;
+ const sh=roundRectPath(new Shape(),0,cu,W,L,wire*1.8);
+ sh.holes.push(roundRectPath(new Path(),0,cu,W-2*wire,L-2*wire,wire*.7));
+ /* extrudeShapes lays shape y along -z: u away from the watch */
+ const frame=smooth(extrudeShapes([sh],{bottom:0,thick:t,bevel:.6,segments:4}));
+ const tt=wire*.5,tl=far+wire*.35-near;
+ const tongue=smooth(linkBlock(wire*.8,tl,tt));tongue.translate(0,t+tt/2-.12,-(near+tl/2));
+ const m=pathMatrix(pathFrame(sp,sEnd,-1),-1).multiply(new Matrix4().makeTranslation(0,-sp.T/2,0));
+ frame.applyMatrix4(m);tongue.applyMatrix4(m);
+ return{frame,tongue}}
 
 /* a rounded rectangle centred on (cx, cy), traced into a Shape or a Path */
 function roundRectPath(p,cx,cy,w,h,r){const x0=cx-w/2,x1=cx+w/2,y0=cy-h/2,y1=cy+h/2;r=Math.min(r,w/2,h/2);
@@ -242,8 +312,21 @@ export function buildHead(d,customs={},{aniso=8}={}){
     add(G.strap,'bracelet:'+which+':outer',b.outer,brushed());
     add(G.strap,'bracelet:'+which+':centre',b.centre,st.finish==='polished'?Object.assign(metalMaterial(st.metal,'polished'),{roughness:.14}):brushed());
     add(G.strap,'bracelet:'+which+':pins',b.pins,new MeshPhysicalMaterial({color:0x1c1e22,metalness:.7,roughness:.55}),{cast:false})}}
-  else for(const[dir,which]of[[-1,'top'],[1,'bottom']])
-   add(G.strap,'strap:'+which,strapGeometry(d,dir),strapMaterial(tex(getProc('strap',d,which,'flat')),parts.strap));
+  else{const st=parts.strap;
+   for(const[dir,which]of[[-1,'top'],[1,'bottom']])
+    add(G.strap,'strap:'+which,strapGeometry(d,dir),strapMaterial(tex(getProc('strap',d,which,'flat')),st));
+   /* hardware in the strap's own metal; a ceramic or carbon watch still wears a
+      steel or black buckle */
+   const hw=st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel');
+   const col=st.color||'#6b4a2f';
+   /* satin, not brushed: anisotropy needs a uv the keeper solids do not carry */
+   add(G.strap,'strap:keepers',strapKeepers(d),st.variant==='nato'?Object.assign(metalMaterial(hw,'polished'),{roughness:.34})
+    :new MeshPhysicalMaterial({color:new Color(st.variant==='leather'?shade(col,.18):col),metalness:0,
+      roughness:st.variant==='rubber'?.5:.62,sheen:st.variant==='rubber'?0:.6,sheenRoughness:.7,
+      sheenColor:new Color(col).multiplyScalar(.6),clearcoat:st.variant==='rubber'?.25:0,clearcoatRoughness:.4}));
+   const bk=strapBuckle(d),pol=()=>Object.assign(metalMaterial(hw,'polished'),{roughness:Math.max(.16,(METALS[hw]||METALS.steel).rough??0)});
+   add(G.strap,'strap:buckle',bk.frame,pol());
+   add(G.strap,'strap:tongue',bk.tongue,pol())}
 
  /* ---- case: turned flank, polished chamfer, horns, caseback ---- */
  const cm=parts.case;

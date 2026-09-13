@@ -3,18 +3,33 @@
    `flat` is the material without its painted light — no domed highlight, no
    rolled link shading, no shadow where the case overhangs — drawn much longer,
    for a 3D strap whose own curvature and the real case do that work. */
-import {C,CAN,METALS,STRAP_REACH_2D,STRAP_REACH_3D} from '../constants.js';
+import {C,CAN,PX,METALS,STRAP_REACH_2D,STRAP_REACH_3D} from '../constants.js';
 import {shade,lighten} from '../utils.js';
 import {noiseFill} from '../textures.js';
+import {strapEndFactor,STRAP_TAIL_MM,STRAP_HOLES_MM} from '../geometry.js';
 import {axisGrad,lineGrain,envLevel,tone} from './material.js';
 
 export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';const col=o.color||'#6b4a2f',st=o.stitch||'#e0cfa6',m=METALS[o.metal]||METALS.steel;
  const flat=o.mode==='flat',reach=flat?STRAP_REACH_3D:STRAP_REACH_2D;
  const y0=top?C-R*0.55:C+R*0.55, y1=top?C-reach:C+reach, dir=top?-1:1;
- const wAt=y=>{const p=Math.abs(y-y0)/Math.abs(y1-y0);return sw*(1-0.14*p)};
- const path=()=>{ctx.beginPath();const n=26;for(let i=0;i<=n;i++){const y=y0+(y1-y0)*i/n;const x=C-wAt(y)/2;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+ /* A 3D strap (not a bracelet) is cut to the outline its mesh has: it ends at
+    y1 in a tail or a squared buckle end. The 2D strap runs off the sheet under
+    a rounded end nobody sees. */
+ const shaped=flat&&o.variant!=='steel';
+ const wAt=y=>{const p=Math.abs(y-y0)/Math.abs(y1-y0);
+  return sw*(1-0.14*p)*(shaped?strapEndFactor(o.which,Math.abs(y1-y)/PX):1)};
+ const endLen=(top?2:STRAP_TAIL_MM+1)*PX;
+ const path=()=>{ctx.beginPath();
+  if(shaped){const ys=[];for(let i=0;i<=26;i++)ys.push(y0+(y1-dir*endLen-y0)*i/26);
+   for(let i=1;i<=40;i++)ys.push(y1-dir*endLen*(1-i/40));
+   ys.forEach((y,i)=>i?ctx.lineTo(C-wAt(y)/2,y):ctx.moveTo(C-wAt(y)/2,y));
+   for(let i=ys.length-1;i>=0;i--)ctx.lineTo(C+wAt(ys[i])/2,ys[i]);ctx.closePath();return}
+  const n=26;for(let i=0;i<=n;i++){const y=y0+(y1-y0)*i/n;const x=C-wAt(y)/2;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
   ctx.quadraticCurveTo(C-wAt(y1)/2,y1+dir*26,C,y1+dir*26);ctx.quadraticCurveTo(C+wAt(y1)/2,y1+dir*26,C+wAt(y1)/2,y1);
   for(let i=n;i>=0;i--){const y=y0+(y1-y0)*i/n;ctx.lineTo(C+wAt(y)/2,y)}ctx.closePath()};
+ /* sample a strap-long line densely where the outline turns, so it follows the tail */
+ const along=(fn,from,to)=>{ctx.beginPath();const n=60;
+  for(let i=0;i<=n;i++){const t=i/n,y=from+(to-from)*(shaped?1-(1-t)*(1-t):t);const x=fn(y);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}};
  const yA=Math.min(y0,y1),yB=Math.max(y0,y1);
  path();
 
@@ -72,10 +87,10 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
     cg.addColorStop(.58,'rgba(255,255,255,.05)');cg.addColorStop(1,'rgba(0,0,0,.16)');
     ctx.fillStyle=cg;ctx.fillRect(C-sw,yA,sw*2,yB-yA)}
    /* burnished edges */
-   for(const s of[-1,1]){ctx.beginPath();for(let i=0;i<=20;i++){const y=yA+(yB-yA)*i/20;const x=C+s*(wAt(y)/2-2);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+   for(const s of[-1,1]){along(y=>C+s*Math.max(0,wAt(y)/2-2),y0-dir*20,y1);
     ctx.strokeStyle=shade(col,.6);ctx.lineWidth=5;ctx.stroke()}
-   /* stitches sit in a recessed channel */
-   for(const s of[-1,1]){const line=inset=>{ctx.beginPath();for(let i=0;i<=20;i++){const y=y0+dir*6+(y1-y0-dir*10)*i/20;const x=C+s*(wAt(y)/2-inset);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}};
+   /* stitches sit in a recessed channel; round a tail the two rows meet */
+   for(const s of[-1,1]){const line=inset=>along(y=>C+s*Math.max(0,wAt(y)/2-inset),y0+dir*6,y1-dir*(shaped?22:4));
     ctx.setLineDash([]);line(12);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=7;ctx.stroke();
     ctx.setLineDash([11,9]);ctx.lineCap='round';
     line(12);ctx.strokeStyle=shade(st,.45);ctx.lineWidth=4;ctx.stroke();
@@ -92,6 +107,14 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
    /* the tall flat canvas starts above the sheet, so stripe the strap's own span */
    for(const s of[-1,1]){ctx.fillStyle=st;if(flat)ctx.fillRect(C+s*sw*0.2-sw*0.065,yA-40,sw*0.13,yB-yA+80);else ctx.fillRect(C+s*sw*0.2-sw*0.065,0,sw*0.13,CAN)}
    for(const off of[36,74]){const y=top?y0-dir*off:y0+dir*off-14;ctx.fillStyle=flat?m.base:axisGrad(ctx,m,0,y,0,y+14);ctx.fillRect(C-sw/2-6,y,sw+12,14)}}
+  /* the holes down the 6 o'clock strap: dark wells with a pressed rim, painted
+     through both faces as a punched hole would show. A NATO's are eyelets. */
+  if(shaped&&!top)for(const mm of STRAP_HOLES_MM){const y=y1-dir*mm*PX,r=(o.variant==='nato'?.7:.78)*PX;
+   ctx.beginPath();ctx.arc(C,y,r+(o.variant==='nato'?4:2.5),0,Math.PI*2);
+   ctx.fillStyle=o.variant==='nato'?m.base:shade(col,o.variant==='rubber'?.3:.45);ctx.fill();
+   const hg=ctx.createRadialGradient(C,y-r*.25,r*.1,C,y,r);
+   hg.addColorStop(0,'#050404');hg.addColorStop(.75,'#0d0a08');hg.addColorStop(1,shade(col,.7));
+   ctx.beginPath();ctx.arc(C,y,r,0,Math.PI*2);ctx.fillStyle=hg;ctx.fill()}
   ctx.restore();}
  if(flat)return;
  /* the case overhangs the strap where it enters the lugs — without this the

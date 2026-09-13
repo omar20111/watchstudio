@@ -179,6 +179,20 @@ export function geoOf(d){
 
 export const posAt=(deg,r)=>[C+r*Math.sin(deg*Math.PI/180),C-r*Math.cos(deg*Math.PI/180)];
 
+/* ==================== STRAP ENDS ====================
+   How a 3D strap ends, shared by its flat bake and its mesh so the painted
+   edges and stitching follow the outline the mesh is cut to. The 6 o'clock
+   strap narrows to a rounded tail carrying the holes; the 12 o'clock strap is
+   squared off where it folds round the buckle, its corners rounded.
+   strapEndFactor scales the strap's width `toTip` mm short of its end. */
+export const STRAP_TAIL_MM=12, STRAP_END_ROUND_MM=1.6;
+/* the holes, as mm short of the tip of the 6 o'clock strap */
+export const STRAP_HOLES_MM=[20,26.5,33,39.5,46];
+export function strapEndFactor(which,toTip){
+ const ell=(t,len)=>{const u=1-Math.max(0,t)/len;return Math.sqrt(Math.max(0,1-u*u))};
+ if(which==='bottom')return toTip>=STRAP_TAIL_MM?1:ell(toTip,STRAP_TAIL_MM);
+ return toTip>=STRAP_END_ROUND_MM?1:.8+.2*ell(toTip,STRAP_END_ROUND_MM)}
+
 /* ==================== DIAL CONSTRUCTION ====================
    The dial plate's layout in sheet px, read by the 2D dial and markers, the 3D
    plate, and the checks — so a date window cut into the 3D plate sits exactly
