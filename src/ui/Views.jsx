@@ -16,16 +16,22 @@ import {headKey} from '../core/three/watch.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {useWebgl} from '../core/three/support.js';
 import {flatCanvas} from '../export/flat.js';
-const {useEffect,useState}=React;
+import {useTwoFingers,useMedia} from './gestures.js';
+const {useEffect,useRef,useState}=React;
 
 /* ---------------------------------------------------------------- product */
 
 export function ProductRender(){const s=useApp();const d=s.d;
  const camera=hasStructuralUpload(d,s.customs)?'front':'three-quarter';
  const{host,canvas,view,redraw,box,gen,lost,flat}=useWatchView({camera,orbit:true});
- useEffect(()=>{if(view.current){view.current.setFrame({zoom:1});redraw()}},[camera,gen]);
+ /* a pinch moves in closer for a look at the finish; it is this view's own
+    framing, not the design's zoom */
+ const[zoom,setZoom]=useState(1);const pinch0=useRef(1);
+ useEffect(()=>{if(view.current){view.current.setFrame({zoom});redraw()}},[camera,gen,zoom]);
+ useTwoFingers(host,{onStart:()=>{pinch0.current=zoom},onPinch:k=>setZoom(Math.min(3,Math.max(.6,pinch0.current*k)))},[gen]);
+ const touchUI=useMedia('(pointer: coarse)');
  return<div ref={host} className="flex-1 min-h-0 relative overflow-hidden"
-  style={{background:'radial-gradient(115% 85% at 50% 8%, #4a4e56 0%, #2c2f35 46%, #141519 100%)'}}>
+  style={{background:'radial-gradient(115% 85% at 50% 8%, #4a4e56 0%, #2c2f35 46%, #141519 100%)',touchAction:'none'}}>
   {flat?<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
     <FlatWatch size={Math.max(220,Math.min(box.w*.78,box.h*.82))} label="Product render of the watch, flat 2D drawing"/></div>
    :<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>}
@@ -33,7 +39,7 @@ export function ProductRender(){const s=useApp();const d=s.d;
   <div className="absolute bottom-4 left-0 right-0 text-center text-[11px] tracking-[.24em] text-neutral-500 uppercase pointer-events-none">
    {s.projName} · {d.caseMm} mm · {(METALS[d.parts.case.metal]||{}).name}
   </div>
-  <div className="absolute top-3 left-3 text-[10px] text-neutral-500 pointer-events-none">{flat?'Flat 2D drawing — turning the watch needs WebGL':'Drag to turn the watch'}</div>
+  <div className="absolute top-3 left-3 text-[10px] text-neutral-500 pointer-events-none">{flat?'Flat 2D drawing — turning the watch needs WebGL':touchUI?'Drag to turn the watch · pinch to zoom':'Drag to turn the watch'}</div>
  </div>}
 
 /* ---------------------------------------------------------------- sheet */
@@ -90,8 +96,15 @@ export function DesignSheet(){const s=useApp();const d=s.d;const P=d.parts;
  const g=geoOf(d);
  const bezelMm=+(((g.rBezOut-g.rBezIn)/PX)).toFixed(1);
 
- return<div className="flex-1 min-h-0 overflow-auto bg-[#f3f2ef] text-[#1b1d21]">
-  <div className="mx-auto my-6 bg-white shadow-xl" style={{width:980,padding:'40px 44px'}}>
+ /* the sheet is a fixed 980 px page; on a narrower screen it is shown whole,
+    scaled to the width like a document preview, instead of cut off at the side */
+ const wrap=useRef();const[fitK,setFitK]=useState(1);
+ useEffect(()=>{const el=wrap.current;if(!el||typeof ResizeObserver==='undefined')return;
+  const ro=new ResizeObserver(([e])=>setFitK(Math.min(1,Math.max(.3,(e.contentRect.width-16)/980))));
+  ro.observe(el);return()=>ro.disconnect()},[]);
+
+ return<div ref={wrap} className="flex-1 min-h-0 overflow-auto bg-[#f3f2ef] text-[#1b1d21]">
+  <div className="mx-auto my-6 bg-white shadow-xl" style={{width:980,padding:'40px 44px',zoom:fitK<1?fitK:undefined}}>
    <div className="flex items-baseline justify-between border-b-2 border-black pb-3">
     <div><div className="text-[22px] font-semibold tracking-tight" style={{fontFamily:'Georgia, serif'}}>{s.projName}</div>
      <div className="text-[11px] tracking-[.22em] uppercase text-neutral-500 mt-1">Concept development sheet</div></div>

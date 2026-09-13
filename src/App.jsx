@@ -133,7 +133,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
     <button className="drawer-tab drawer-tab-right btn" aria-expanded={drawer==='controls'} aria-label={`Edit ${s.sel}`}
      onClick={()=>setDrawer(x=>x==='controls'?null:'controls')}>{drawer==='controls'?'›':'✎'}</button>
    </div>
-   <div className="h-7 shrink-0 flex items-center gap-4 px-3 border-t border-white/10 bg-[#16171b] text-[10px] text-neutral-500 overflow-x-auto whitespace-nowrap">
+   <div className="statusbar h-7 shrink-0 flex items-center gap-4 px-3 border-t border-white/10 bg-[#16171b] text-[10px] text-neutral-500 overflow-x-auto whitespace-nowrap">
     <span>Scale 1 mm = {PX} px @1200²</span><span>Case {d.caseMm} mm</span><span>Lug {strapMmOf(d)} mm</span>
     <span>Zoom {Math.round(d.zoom*100)}%</span><span className="text-neutral-600">{gl.ok?'3D, built from the millimetre geometry':'Flat 2D drawing (no WebGL)'} · artwork on a 1200×1200 sheet, center (600,600)</span>
    </div></>}

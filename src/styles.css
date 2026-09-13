@@ -45,3 +45,22 @@ input[type=color]{background:none;border:none;width:26px;height:22px;padding:0}
  .drawer-right>*{max-width:88vw}
 }
 @media (prefers-reduced-motion:reduce){.dashAnim{animation:none}.drawer-left,.drawer-right{transition:none}}
+
+/* no double-tap zoom delay on buttons; a pinch on the watch is handled by the view */
+html{touch-action:manipulation}
+
+/* Phones. The stage's floating bars were laid out for a wide screen: at phone
+   width the hint ran under the camera chips and the time bar under the zoom
+   bar. Here the hint moves below the chips, the time bar to the left, and the
+   status line (scale, sheet coordinates) goes. */
+@media (max-width:640px){
+ .stage-hint{top:3.1rem;right:.75rem;text-align:center}
+ .stage-time{left:.75rem;translate:none;transform:none}
+ .stage-sweep{display:none}
+ .statusbar{display:none}
+ .topbar-wordmark{display:none}
+}
+@media (pointer:coarse){
+ .drawer-tab{width:34px;height:58px;font-size:18px}
+ .chip{padding:5px 12px;font-size:12px}
+}

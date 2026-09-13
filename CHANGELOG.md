@@ -28,6 +28,18 @@
   buckle and carries two keepers. The buckle is made in the strap's hardware
   metal; a ceramic or carbon watch gets a steel or black buckle. All three are
   in the GLB.
+- **Works on phones and tablets.**
+  - *Pinch to zoom* the watch in the editor and the product render. A pinch
+    used to zoom the whole page instead, leaving the editor magnified.
+  - *Two fingers to tilt* the front view, the touch form of right-drag; it
+    eases back level when you let go. A second finger landing during a part
+    drag puts the part back, so starting a pinch never moves anything.
+  - *A layout that fits.* The top bar keeps undo, the views and a ⋯ menu for
+    everything else, instead of scrolling most of its buttons off screen. The
+    stage's hint, time and zoom bars no longer overlap; the hint shows touch
+    gestures and fades once read; the zoom steps give way to pinching. The
+    design sheet is scaled to fit the screen. On mid-sized screens the top
+    bar moves its less-used exports into More rather than overflowing.
 - **View in AR** (`core/three/ar.js`, `export/usdz.js`, `ui/ARModal.jsx`). See
   the watch in your room at its real size, from the toolbar or the AR chip on
   the stage.

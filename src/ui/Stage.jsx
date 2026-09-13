@@ -18,6 +18,7 @@ import {FlatWatch} from './FlatWatch.jsx';
 import {SHEET,profileLayout} from '../core/three/view.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {webglState} from '../core/three/support.js';
+import {useTwoFingers,useMedia} from './gestures.js';
 const {useEffect,useMemo,useRef,useState}=React;
 
 /* Right-drag (or Ctrl-drag) in the front view tilts the watch to look round it,
@@ -76,7 +77,25 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
  useEffect(()=>{const T=tilt.current;cancelAnimationFrame(T.raf);T.drag=null;setTilt(0,0);setTilted(false)},[camera,gen]);
  useEffect(()=>()=>cancelAnimationFrame(tilt.current.raf),[]);
 
- const end=()=>{drag.current=null;if(host.current)host.current.style.cursor='default';  if(tilt.current.drag){tilt.current.drag=null;settle()}};
+ const end=()=>{drag.current=null;if(host.current)host.current.style.cursor='default';
+  if(tilt.current.drag){tilt.current.drag=null;settle()}};
+
+ /* Two fingers: a pinch zooms the stage; a two-finger drag tilts the front view,
+    the touch form of right-drag. If the first finger had already started moving
+    a part, the second one means it was never a move: the part goes back. */
+ const pinch=useRef(null);
+ useTwoFingers(host,{
+  onStart:()=>{const dg=drag.current,st=store.getState();
+   if(dg&&dg.moved){if(dg.spin)st.setBezelRot(dg.rot0,'bezelDrag');else patchPartT(dg.part,{x:dg.x,y:dg.y,r:dg.r},'mv:'+dg.part)}
+   drag.current=null;down.current=null;pinch.current={zoom:st.d.zoom};cancelAnimationFrame(tilt.current.raf)},
+  onPinch:k=>{const z=clamp(+(pinch.current.zoom*k).toFixed(3),0.4,3);s.setD(n=>{n.zoom=z})},
+  onPan:(dx,dy)=>{if(!canTilt)return;if(!tilted)setTilted(true);setTilt(dx*TILT_PER_PX,dy*TILT_PER_PX)},
+  onEnd:mode=>{if(mode==='pan'&&canTilt)settle()}},[gen]);
+
+ /* on a phone the hint sits under the camera chips and fades once read */
+ const touchUI=useMedia('(pointer: coarse)'),narrow=useMedia('(max-width: 640px)');
+ const[hintGone,setHintGone]=useState(false);
+ useEffect(()=>{setHintGone(false);if(!narrow)return;const t=setTimeout(()=>setHintGone(true),7000);return()=>clearTimeout(t)},[camera,narrow]);
 
  /* the profile drawing's dimension callouts, drawn over exactly what is rendered */
  const overlay=useRef();
@@ -100,7 +119,8 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
  },[camera,box,d]);
 
  return<div ref={host} className="relative flex-1 overflow-hidden select-none"
-  style={{backgroundImage:bgImg?`url(${bgImg})`:undefined,background:bgImg?undefined:bg.css,backgroundSize:bgImg?'cover':undefined,backgroundPosition:'center'}}
+  /* touch-action none: the stage's gestures are its own, not the page's (gestures.js) */
+  style={{backgroundImage:bgImg?`url(${bgImg})`:undefined,background:bgImg?undefined:bg.css,backgroundSize:bgImg?'cover':undefined,backgroundPosition:'center',touchAction:'none'}}
   onWheel={e=>{if(e.target.closest('[data-ui]'))return;
    if(e.shiftKey&&camera==='front'){const st=store.getState();const selP=st.sel;const p=st.d.parts[selP];
     const base=selP==='hands'&&!st.d.active.hands?p.tH:p.t;
@@ -108,6 +128,9 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
    s.setD(n=>{n.zoom=clamp(n.zoom*(e.deltaY>0?0.92:1.08),0.4,3)})}}
   onContextMenu={e=>{if(canTilt&&!e.target.closest('[data-ui]'))e.preventDefault()}}
   onPointerDown={e=>{
+   if(narrow)setHintGone(true);
+   /* a second finger belongs to the two-finger gesture, not to a new drag */
+   if(e.pointerType==='touch'&&!e.isPrimary)return;
    if(canTilt&&(e.button===2||(e.button===0&&e.ctrlKey))&&!e.target.closest('[data-ui]')){const T=tilt.current;
     cancelAnimationFrame(T.raf);T.drag={cx:e.clientX,cy:e.clientY,x:T.x,y:T.y};setTilted(true);
     e.currentTarget.setPointerCapture(e.pointerId);host.current.style.cursor='move';return}
@@ -126,7 +149,8 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
    if(td){setTilt(td.x+(e.clientX-td.cx)*TILT_PER_PX,td.y+(e.clientY-td.cy)*TILT_PER_PX);return}
    if(!dg){if(camera!=='front'||e.target.closest('[data-ui]'))return;
     host.current.style.cursor=pickAt(e)?'grab':'default';return}
-   const[px,py]=toSheet(e);
+   if(e.pointerType==='touch'&&!e.isPrimary)return;
+   const[px,py]=toSheet(e);dg.moved=true;
    if(dg.spin){store.getState().setBezelRot(dg.rot0+normDeg(angleAt(px,py)-dg.a0),'bezelDrag');return}
    if(dg.alt||e.altKey){patchPartT(dg.part,{r:Math.round(normDeg(dg.r+angleAt(px,py)-dg.a0))},'rot:'+dg.part)}
    else patchPartT(dg.part,{x:clamp(Math.round(dg.x+px-dg.px),-300,300),y:clamp(Math.round(dg.y+py-dg.py),-300,300)},'mv:'+dg.part)}}
@@ -155,11 +179,17 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
    </svg>}
   </div>
 
-  <div data-ui="1" className="absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10" style={{zIndex:50}}>
-   {flat?'Flat 2D drawing · pick a part in the list, then drag to move it · Alt-drag rotate · drag a diver bezel to turn it · arrows nudge · 1–8 select · Ctrl+Z undo'
-    :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · right-drag to tilt · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
-    :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
-    :'Side elevation and caseback, measured · V camera'}</div>
+  <div data-ui="1" className="stage-hint absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10"
+   style={{zIndex:50,opacity:hintGone?0:1,transition:'opacity .5s',pointerEvents:hintGone?'none':undefined}} aria-hidden={hintGone||undefined}>
+   {touchUI
+    ?(flat?'Pick a part in the list, then drag to move it · pinch to zoom'
+     :camera==='front'?'Drag a part to move it · pinch to zoom · two fingers to tilt · drag a diver bezel to turn it'
+     :camera==='three-quarter'?'Drag to turn · pinch to zoom · tap a part to select it'
+     :'Side elevation and caseback, measured')
+    :(flat?'Flat 2D drawing · pick a part in the list, then drag to move it · Alt-drag rotate · drag a diver bezel to turn it · arrows nudge · 1–8 select · Ctrl+Z undo'
+     :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · right-drag to tilt · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
+     :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
+     :'Side elevation and caseback, measured · V camera')}</div>
 
   <div data-ui="1" role="group" aria-label="Camera" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
    {[['front','Front'],['three-quarter','¾'],['profile','Side']].map(([id,label])=>{
@@ -174,9 +204,9 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
    {onAR&&<button className="chip" title="See it in your room at real size" aria-label="View in AR" onClick={onAR}>AR</button>}
   </div>
 
-  {camera!=='profile'&&<div data-ui="1" className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur px-2.5 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
+  {camera!=='profile'&&<div data-ui="1" className="stage-time absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 whitespace-nowrap bg-black/60 backdrop-blur px-2.5 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
    <button className={`chip ${t.mode==='live'?'on':''}`} onClick={()=>s.setD(n=>{n.time.mode='live'})}>● Live</button>
-   {t.mode==='live'&&<label className="text-[10px] text-neutral-400 flex items-center gap-1"><input type="checkbox" checked={t.sweep} onChange={e=>s.setD(n=>{n.time.sweep=e.target.checked})}/>sweep</label>}
+   {t.mode==='live'&&<label className="stage-sweep text-[10px] text-neutral-400 flex items-center gap-1"><input type="checkbox" checked={t.sweep} onChange={e=>s.setD(n=>{n.time.sweep=e.target.checked})}/>sweep</label>}
    <button className={`chip ${t.mode==='set'&&t.h===10&&t.m===8?'on':''}`} onClick={()=>s.setD(n=>{n.time.mode='set';n.time.h=10;n.time.m=8;n.time.s=36})}>10:08</button>
    <button className={`chip ${t.mode==='set'&&!(t.h===10&&t.m===8)?'on':''}`} onClick={()=>s.setD(n=>{n.time.mode='set'})}>Set</button>
    {t.mode==='set'&&<span className="flex items-center gap-1 text-[10px] text-neutral-400">
@@ -186,10 +216,11 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
    {d.parts.dial.variant==='chrono'&&<ChronoReadout/>}
   </div>}
 
-  <div data-ui="1" className="absolute bottom-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
-   <button className="btn" aria-label="Zoom out" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom-0.15,0.4,3)})}>−</button>
+  {/* on a touch screen a pinch replaces the zoom steps; the level and Fit stay */}
+  <div data-ui="1" className="stage-zoom absolute bottom-3 right-3 flex items-center gap-1 whitespace-nowrap bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
+   {!touchUI&&<button className="btn" aria-label="Zoom out" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom-0.15,0.4,3)})}>−</button>}
    <span className="text-[10px] w-9 text-center text-neutral-300">{Math.round(d.zoom*100)}%</span>
-   <button className="btn" aria-label="Zoom in" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom+0.15,0.4,3)})}>+</button>
+   {!touchUI&&<button className="btn" aria-label="Zoom in" onClick={()=>s.setD(n=>{n.zoom=clamp(n.zoom+0.15,0.4,3)})}>+</button>}
    <button className="btn" onClick={()=>s.setD(n=>{n.zoom=1})}>Fit</button>
   </div>
  </div>}
