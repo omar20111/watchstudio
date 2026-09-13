@@ -126,6 +126,9 @@ src/
   keys nudge (Shift = 5×) · `[` `]` rotate · `1–8` select part · `F` fit
 - **¾**: drag to orbit · click a part to select it · scroll to zoom
 - **Side**: measured side elevation and caseback
+- **AR**: on a phone, places the watch in the room at real size (Safari on
+  iPhone and iPad via AR Quick Look, Chrome on Android via WebXR); on a
+  computer, shows a QR code that opens the design on a phone
 - `V` cycles cameras · `0` resets the bezel · `Space` / `R` run and reset the
   chronograph · `Ctrl+Z` undo · `Ctrl+Shift+Z` / `Ctrl+Y` redo
 

@@ -28,6 +28,18 @@
   buckle and carries two keepers. The buckle is made in the strap's hardware
   metal; a ceramic or carbon watch gets a steel or black buckle. All three are
   in the GLB.
+- **View in AR** (`core/three/ar.js`, `export/usdz.js`, `ui/ARModal.jsx`). See
+  the watch in your room at its real size, from the toolbar or the AR chip on
+  the stage.
+  - *iPhone and iPad (Safari):* the design is built as USDZ in the page and
+    opened in Apple's AR viewer, standing on a table.
+  - *Android (Chrome with ARCore):* a WebXR session in the page. Tap a surface
+    to place the watch, tap again to move it; its hands keep the design's time
+    and it wears the same materials the editor draws.
+  - *Computers:* a QR code opens the design on your phone in one scan.
+- **Shorter share links.** New links compress the design (`#z=`), about 40% of
+  the old length, which is what lets them fit in a QR code. Old `#w=` links
+  still open.
 - **Surface wear and texture** (`core/three/wear.js`). Exposed metal is no
   longer factory-perfect. Polish carries faint hairline scratches and handling
   haze, brushed surfaces show real streaks along their grain, and a matte

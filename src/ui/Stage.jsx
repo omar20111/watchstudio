@@ -36,7 +36,7 @@ export const stageCamera=(d,customs)=>{
  const c=['front','three-quarter','profile'].includes(d.camera)?d.camera:'front';
  return c==='three-quarter'&&hasStructuralUpload(d,customs)?'front':c};
 
-export function Stage(){const s=useApp();const d=s.d;
+export function Stage({onAR}){const s=useApp();const d=s.d;
  const structural=hasStructuralUpload(d,s.customs);
  const camera=stageCamera(d,s.customs);
  const innerRef=useRef();const drag=useRef(null);const down=useRef(null);
@@ -170,6 +170,8 @@ export function Stage(){const s=useApp();const d=s.d;
      style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
      onClick={()=>s.setD(n=>{n.camera=id})}>{label}</button>})}
    {camera==='three-quarter'&&<button className="chip" title="Reset the orbit" onClick={()=>{view.current&&view.current.fit();redraw();s.setD(n=>{n.zoom=1})}}>Reset</button>}
+   {/* here as well as the toolbar: on a phone the toolbar's end is scrolled out of view */}
+   {onAR&&<button className="chip" title="See it in your room at real size" aria-label="View in AR" onClick={onAR}>AR</button>}
   </div>
 
   {camera!=='profile'&&<div data-ui="1" className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur px-2.5 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>

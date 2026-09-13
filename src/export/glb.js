@@ -50,7 +50,7 @@ function stripBookkeeping(root){
    DataTextures, and every crown has knurling, so without this every export
    threw. Swap in a canvas copy with the same pixels and sampler, on the export's
    own materials only. */
-function drawableMaps(root){const twins=new Map();
+export function drawableMaps(root){const twins=new Map();
  const twin=t=>{if(!t||!t.image||t.image.data===undefined)return t;
   if(twins.has(t))return twins.get(t);
   const{data,width,height}=t.image,c=document.createElement('canvas');c.width=width;c.height=height;

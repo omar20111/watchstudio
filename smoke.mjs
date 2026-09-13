@@ -214,5 +214,20 @@ console.log('RENDER-TO-STRING ('+out.length+' chars)');
   const arbor=byName('min');const q=arbor&&arbor.rotation;
   const deg=q?Math.abs(2*Math.atan2(q[1],q[3])*180/Math.PI):0;
   expect(Math.abs(deg-57.6)<1,`a live design should export at 10:09:36 (minute hand 57.6deg), got ${deg.toFixed(1)}`)}}
+/* share links: the compressed #z= form round-trips a design, is much shorter
+   than the #w= form (short enough for the AR hand-off QR code), and links made
+   before it still open */
+{const S=await import('./src/export/shareUrl.js');
+ const d=M.clone(M.DEF);d.caseMm=42;d.parts.case.metal='bronze';d.case.wear='worn';d.parts.dial.text='Fumé ✓';
+ const w=S.encodeDesign(d,'Link test'),z=await S.encodeDesignCompact(d,'Link test');
+ const back=await S.decodeDesignCompact(z),old=S.decodeDesign(w);
+ for(const[label,o]of[['compact',back],['classic',old]]){
+  expect(!!o,`${label} share code should decode`);
+  if(o)expect(o.name==='Link test'&&o.d.caseMm===42&&o.d.parts.case.metal==='bronze'&&o.d.case.wear==='worn'&&o.d.parts.dial.text==='Fumé ✓',
+   `${label} share code lost part of the design`)}
+ expect(z.length<w.length*.5,`compact share code should be under half the length (${z.length} vs ${w.length})`);
+ expect(z.length<1400,`compact share code should fit a scannable QR code, got ${z.length} chars`);
+ expect(await S.decodeDesignCompact('not-a-real-code')===null,'a corrupt compact code should decode to null, not throw')}
+
 console.log(fails?`SMOKE FAIL (${fails})`:'SMOKE PASS');
 if(fails)process.exit(1);

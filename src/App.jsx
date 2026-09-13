@@ -12,6 +12,7 @@ import {Stage,stageCamera} from './ui/Stage.jsx';
 import {hasStructuralUpload} from './core/three/uploads.js';
 import {useWebgl,webglState,retryWebgl,WEBGL_MESSAGE} from './core/three/support.js';
 import {SaveModal,ProjectsModal,SharedModal} from './ui/Modals.jsx';
+import {ARModal} from './ui/ARModal.jsx';
 import {ProductRender,DesignSheet} from './ui/Views.jsx';
 import {Modal} from './ui/primitives.jsx';
 import {strapMmOf} from './core/geometry.js';
@@ -61,10 +62,12 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
     visitor's autosaved design outright, with no undo. Now: a pristine session
     just opens it; anyone with work of their own is asked, and their design is
     kept in Projects before anything is replaced. */
- useEffect(()=>{const sh=readShareFromLocation();if(!sh)return;
-  history.replaceState(null,'',location.pathname+location.search);
-  if(store.get().hasWork())setShared(sh);
-  else store.get().importState({d:sh.d,name:sh.name,customs:{}})},[]);
+ useEffect(()=>{let live=true;
+  readShareFromLocation().then(sh=>{if(!sh||!live)return;
+   history.replaceState(null,'',location.pathname+location.search);
+   if(store.get().hasWork())setShared(sh);
+   else store.get().importState({d:sh.d,name:sh.name,customs:{}})});
+  return()=>{live=false}},[]);
  useEffect(()=>{const h=e=>{const tg=(e.target&&e.target.tagName||'').toLowerCase();
   if(tg==='input'||tg==='select'||tg==='textarea')return;
   /* an open dialog owns the keyboard — arrows must not nudge parts behind it */
@@ -123,7 +126,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
        below 760 px the parts list does too (styles.css .drawer-*). */}
    <div className="relative flex-1 flex min-h-0 overflow-hidden">
     <div className={`drawer-left ${drawer==='parts'?'open':''}`}><PartsList/></div>
-    <Stage/>
+    <Stage onAR={()=>setModal('ar')}/>
     <div className={`drawer-right ${drawer==='controls'?'open':''}`}><Controls/></div>
     <button className="drawer-tab drawer-tab-left btn" aria-expanded={drawer==='parts'} aria-label="Parts, themes and scene"
      onClick={()=>setDrawer(x=>x==='parts'?null:'parts')}>{drawer==='parts'?'‹':'☰'}</button>
@@ -138,6 +141,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
   {shared&&<SharedModal shared={shared} onClose={()=>setShared(null)}/>}
   {modal==='save'&&<SaveModal onClose={close}/>}
   {modal==='projects'&&<ProjectsModal onClose={close}/>}
+  {modal==='ar'&&<ARModal onClose={close}/>}
   {modal==='reset'&&<Modal title="Reset design" onClose={close}>
    <p className="text-xs text-neutral-400 mb-3">Every part returns to its default preset. Saved projects are not affected.</p>
    <div className="flex gap-2"><button className="btn flex-1" onClick={close}>Cancel</button>
