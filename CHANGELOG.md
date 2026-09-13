@@ -41,6 +41,14 @@
   - Unlumed numerals and wedges in a dark metal on a dark dial are printed in
     cream instead, so a black-handed pilot's watch keeps legible numerals.
   - Dial text in Arabic keeps its letters joined (no letter spacing).
+- **Fixed: hour markers moved with every style.** Each style was centred on
+  the same radius, so short minimal bars and dots sat further in than batons,
+  numerals moved in on a stepped dial, and a numeral's reach depended on its
+  glyph — 10 and VIII stood out past 1 and V. Every style now ends on one ring
+  just inside the minute track (0.885 of the dial radius) and runs inward by
+  its own length; numerals are placed by their actual ink, so their farthest
+  pixel touches the ring. All styles now end within 0.01 of the radius of each
+  other, checked hour by hour on the 3D indices (`e2e/tests/markers.mjs`).
 - **A welcome for first-time visitors** (`ui/Welcome.jsx`). A gallery of all
   15 designs, shown as real renders, to start from — or a blank watch — then
   three quick steps (case, dial, strap) over the live editor, with the full

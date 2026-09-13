@@ -38,12 +38,45 @@ export const UNLUMED_INDICES=['roman','arabic','eastern','wedges'];
 export function printedIndexInk(variant,frameMetal,dialColor){const m=METALS[frameMetal]||METALS.steel;
  return UNLUMED_INDICES.includes(variant)&&lumOf(dialColor||'#16324f')<.3&&lumOf(m.base)<.4?'#e9e4d6':null}
 
+/* Every style's indices end on one circle just inside the minute track and run
+   inward from it by their own length, so changing the style changes the shape
+   of the indices, never where the hour ring sits. Each style used to be centred
+   on 0.8 r instead: short minimal bars and dots then sat further in than
+   batons, and a numeral's reach depended on how wide its glyph was — 10 and
+   VIII stood out past 1 and V. The ring clears a stepped dial's chapter step
+   (0.915 r), so numerals no longer need moving in there. */
+export const INDEX_OUTER=0.885;
+
+/* The inked pixels of a numeral drawn centred on the origin (textAlign center,
+   baseline middle), sampled every other pixel; null where nothing can be read
+   back (a mocked canvas). Cached per font and text. */
+const inks=new Map();
+function glyphInk(font,txt){const key=font+'|'+txt;if(inks.has(key))return inks.get(key);
+ let pts=null;
+ try{const probe=document.createElement('canvas').getContext('2d');probe.font=font;
+  const fs=parseFloat(font.replace(/^\D*?(\d)/,'$1'))||40,w=Math.ceil((probe.measureText(txt).width||fs*2)+fs),h=Math.ceil(fs*2.2);
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const x=cv.getContext('2d',{willReadFrequently:true});
+  x.font=font;x.textAlign='center';x.textBaseline='middle';if('direction'in x)x.direction='ltr';
+  x.fillStyle='#fff';x.fillText(txt,w/2,h/2);
+  const data=x.getImageData(0,0,w,h).data;pts=[];
+  for(let j=0;j<h;j+=2)for(let i=0;i<w;i+=2)if(data[(j*w+i)*4+3]>110)pts.push([i-w/2,j-h/2]);
+  if(!pts.length)pts=null}catch(e){pts=null}
+ inks.set(key,pts);if(inks.size>80)inks.delete(inks.keys().next().value);
+ return pts}
+
+/* where to anchor a numeral so its farthest ink sits on the ring at rOut */
+function numeralAnchor(ctx,txt,deg,rOut,r){const a=deg*Math.PI/180,ux=Math.sin(a),uy=-Math.cos(a);
+ const pts=glyphInk(ctx.font,txt);
+ if(pts){/* the farthest ink radius grows with the distance out: bisect for rOut */
+  const far=c=>{let m=0;for(const[vx,vy]of pts){const d=Math.hypot(c*ux+vx,c*uy+vy);if(d>m)m=d}return m};
+  let lo=0,hi=rOut;for(let i=0;i<22;i++){const mid=(lo+hi)/2;if(far(mid)>rOut)hi=mid;else lo=mid}
+  return posAt(deg,lo)}
+ const mt=ctx.measureText(txt),fs=parseFloat(ctx.font.replace(/^\D*?(\d)/,'$1'))||r*.19;
+ const hw=(mt.width||fs*.55*txt.length)/2,hh=fs*.36;
+ return posAt(deg,rOut-(Math.abs(ux)*hw+Math.abs(uy)*hh))}
+
 export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
- /* Numerals are the widest indices: their tips reach 0.918 r, past a stepped
-    dial's chapter step at 0.915 r, where they would sit on the step's wall.
-    On a stepped dial they sit a little further in. */
- const numerals=NUMERALS.includes(o.variant);
- const rad=r*(numerals&&o.layout&&o.layout.stepped?0.78:0.8);
+ const rOut=r*INDEX_OUTER;
  const m=METALS[o.frameMetal]||METALS.steel;
  const ink=lumOf(o.dialColor||'#16324f')>0.55?'#26282c':'#e9e4d6';
  const printed=printedIndexInk(o.variant,o.frameMetal,o.dialColor);
@@ -52,12 +85,13 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
 
  /* a date window takes the place of the index at its hour */
  const skip=o.layout&&o.layout.win?o.layout.win.skipHour:null;
- for(let h=0;h<12;h++){if(h===skip)continue;const deg=h*30,rad0=deg*Math.PI/180;const[x,y]=posAt(deg,rad);
+ for(let h=0;h<12;h++){if(h===skip)continue;const deg=h*30,rad0=deg*Math.PI/180;
 
   if(o.variant==='batons'||o.variant==='minimal'){
    const mini=o.variant==='minimal';
    if(mini&&h%3)continue;
    const len=r*(mini?0.075:0.17),w=r*(mini?0.055:0.052);
+   const[x,y]=posAt(deg,rOut-len/2);
    const block=(sx,sy,sw,sh)=>{ctx.save();ctx.translate(x,y);ctx.rotate(rad0);
     ctx.beginPath();ctx.rect(-sw/2+sx,-sh/2+sy,sw,sh);ctx.restore()};
    const bar=off=>{
@@ -86,6 +120,8 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
 
   else if(o.variant==='dots'){if(h%3&&h)continue;
    const rr=r*0.052;
+   /* the triangle at 12 points out to the ring; the dots touch it */
+   const[x,y]=posAt(deg,rOut-(h===0?rr*1.7:rr));
    const outline=()=>{ctx.beginPath();
     if(h===0){ctx.moveTo(x,y-rr*1.7);ctx.lineTo(x-rr*1.32,y+rr*0.95);ctx.lineTo(x+rr*1.32,y+rr*0.95);ctx.closePath()}
     else ctx.arc(x,y,rr,0,7)};
@@ -110,6 +146,7 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
      into two facets along their length like a dauphine hand. Doubled at 12. */
   else if(o.variant==='wedges'){if(lumeOnly)continue;
    const len=r*0.17,w=r*0.068;
+   const[x,y]=posAt(deg,rOut-len/2);
    const wedge=(off,side)=>{ctx.save();ctx.translate(x,y);ctx.rotate(rad0);ctx.translate(off,0);ctx.beginPath();
     /* outer edge at -len/2 (toward the rim), point at +len/2 (toward the centre) */
     if(side<0){ctx.moveTo(-w/2,-len/2);ctx.lineTo(0,-len/2);ctx.lineTo(0,len/2)}
@@ -133,6 +170,11 @@ export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
    ctx.font=o.variant==='roman'?`${r*0.17}px Georgia, serif`
     :o.variant==='eastern'?`700 ${r*0.21}px ${EASTERN_FONT}`:`700 ${r*0.19}px system-ui`;
    if('direction'in ctx)ctx.direction='ltr';
+   /* Place the glyph by its ink, not its text anchor: slide it along the hour's
+      direction until its farthest inked pixel touches the ring. A numeral's box
+      is no guide at the diagonals — VIII's corners are empty — so the ink
+      itself is sampled; without pixels to read, the box stands in. */
+   const[x,y]=numeralAnchor(ctx,txt,deg,rOut,r);
    if(shape){ctx.fillStyle='#fff';ctx.fillText(txt,x,y);continue}
    /* applied numerals: a dark impression, then the metal face slightly proud */
    ctx.fillStyle='rgba(0,0,0,.34)';
