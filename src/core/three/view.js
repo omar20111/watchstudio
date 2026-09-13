@@ -62,8 +62,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  const ground=new Mesh(new PlaneGeometry(260,260),new ShadowMaterial({opacity:.32}));
  ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 
- const front=new OrthographicCamera(-1,1,1,-1,.1,2000);
- front.position.set(0,600,0);front.up.set(0,0,-1);front.lookAt(0,0,0);
+ const front=new OrthographicCamera(-1,1,1,-1,.1,2000);   /* placed by aim() */
  const tq=new PerspectiveCamera(19,1,1,4000);
  const side=new OrthographicCamera(-1,1,1,-1,.1,2000);
  const back=new OrthographicCamera(-1,1,1,-1,.1,2000);back.up.set(0,0,-1);
@@ -72,6 +71,9 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  const orbit=new Spherical(1,(90-36)*Math.PI/180,28*Math.PI/180);
 
  let watch=null,built='',camera='front',w=1,h=1,pxPerMm=null,zoom=1,lastD=null,lastCustoms=null;
+ /* the front camera swung off vertical, radians: x turns the watch about the
+    screen's vertical axis, y about its horizontal one (the stage's tilt drag) */
+ let tilt=[0,0];
  const ao=createAO(renderer,scene,front);let aoOn=true;const buf=new Vector2();
  let onDirty=null;
 
@@ -83,6 +85,13 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  const aim=()=>{if(!watch)return;const a=w/h;
   const ppm=pxPerMm||Math.min(w,h)/SHEET*zoom;
   ortho(front,w,h,ppm);
+  /* level, this is straight down; tilted, the camera swings round the dial's
+     centre, keeping 12 o'clock toward the top of the screen. Dragging right
+     turns the watch right (the camera moves toward 9 o'clock); dragging down
+     tips 12 o'clock toward the viewer. */
+  const[tx,ty]=tilt;
+  front.position.set(-Math.sin(tx)*Math.cos(ty),Math.cos(tx)*Math.cos(ty),-Math.sin(ty)).multiplyScalar(600).add(target);
+  front.up.set(0,0,-1);front.lookAt(target);
   tq.aspect=a;tq.updateProjectionMatrix();
   orbit.radius=(SHEET*.58)/Math.tan(tq.fov*Math.PI/360)/Math.min(1,a)/zoom;
   tq.position.setFromSpherical(orbit).add(target);tq.lookAt(target);
@@ -121,6 +130,8 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
      the other cameras */
   setFrame({pxPerMm:p=null,zoom:z=1}={}){pxPerMm=p;zoom=z||1;aim()},
   fit(){orbit.set(1,(90-36)*Math.PI/180,28*Math.PI/180);aim()},
+  setTilt(x=0,y=0){tilt=[x,y];aim()},
+  get tilt(){return[...tilt]},
   /* the orbit controls moved the three-quarter camera: remember where */
   syncOrbit(){orbit.setFromVector3(tq.position.clone().sub(target))},
   resize(width,height,dpr=1){w=Math.max(1,Math.round(width));h=Math.max(1,Math.round(height));

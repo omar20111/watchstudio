@@ -18,7 +18,12 @@ import {FlatWatch} from './FlatWatch.jsx';
 import {SHEET,profileLayout} from '../core/three/view.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {webglState} from '../core/three/support.js';
-const {useEffect,useMemo,useRef}=React;
+const {useEffect,useMemo,useRef,useState}=React;
+
+/* Right-drag (or Ctrl-drag) in the front view tilts the watch to look round it,
+   up to TILT_MAX, and it eases back level on release: a glance, not a camera
+   move, so editing never happens at an angle. */
+const TILT_MAX=25*Math.PI/180,TILT_PER_PX=TILT_MAX/220,TILT_RETURN_MS=420;
 
 /* The only part of the stage that has to re-render with the clock, kept in its
    own component so the rest of the stage does not re-render 60 times a second. */
@@ -56,7 +61,22 @@ export function Stage(){const s=useApp();const d=s.d;
   const r=canvas.current.getBoundingClientRect();
   return view.current.pick(e.clientX-r.left,e.clientY-r.top,st.sel)};
  const angleAt=(px,py)=>Math.atan2(py-C,px-C)*180/Math.PI;
- const end=()=>{drag.current=null;if(host.current)host.current.style.cursor='default'};
+
+ /* the tilt: where it is, the drag holding it, the ease bringing it back */
+ const tilt=useRef({x:0,y:0,drag:null,raf:0});const[tilted,setTilted]=useState(false);
+ const canTilt=camera==='front'&&!flat;
+ const setTilt=(x,y)=>{const T=tilt.current,r=Math.hypot(x,y),k=r>TILT_MAX?TILT_MAX/r:1;
+  T.x=x*k;T.y=y*k;if(view.current){view.current.setTilt(T.x,T.y);redraw()}};
+ const settle=()=>{const T=tilt.current;cancelAnimationFrame(T.raf);
+  const x0=T.x,y0=T.y,t0=performance.now();
+  const step=now=>{const p=Math.min(1,(now-t0)/TILT_RETURN_MS),k=(1-p)**3;setTilt(x0*k,y0*k);
+   if(p<1)T.raf=requestAnimationFrame(step);else setTilted(false)};
+  T.raf=requestAnimationFrame(step)};
+ /* another camera, or a rebuilt view, starts level */
+ useEffect(()=>{const T=tilt.current;cancelAnimationFrame(T.raf);T.drag=null;setTilt(0,0);setTilted(false)},[camera,gen]);
+ useEffect(()=>()=>cancelAnimationFrame(tilt.current.raf),[]);
+
+ const end=()=>{drag.current=null;if(host.current)host.current.style.cursor='default';  if(tilt.current.drag){tilt.current.drag=null;settle()}};
 
  /* the profile drawing's dimension callouts, drawn over exactly what is rendered */
  const overlay=useRef();
@@ -86,7 +106,12 @@ export function Stage(){const s=useApp();const d=s.d;
     const base=selP==='hands'&&!st.d.active.hands?p.tH:p.t;
     patchPartT(selP,{s:clamp(+(base.s*(e.deltaY>0?0.94:1.06)).toFixed(3),0.3,2.5)},'sc:'+selP);return}
    s.setD(n=>{n.zoom=clamp(n.zoom*(e.deltaY>0?0.92:1.08),0.4,3)})}}
-  onPointerDown={e=>{if(e.button!==0||e.target.closest('[data-ui]'))return;
+  onContextMenu={e=>{if(canTilt&&!e.target.closest('[data-ui]'))e.preventDefault()}}
+  onPointerDown={e=>{
+   if(canTilt&&(e.button===2||(e.button===0&&e.ctrlKey))&&!e.target.closest('[data-ui]')){const T=tilt.current;
+    cancelAnimationFrame(T.raf);T.drag={cx:e.clientX,cy:e.clientY,x:T.x,y:T.y};setTilted(true);
+    e.currentTarget.setPointerCapture(e.pointerId);host.current.style.cursor='move';return}
+   if(e.button!==0||e.target.closest('[data-ui]'))return;
    if(camera==='three-quarter'){down.current=[e.clientX,e.clientY];return}
    if(camera!=='front')return;
    const st=store.getState();const part=pickAt(e);if(!part)return;
@@ -97,7 +122,8 @@ export function Stage(){const s=useApp();const d=s.d;
    const spin=part==='bezel'&&bezelRotatable(st.d)&&!e.altKey;
    drag.current={part,px,py,x:base.x,y:base.y,r:base.r,alt:e.altKey,spin,rot0:bezelRotOf(st.d),a0:angleAt(px,py)};
    e.currentTarget.setPointerCapture(e.pointerId);host.current.style.cursor='grabbing'}}
-  onPointerMove={e=>{const dg=drag.current;
+  onPointerMove={e=>{const dg=drag.current,td=tilt.current.drag;
+   if(td){setTilt(td.x+(e.clientX-td.cx)*TILT_PER_PX,td.y+(e.clientY-td.cy)*TILT_PER_PX);return}
    if(!dg){if(camera!=='front'||e.target.closest('[data-ui]'))return;
     host.current.style.cursor=pickAt(e)?'grab':'default';return}
    const[px,py]=toSheet(e);
@@ -121,7 +147,7 @@ export function Stage(){const s=useApp();const d=s.d;
       drags — and in the flat drawing it is the drawing itself */}
   <div ref={innerRef} className="absolute pointer-events-none" style={{width:size,height:size,left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
    {flat&&<FlatWatch size={size} className="absolute inset-0"/>}
-   {camera==='front'&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
+   {camera==='front'&&!tilted&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
     {frames(s.sel,d).map((f,i)=>f.t==='c'
      ?<circle key={i} cx={C} cy={C} r={f.r} fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>
      :<rect key={i} x={f.x} y={f.y} width={f.w} height={f.h} rx="14" fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"
@@ -131,7 +157,7 @@ export function Stage(){const s=useApp();const d=s.d;
 
   <div data-ui="1" className="absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10" style={{zIndex:50}}>
    {flat?'Flat 2D drawing · pick a part in the list, then drag to move it · Alt-drag rotate · drag a diver bezel to turn it · arrows nudge · 1–8 select · Ctrl+Z undo'
-    :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
+    :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · right-drag to tilt · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
     :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
     :'Side elevation and caseback, measured · V camera'}</div>
 

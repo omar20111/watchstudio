@@ -16,10 +16,15 @@ numbers and nothing else:
 - **Metal is lathed or extruded** (`core/three/lathe.js`): case, bezel, rehaut,
   crystal and caseback are solids of revolution from the two stacks; lugs,
   crown guards, crown and pushers use the outlines the 2D renderers draw.
-- **Hands and applied indices are traced** (`core/three/tracer.js`): the 2D
-  renderer bakes each silhouette, marching squares traces it back into
-  outlines with holes, and it is extruded — five hand styles, five marker
-  styles and serif numerals without writing any shape twice.
+- **Hands and applied indices are traced and ground** (`core/three/tracer.js`,
+  `relief.js`): the 2D renderer bakes each silhouette, marching squares traces
+  it back into outlines, and a height field over that outline gives it facets,
+  a bevel or a dome, with the lume sunk into a channel — five hand styles,
+  five marker styles and serif numerals without writing any shape twice.
+- **Straps are swept solids** (`core/three/watch.js`): a padded, edge-rolled
+  section follows the strap path, ending in a tail with holes at 6 o'clock and
+  a buckle with keepers at 12. The flat bake is cut to the same outline
+  (`geometry.js strapEndFactor`), so edges and stitching follow it.
 - **Colour is the existing artwork, unlit** (`core/render/*`, `mode: 'flat'`):
   dial printing, bezel inserts, straps and lume are baked without painted
   light and applied as textures, so all light and shadow is real.
@@ -113,8 +118,9 @@ src/
 ## Controls
 
 - **Front** (editing): drag a part to move it · Alt-drag rotates · drag a diver
-  or GMT bezel to turn it · Shift+scroll scales · arrow keys nudge (Shift = 5×)
-  · `[` `]` rotate · `1–8` select part · `F` fit
+  or GMT bezel to turn it · right-drag (or Ctrl-drag) tilts the watch up to 25°
+  to look round it, easing back level on release · Shift+scroll scales · arrow
+  keys nudge (Shift = 5×) · `[` `]` rotate · `1–8` select part · `F` fit
 - **¾**: drag to orbit · click a part to select it · scroll to zoom
 - **Side**: measured side elevation and caseback
 - `V` cycles cameras · `0` resets the bezel · `Space` / `R` run and reset the

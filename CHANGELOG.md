@@ -28,6 +28,10 @@
   buckle and carries two keepers. The buckle is made in the strap's hardware
   metal; a ceramic or carbon watch gets a steel or black buckle. All three are
   in the GLB.
+- **Tilt to look round the watch while editing.** In the front view, drag with
+  the right mouse button (or Ctrl-drag on a trackpad) to tilt the watch up to
+  25° and see its flanks, lugs and crown. It eases back level when you let go,
+  so edits always happen square-on. Selection guides hide while it is tilted.
 - **Solid bracelet links.** A steel bracelet is rows of outer and centre links
   following the strap path, hinging round the bend, with dark pins in the
   joints and an end link between the lugs. Brushed along its length; a
