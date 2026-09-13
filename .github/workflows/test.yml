@@ -1,14 +1,46 @@
-name: test
-on: [push, pull_request]
+name: test and deploy
+
+# Every push and pull request is tested and built. A push to main also publishes
+# the built single-file app to GitHub Pages — see "Publish online" in README.md
+# for the one-time repository setting this needs.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # Vite 8 needs Node 20.19+; Node 20 itself is end-of-life, so use 22 LTS
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # dist/ is one self-contained index.html, so it can be served from any path
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # never cancel a deployment half-way; queue the next one behind it
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -24,6 +24,15 @@
   thin-walled glass. Passes the Khronos glTF Validator with no errors or
   warnings, and works without WebGL. (`export/glb.js`)
 
+- **Ready to publish on GitHub Pages.** The workflow now also deploys `main`
+  (checkout/setup-node v7, upload-pages-artifact/deploy-pages v5, Node 22 —
+  Node 20 is end-of-life and Vite 8 needs 20.19+). README → "Publish online"
+  has the one-time repository setting. Checked by serving the production build
+  under `/watchstudio/`: 3D runs, share links keep the path and open for a
+  fresh visitor, and nothing is requested outside the subpath.
+- Page title and description no longer say "2D"; an inline favicon replaces
+  the request that 404'd on every load.
+
 **Fixed**
 - The headless canvas mock accepted any `drawImage` argument, which hid a crash
   that only a real canvas shows; it now rejects non-images like a browser does.

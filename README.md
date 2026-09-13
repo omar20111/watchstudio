@@ -48,6 +48,43 @@ npm run refs       # pixel reference renders of every theme (drives Edge/Chrome)
 cameras; `--only diver,dress` limits the themes. The headless tests cannot see
 pixels; these images are the check that does.
 
+## Exports
+
+- **PNG** at 2× or 4×, from the camera you are looking through.
+- **3D model (.glb)** at real size, for Blender, product renderers and AR
+  viewers. Posed at the set time (or 10:09), one node per part, the spec in the
+  root node's extras.
+- **Layered ZIP** — every part's artwork, every view, `spec.json`, `geometry.json`.
+- **Spec sheet** (.txt), **project file** (.watchstudio.json, images embedded),
+  **share link** (design only, no images).
+
+## Without WebGL
+
+If the browser has no WebGL 2 (hardware acceleration off, remote desktops,
+older machines) or the GPU drops out and does not recover, WatchStudio shows a
+flat 2D drawing instead, with a banner saying so. Designing, saving, sharing,
+PNG and GLB export all still work; the ¾ and side views need WebGL. Add `?2d`
+to the URL to force this mode.
+
+## Publish online (GitHub Pages)
+
+The build is a single self-contained `index.html`, so it can be hosted
+anywhere static. The included workflow (`.github/workflows/test.yml`) tests
+every push and publishes `main` to GitHub Pages. One-time setup:
+
+1. Create an empty repository on GitHub (no README, so the first push is clean).
+2. Push this project to it:
+   ```bash
+   git remote add origin https://github.com/<you>/watchstudio.git
+   git push -u origin main
+   ```
+3. In the repository: **Settings → Pages → Build and deployment → Source:
+   GitHub Actions**.
+4. Re-run the workflow (**Actions → test and deploy → Re-run jobs**) or push
+   again. The site appears at `https://<you>.github.io/watchstudio/`.
+
+Designs autosave in each visitor's own browser; nothing is stored on a server.
+
 ## Layout
 
 ```
@@ -62,7 +99,7 @@ src/
 │   ├── render/          2D renderers: thumbnails, artwork, textures for 3D
 │   └── three/           lathe, tracer, surface, studio, uploads, watch, view
 ├── state/               store (undo/redo, autosave, projects, migrations), themes
-├── export/              png, layered zip, spec, project file, share URL
+├── export/              png, glb, flat 2D fallback, layered zip, spec, project file, share URL
 └── ui/                  App shell, Stage (editor), WatchCanvas, Controls, Views…
 ```
 
