@@ -56,7 +56,9 @@ function drawableMaps(root){const twins=new Map();
   const{data,width,height}=t.image,c=document.createElement('canvas');c.width=width;c.height=height;
   c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),width,height),0,0);
   const ct=new CanvasTexture(c);
-  for(const k of['wrapS','wrapT','magFilter','minFilter','colorSpace','flipY'])ct[k]=t[k];
+  for(const k of['wrapS','wrapT','magFilter','minFilter','colorSpace','flipY','rotation'])ct[k]=t[k];
+  /* a tiled map (the strap grain) keeps its tiling: written as KHR_texture_transform */
+  ct.repeat.copy(t.repeat);ct.offset.copy(t.offset);ct.center.copy(t.center);
   twins.set(t,ct);return ct};
  root.traverse(o=>{if(!o.isMesh)return;
   for(const m of[].concat(o.material))if(m.normalMap)m.normalMap=twin(m.normalMap)});

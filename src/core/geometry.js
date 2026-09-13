@@ -54,7 +54,8 @@ export const DEF_CASE=()=>({
  movement:'automatic',/* automatic | manual | quartz | spring */
  pushers:false,       /* chrono pushers at 2h and 4h */
  crownPos:'3',        /* 3 | 430 */
- engraving:'WATCHSTUDIO'});
+ engraving:'WATCHSTUDIO',
+ wear:'light'});       /* new | light | worn — scratches and haze on the exposed metal */
 
 const mmOf=(v,lo,hi,fb)=>{const n=+v;return Number.isFinite(n)?clamp(n,lo,hi):fb};
 
@@ -102,7 +103,8 @@ export function caseOf(d){
   lugDrop:mmOf(c0.lugDropMm,0,6,2.5),
   pushers:!!c0.pushers,
   crownPos:c0.crownPos==='430'?'430':'3',
-  engraving:c0.engraving==null?'WATCHSTUDIO':String(c0.engraving).slice(0,24)}}
+  engraving:c0.engraving==null?'WATCHSTUDIO':String(c0.engraving).slice(0,24),
+  wear:['new','light','worn'].includes(c0.wear)?c0.wear:'light'}}
 
 /* The thickness stack in mm. Sums to caseOf(d).thickness exactly — the
    mid-band absorbs the remainder and can never fall below MIN_BAND_MM,

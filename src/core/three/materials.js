@@ -11,11 +11,29 @@ import {METALS} from '../constants.js';
 /* how each finish moves the metal's own roughness */
 const FINISH_ROUGH={polished:r=>Math.max(.05,r*.55),none:r=>Math.max(.05,r*.55),brushed:r=>Math.max(.26,r*1.6),matte:r=>Math.max(.5,r*2.2)};
 
+/* the finish a metal material was made with, for wear.js (kept off userData,
+   which a GLB export would write into the file) */
+export const finishOf=new WeakMap();
+
+/* Several edits to one material's shaders (the soft key glint, wear) compose
+   here: each is added once under a key, and the program cache key names them
+   all so materials with different edits never share a compiled program. The
+   list lives in the closure, so a cloned material keeps working. */
+const hookLists=new WeakMap();
+export function addShaderHook(mat,key,fn){let list=hookLists.get(mat);
+ if(!list){const l=list=[];hookLists.set(mat,l);
+  mat.onBeforeCompile=sh=>{for(const h of l)h.fn(sh)};
+  mat.customProgramCacheKey=()=>l.map(h=>h.key).join('|')}
+ const at=list.findIndex(h=>h.key===key);
+ if(at>=0)list[at]={key,fn};else list.push({key,fn});
+ mat.needsUpdate=true;return mat}
+
 export function metalMaterial(metalId,finish='polished',o={}){
  const m=METALS[metalId]||METALS.steel;
  const f=o.forceFinish||finish;
  const rough=(FINISH_ROUGH[f]||FINISH_ROUGH.polished)(m.rough??.15);
  const mat=new MeshPhysicalMaterial({color:new Color(m.base),roughness:rough,envMapIntensity:m.refl??1});
+ finishOf.set(mat,f);
  if(m.kind==='metal'){mat.metalness=1;
   /* circular graining: the lathe's u runs around the ring, so anisotropy along the
      tangent streaks the highlight around the bezel the way a turned finish does */
@@ -56,12 +74,10 @@ const ramp=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2
 export function softenKeyGlint(mat){
  if(!(mat&&mat.isMeshStandardMaterial))return mat;
  const scale=mat.transmission>0?0:.2+.8*ramp(.06,.35,mat.roughness);
- mat.onBeforeCompile=sh=>{sh.uniforms.uKeySpecular={value:scale};
+ return addShaderHook(mat,'ws-soft-key-glint',sh=>{sh.uniforms.uKeySpecular={value:scale};
   sh.fragmentShader='uniform float uKeySpecular;\n'+sh.fragmentShader.replace('#include <lights_fragment_end>',
    '#include <lights_fragment_end>\n\treflectedLight.directSpecular *= uKeySpecular;\n'+
-   '#ifdef USE_CLEARCOAT\n\tclearcoatSpecularDirect *= uKeySpecular;\n#endif')};
- mat.customProgramCacheKey=()=>'ws-soft-key-glint';
- return mat}
+   '#ifdef USE_CLEARCOAT\n\tclearcoatSpecularDirect *= uKeySpecular;\n#endif')})}
 
 /* printed or painted surfaces carrying a baked 2D canvas */
 export function paintedMaterial(map,o={}){

@@ -83,6 +83,8 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      onPick={v=>setc({movement:v},'mvt')}/>
     <Pick label="Crown at" val={c.crownPos} opts={[['3','3 o’clock'],['430','4:30']]}
      onPick={v=>setc({crownPos:v},'cpos')}/>
+    <Pick label="Wear" val={c.wear} opts={[['new','New'],['light','Light'],['worn','Worn']]}
+     onPick={v=>setc({wear:v},'wear')}/>
     <Pick label="Water resist" val={String(c.wrM)} opts={[['30','30 m'],['100','100 m'],['200','200 m'],['300','300 m'],['1000','1000 m']]}
      onPick={v=>setc({wrM:+v},'wr')}/>
     <label className="flex items-center gap-2 text-[11px] text-neutral-400">

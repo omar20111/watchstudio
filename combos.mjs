@@ -206,6 +206,29 @@ for(const variant of['leather','rubber','nato'])for(const caseMm of[34,40,46]){
  const kb=boundsOf(keepers.geometry);
  if(!(kb.x1-kb.x0>wide*.86))bad(tag,'the keepers are narrower than the strap they hold')}
 
+/* wear: exposed metal wears and nothing under the crystal does; every brushed
+   surface has UVs to grain along (without them the highlight blows out white);
+   the generated tiles repeat without a seam */
+{const W=await import('./src/core/three/wear.js');
+ for(const finish of['polished','brushed','matte'])for(const wear of['new','light','worn']){
+  const d=M.clone(M.DEF);d.parts.case.finish=finish;d.case.wear=wear;const tag=`wear ${finish}/${wear}`;
+  let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  let worn=0;
+  for(const[part,g]of Object.entries(w.userData.groups))g.traverse(o=>{if(!o.isMesh)return;
+   const key=o.material.customProgramCacheKey?o.material.customProgramCacheKey():'';
+   if(key.includes('ws-wear')){worn++;if(['dial','markers','hands','crystal'].includes(part))bad(tag,`${o.name} under the crystal wears`)}
+   if(o.material.anisotropy>0&&!o.geometry.attributes.uv)bad(tag,`${o.name} is brushed but has no UVs`)});
+  if(worn<4)bad(tag,`only ${worn} meshes wear`)}
+ /* the step across the tile edge against the step just inside it, across
+    columns or (rows) across rows — the weave steps at every column by design */
+ const seam=(t,ch,rows)=>{const{data,width:w,height:h}=t.image,px=(x,y)=>rows?data[(x*w+y)*4+ch]:data[(y*w+x)*4+ch];
+  const n=rows?h:w;let edge=0,inner=0;
+  for(let y=0;y<(rows?w:h);y++){const a=px(n-1,y),b=px(0,y),c=px(n-2,y);edge+=Math.abs(a-b);inner+=Math.abs(a-c)}
+  return edge/Math.max(1,inner)};
+ for(const[name,t,ch,rows]of[['wear haze',W.wearMap(),1],['grain',W.grainMap(),0],['leather',W.strapGrainMap('leather'),0],
+  ['rubber',W.strapGrainMap('rubber'),0],['nato',W.strapGrainMap('nato'),1,true]])
+  if(seam(t,ch,rows)>2.5)bad('wear textures',`${name} has a seam where it tiles (${seam(t,ch,rows).toFixed(2)}x the step inside)`)}
+
 /* dimension sweep: extreme parameter values must not invert the stack or push
    a part off the sheet — these are exactly the corners the UI sliders allow */
 for(const caseMm of[34,40,46])for(const bezelMm of[1.2,2.5,5.5]){

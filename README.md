@@ -25,6 +25,9 @@ numbers and nothing else:
   section follows the strap path, ending in a tail with holes at 6 o'clock and
   a buckle with keepers at 12. The flat bake is cut to the same outline
   (`geometry.js strapEndFactor`), so edges and stitching follow it.
+- **Surfaces wear** (`core/three/wear.js`): generated, seamless textures add
+  hairline scratches and haze to exposed metal (by the case's Wear setting),
+  streaks to brushed finishes, and grain to leather, rubber and NATO straps.
 - **Colour is the existing artwork, unlit** (`core/render/*`, `mode: 'flat'`):
   dial printing, bezel inserts, straps and lume are baked without painted
   light and applied as textures, so all light and shadow is real.

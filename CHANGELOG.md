@@ -28,6 +28,16 @@
   buckle and carries two keepers. The buckle is made in the strap's hardware
   metal; a ceramic or carbon watch gets a steel or black buckle. All three are
   in the GLB.
+- **Surface wear and texture** (`core/three/wear.js`). Exposed metal is no
+  longer factory-perfect. Polish carries faint hairline scratches and handling
+  haze, brushed surfaces show real streaks along their grain, and a matte
+  finish is burnished where it is rubbed. A new **Wear** setting on the case
+  chooses New, Light (the default) or Worn. Hands, indices and the dial sit
+  under the crystal and stay new. Leather straps have a pebbled grain, rubber a
+  fine matte skin and NATO straps a woven texture; the strap grain is in the
+  GLB, while the wear is drawn by the renderer only.
+- **Fixed: brushed lugs rendered flat white.** The lugs and crown guards had no
+  texture coordinates, which a brushed finish needs for its grain direction.
 - **Tilt to look round the watch while editing.** In the front view, drag with
   the right mouse button (or Ctrl-drag on a trackpad) to tilt the watch up to
   25° and see its flanks, lugs and crown. It eases back level when you let go,

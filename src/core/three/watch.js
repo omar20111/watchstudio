@@ -23,6 +23,7 @@ import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
 import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
+import {applyWear,strapGrainMap,STRAP_GRAIN_MM} from './wear.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
@@ -106,10 +107,19 @@ function lumeMaterial(map,lume,glow){
 function strapMaterial(map,p){const v=p.variant;
  if(v==='steel')return new MeshPhysicalMaterial({map,color:0xffffff,metalness:1,roughness:.3,alphaTest:.5,
   envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
- return new MeshPhysicalMaterial({map,metalness:0,alphaTest:.5,
+ const mat=new MeshPhysicalMaterial({map,metalness:0,alphaTest:.5,
   roughness:v==='rubber'?.5:v==='nato'?.88:.62,
   sheen:v==='nato'||v==='leather'?.6:0,sheenRoughness:.7,sheenColor:new Color(p.color||'#6b4a2f').multiplyScalar(.6),
-  clearcoat:v==='rubber'?.25:0,clearcoatRoughness:.4})}
+  clearcoat:v==='rubber'?.25:0,clearcoatRoughness:.4});
+ /* the grain, tiled in millimetres: the strap's u spans the sheet across it and
+    its v the tall flat bake along it (strapGeometry) */
+ const kind=STRAP_GRAIN_MM[v]?v:'leather';
+ mat.normalMap=strapNormalOf(kind);mat.normalScale=new Vector2(1,1).multiplyScalar(kind==='leather'?.55:kind==='nato'?.45:.3);
+ return mat}
+const strapNormals=new Map();
+const strapNormalOf=kind=>{if(!strapNormals.has(kind)){const tile=STRAP_GRAIN_MM[kind],{h:Hc}=bakeSize('strap','flat');
+  const t=strapGrainMap(kind).clone();t.repeat.set(SHEET/tile,Hc/PX/tile);strapNormals.set(kind,t)}
+ return strapNormals.get(kind)};
 
 /* ---------------------------------------------------------------- strap */
 
@@ -504,7 +514,20 @@ export function buildHead(d,customs={},{aniso=8}={}){
    crystalMaterial(parts.crystal.finish,parts.crystal.opacity,arch.crystalMm),{cast:false,receive:false});
   cr.renderOrder=10}
 
- /* every surface: the key light's point glint scaled to its polish (materials.js) */
+ /* A brushed finish streaks along the UV tangent, and the smoothed extrusions
+    (lugs, crown guards) carry no UVs: with no tangent the highlight broke into
+    a flat white. Give them a brushing frame instead — u along the case's 12–6
+    axis, which is how a lug top is grained, tipped slightly by height so the
+    lug's end faces still have a direction. */
+ watch.traverse(o=>{if(!(o.isMesh&&o.material.anisotropy>0)||o.geometry.attributes.uv)return;
+  const p=o.geometry.attributes.position,uv=new Float32Array(p.count*2);
+  for(let i=0;i<p.count;i++){uv[i*2]=p.getZ(i)+.08*p.getY(i);uv[i*2+1]=p.getX(i)+p.getY(i)}
+  o.geometry.setAttribute('uv',new Float32BufferAttribute(uv,2))});
+
+ /* every surface: the key light's point glint scaled to its polish (materials.js);
+    exposed metal also wears (wear.js) — what sits under the crystal stays new */
+ const level=arch.wear;
+ for(const p of['case','bezel','crown','strap'])G[p].traverse(o=>{if(o.isMesh&&!o.userData.noPick)applyWear(o,level)});
  watch.traverse(o=>{if(o.isMesh)softenKeyGlint(o.material)});
 
  watch.userData={heights:H,radii:Rr,groundY,groups:G,
