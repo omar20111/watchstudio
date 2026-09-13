@@ -32,30 +32,60 @@ const G=await import('./src/core/geometry.js');
 const {PX,CAN,C}=await import('./src/core/constants.js');
 const L3=await import('./src/core/three/lathe.js');
 const TR=await import('./src/core/three/tracer.js');
+const RL=await import('./src/core/three/relief.js');
 
-/* The tracer turns a baked silhouette into extruded hands and indices. The
-   canvas mock draws nothing, so feed it a synthetic alpha field: a 60x30 px
-   bar with a 20x10 px window cut out, plus a separate 10 px dot. */
-{const W=1200,H=1200,a=new Uint8ClampedArray(W*H*4);
- const fill=(x0,y0,w,h,v)=>{for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++)a[(y*W+x)*4+3]=v};
- fill(600,300,60,30,255);fill(620,310,20,10,0);fill(400,700,10,10,255);
- const cv={width:W,height:H,getContext:()=>({getImageData:()=>({data:a})})};
+let fails=0;
+const bad=(name,msg)=>{fails++;console.log(`  FAIL  [${name}] ${msg}`)};
+
+/* The tracer and the relief grind a baked silhouette into shaped hands and
+   indices. The canvas mock draws nothing, so feed them synthetic alpha fields. */
+const alphaCanvas=paint=>{const W=1200,H=1200,a=new Uint8ClampedArray(W*H*4);paint((x,y,v)=>{a[(y*W+x)*4+3]=v});
+ return{width:W,height:H,getContext:()=>({getImageData:()=>({data:a})})}};
+const rect=(set,x0,y0,w,h,v=255)=>{for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++)set(x,y,v)};
+
+/* a 60x30 px bar with a 20x10 px window cut out, plus a separate 10 px dot */
+{const cv=alphaCanvas(set=>{rect(set,600,300,60,30);rect(set,620,310,20,10,0);rect(set,400,700,10,10)});
  const loops=TR.traceLoops(cv);
  if(loops.length!==3)bad('tracer',`expected 3 loops (bar, window, dot), got ${loops.length}`);
- const shapes=TR.loopsToShapes(loops);
- if(shapes.length!==2)bad('tracer',`expected 2 solids, got ${shapes.length}`);
- const bar=shapes.find(s=>s.holes.length);
- if(!bar)bad('tracer','the window was not attached to the bar as a hole');
- else{const xs=bar.getPoints().map(p=>p.x),ys=bar.getPoints().map(p=>p.y);
-  const wmm=Math.max(...xs)-Math.min(...xs),hmm=Math.max(...ys)-Math.min(...ys);
-  if(Math.abs(wmm-60/PX)>.08||Math.abs(hmm-30/PX)>.08)bad('tracer',`bar traced ${wmm.toFixed(2)}x${hmm.toFixed(2)}mm, want ${(60/PX).toFixed(2)}x${(30/PX).toFixed(2)}`);
-  /* 12 o'clock is +y: the bar sits above the dial centre (canvas y 300 < 600) */
-  if(!(Math.min(...ys)>0))bad('tracer','traced shape is upside down (canvas up must be +y)')}
- const geo=TR.extrudeSilhouette(cv,{depth:.3,bevel:.04});
- if(!geo)bad('tracer','extrusion returned nothing');
- else{geo.computeBoundingBox();const bb=geo.boundingBox;
-  if(Math.abs(bb.min.y)>1e-6||Math.abs(bb.max.y-.3)>1e-6)bad('tracer',`extrusion spans y ${bb.min.y.toFixed(3)}..${bb.max.y.toFixed(3)}, want 0..0.3`);
-  geo.dispose()}}
+ const rel=RL.reliefFromSilhouette(cv,{profile:'bevel',height:.3,edge:.1,bevel:.4});
+ if(!rel)bad('relief','nothing built from the bar');
+ else{const g=rel.geometry;g.computeBoundingBox();const bb=g.boundingBox,p=g.attributes.position;
+  if(Math.abs(bb.min.y)>1e-6||bb.max.y>.3+1e-6||bb.max.y<.25)bad('relief',`bar spans y ${bb.min.y.toFixed(3)}..${bb.max.y.toFixed(3)}, want 0..~0.3`);
+  /* the bar sits above the dial centre: canvas y 300..330 is z -16.7..-15 mm (12 o'clock is -z) */
+  let zMin=1e9,zMax=-1e9,xMin=1e9,xMax=-1e9;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i);if(x<-1)continue;   /* the bar, not the dot at x=-11 mm */
+   zMin=Math.min(zMin,z);zMax=Math.max(zMax,z);xMin=Math.min(xMin,x);xMax=Math.max(xMax,x)}
+  if(!(zMax<-14.9&&zMin>-16.8))bad('relief',`bar at z ${zMin.toFixed(2)}..${zMax.toFixed(2)}, want -16.7..-15`);
+  if(Math.abs((xMax-xMin)-60/PX)>.1)bad('relief',`bar is ${(xMax-xMin).toFixed(2)}mm wide, want ${(60/PX).toFixed(2)}`);
+  /* nothing may be built inside the window */
+  let inWindow=0;for(let i=0;i<p.count;i++){const x=p.getX(i)*PX+600,z=p.getZ(i)*PX+600;if(x>621&&x<639&&z>311&&z<319)inWindow++}
+  if(inWindow)bad('relief',`${inWindow} vertices inside the bar's window`);
+  const n=g.attributes.normal;let bad0=0;for(let i=0;i<n.count;i++)if(!Number.isFinite(n.getX(i))||Math.abs(Math.hypot(n.getX(i),n.getY(i),n.getZ(i))-1)>1e-3)bad0++;
+  if(bad0)bad('relief',`${bad0} bad normals`)}}
+
+/* A dauphine is two flat facets: ground against a straight edge, every point on
+   a facet must share one normal. A long, thin, slightly slanted triangle is the
+   hard case — its edges are the pixel staircases that used to ripple into ribs. */
+{const tip=[600,200],base=[[585,500],[615,500]];
+ const cv=alphaCanvas(set=>{for(let y=200;y<=500;y++){const t=(y-200)/300,hw=15*t;
+  for(let x=Math.floor(600-hw)-1;x<=Math.ceil(600+hw)+1;x++){const cov=Math.max(0,Math.min(1,hw-Math.abs(x+.5-600)+.5));if(cov>0)set(x,y,Math.round(cov*255))}}});
+ const rel=RL.reliefFromSilhouette(cv,{profile:'roof',height:.34,edge:.05});
+ if(!rel)bad('relief','nothing built from the dauphine');
+ else{const g=rel.geometry,p=g.attributes.position,n=g.attributes.normal;
+  /* sample the left facet's top surface away from the rim, the ridge, the tip and the base */
+  const nx=[];let ridge=0;
+  for(let i=0;i<p.count;i++){const x=p.getX(i)*PX+600,y=p.getZ(i)*PX+600;
+   if(n.getY(i)<.5)continue;                                  /* walls */
+   const t=(y-200)/300,hw=15*t;
+   /* at least 2.5 px from the ridge and from the rim, clear of the smoothing */
+   if(y>260&&y<460&&x<600-Math.max(2.5,hw*.3)&&x>600-hw+2.5)nx.push(n.getX(i));
+   if(Math.abs(y-400)<.01&&Math.abs(x-600)<.01)ridge=p.getY(i)}
+  const mean=nx.reduce((a,b)=>a+b,0)/Math.max(1,nx.length),spread=Math.sqrt(nx.reduce((a,b)=>a+(b-mean)*(b-mean),0)/Math.max(1,nx.length));
+  if(nx.length<40)bad('relief',`too few facet samples (${nx.length})`);
+  if(spread>.01)bad('relief',`dauphine facet is not flat: normal x varies by ${spread.toFixed(4)} (ribs)`);
+  /* two-thirds of the way to the base the ridge stands two-thirds of the way up */
+  const want=.05+(.34-.05)*(10/15);
+  if(Math.abs(ridge-want)>.03)bad('relief',`dauphine ridge at y=400 is ${ridge.toFixed(3)}mm high, want ~${want.toFixed(3)}mm`)}}
 
 /* The 3D head must be built from the mm model, not beside it: its apex has to
    land on the stated thickness, its rings on geoOf's radii, and every profile
@@ -103,8 +133,6 @@ const COMBOS=[
   d=>Math.abs(G.crystalMmOf(d)-2.6)<1e-9||`crystal height ${G.crystalMmOf(d)}mm, expected 2.6mm`],
 ];
 
-let fails=0;
-const bad=(name,msg)=>{fails++;console.log(`  FAIL  [${name}] ${msg}`)};
 
 for(const[name,apply,check]of COMBOS){
  const d=M.clone(M.DEF);apply(d);

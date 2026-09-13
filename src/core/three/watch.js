@@ -21,7 +21,27 @@ import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
 import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './materials.js';
-import {extrudeSilhouette} from './tracer.js';
+import {reliefFromSilhouette} from './relief.js';
+
+/* The ground form of each index style (relief.js), heights in mm. `pocket` is
+   the floor of the lume channel; numerals carry no lume. */
+const INDEX_FORM={
+ batons:{profile:'bevel',height:.32,edge:.1,bevel:.42,pocket:.24},
+ minimal:{profile:'bevel',height:.3,edge:.1,bevel:.42,pocket:.23},
+ dots:{profile:'dome',height:.3,edge:.08,bevel:.9,pocket:.22},
+ roman:{profile:'bevel',height:.2,edge:.07,bevel:.6},
+ arabic:{profile:'bevel',height:.22,edge:.07,bevel:.55}};
+
+/* A dauphine is two ground facets meeting at a ridge; batons and swords are
+   bevelled with a flat top carrying the lume; a leaf is rounded. Hour hands
+   stand slightly taller than minute hands. */
+function handForm(variant,which){
+ if(which==='sec')return{profile:'bevel',height:.16,edge:.06,bevel:.6};
+ const tall=which==='hour'?.02:0;
+ if(variant==='dauphine')return{profile:'roof',height:.34+tall,edge:.05};
+ if(variant==='leaf')return{profile:'dome',height:.3+tall,edge:.05,bevel:.85,pocket:.2+tall};
+ const bevel=variant==='sword'?.45:.4;
+ return{profile:'bevel',height:.27+tall,edge:.08,bevel,pocket:.2+tall}}
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
@@ -357,37 +377,43 @@ export function buildHead(d,customs={},{aniso=8}={}){
    hand.position.z=-len/2+len*.12;
    add(reg,key+'Hub',new CylinderGeometry(4/PX,4/PX,.14,20),metalMaterial(hp.metal,'polished'))}}
 
- /* ---- applied indices: solid, on the dial, with their lume laid in ---- */
+ /* ---- applied indices: ground metal on the dial, lume set into a channel ----
+    Each style's form (relief.js): batons bevelled to a flat top, dots domed,
+    numerals with bevelled strokes. The lume decal sits at the channel floor, so
+    it shows only inside the pocket the relief cut for it. */
  const mk=parts.markers,frame=parts.hands.metal;
  if(!uploaded('markers',G.markers,H.dial+.05,mk.glow?{emissive:new Color(mk.lume),emissiveIntensity:.5}:{})){
-  const idxH=mk.variant==='roman'||mk.variant==='arabic'?.2:mk.variant==='dots'?.24:.3;
-  const idxGeo=extrudeSilhouette(getProc('markers',d,undefined,'shape'),{depth:idxH,bevel:.035});
-  if(idxGeo){const m=add(G.markers,'indices',idxGeo,metalMaterial(frame,'polished'));m.position.y=Hc}
-  if(mk.variant!=='roman'&&mk.variant!=='arabic'){
-   const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(getProc('markers',d,undefined,'lume')),mk.lume,mk.glow),{cast:false,noPick:true});
-   lm.position.y=Hc+idxH+.004}}
+  const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
+  const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;
+  const rel=reliefFromSilhouette(getProc('markers',d,undefined,'shape'),{...form,lume:lumeCv});
+  if(rel){const m=add(G.markers,'indices',rel.geometry,metalMaterial(frame,'polished'));m.position.y=Hc}
+  if(lumed){
+   const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(lumeCv),mk.lume,mk.glow),{cast:false,noPick:true});
+   lm.position.y=Hc+form.pocket+.004}}
 
  /* ---- hands: each on its own arbor height; `hand:*` carries its transform,
     the arbor inside it turns with the clock ---- */
  const hp=parts.hands;
  {const holder=new Group();holder.name='hand:upload';G.hands.add(holder);
   if(!uploaded('hands',holder,H.dial+.7)){G.hands.remove(holder);
-   const lift={hour:.28,min:.62,sec:.95},thick={hour:.26,min:.24,sec:.14};
+   const lift={hour:.28,min:.62,sec:.95};
    for(const k of['hour','min','sec']){
     const hold=new Group();hold.name='hand:'+k;G.hands.add(hold);
     const arbor=new Group();arbor.name=k;arbor.position.y=H.dial+lift[k];arbor.userData.spin=k;hold.add(arbor);
-    const geo=extrudeSilhouette(getProc('hands',d,k,'shape'),{depth:thick[k],bevel:k==='sec'?.025:.04});
-    if(!geo)continue;
+    const form=handForm(hp.variant,k),lumed=form.pocket!=null;
+    const lumeCv=lumed?getProc('hands',d,k,'lume'):null;
+    const rel=reliefFromSilhouette(getProc('hands',d,k,'shape'),{...form,lume:lumeCv});
+    if(!rel)continue;
     const bodyMat=k==='sec'
      ?new MeshPhysicalMaterial({color:new Color(hp.secColor||'#e8482c'),roughness:.32,clearcoat:.6,clearcoatRoughness:.1})
      :metalMaterial(hp.metal,hp.finish);
-    add(arbor,k+'Body',geo,bodyMat,{receive:false});
-    if(k!=='sec'&&hp.variant!=='dauphine'){
-     const lm=add(arbor,k+'Lume',sheet(),lumeMaterial(tex(getProc('hands',d,k,'lume')),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
-     lm.position.y=thick[k]+.004}
+    add(arbor,k+'Body',rel.geometry,bodyMat,{receive:false});
+    if(lumed){
+     const lm=add(arbor,k+'Lume',sheet(),lumeMaterial(tex(lumeCv),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
+     lm.position.y=form.pocket+.004}
     if(k==='sec'){/* the pipe that holds the seconds hand, and its dark pinion */
-     const cap=add(arbor,'secCap',new CylinderGeometry(13/PX,13/PX,.22,40),metalMaterial(hp.metal,'polished'));cap.position.y=thick[k]+.11;
-     const pin=add(arbor,'secPin',new CylinderGeometry(5/PX,5/PX,.06,24),new MeshPhysicalMaterial({color:0x1c1e22,roughness:.4}),{cast:false});pin.position.y=thick[k]+.25}}}}
+     const cap=add(arbor,'secCap',new CylinderGeometry(13/PX,13/PX,.22,40),metalMaterial(hp.metal,'polished'));cap.position.y=form.height+.11;
+     const pin=add(arbor,'secPin',new CylinderGeometry(5/PX,5/PX,.06,24),new MeshPhysicalMaterial({color:0x1c1e22,roughness:.4}),{cast:false});pin.position.y=form.height+.25}}}}
 
  /* ---- crystal ---- */
  if(!uploaded('crystal',G.crystal,H.top+.02,{transparent:true,opacity:parts.crystal.opacity,alphaTest:0,depthWrite:false})){

@@ -39,7 +39,10 @@ const CACHE_MAX=32;
 export function getProc(part,d,sub,mode){const key=procKey(part,d,sub,mode);
  if(cache.has(key)){const v=cache.get(key);cache.delete(key);cache.set(key,v);return v}
  const{w,h}=bakeSize(part,mode);
- const cv=document.createElement('canvas');cv.width=w;cv.height=h;const ctx=cv.getContext('2d');
+ /* shape and lume bakes exist to be read back (relief.js): keep their pixels in
+    CPU memory, or every readback waits on a copy back from the GPU */
+ const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+ const ctx=cv.getContext('2d',mode==='shape'||mode==='lume'?{willReadFrequently:true}:undefined);
  if(h!==CAN)ctx.translate(0,(h-CAN)/2);          /* the sheet stays centred */
  DR[part](ctx,procOpts(part,d,sub,mode));
  cache.set(key,cv);if(cache.size>CACHE_MAX)cache.delete(cache.keys().next().value);return cv}
