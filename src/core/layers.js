@@ -9,6 +9,7 @@ import {MF} from './constants.js';
 import {getProc} from './cache.js';
 import {bezelRotatable} from './geometry.js';
 import {tex} from './textures.js';
+import {logoSheet} from './logo.js';
 
 export function buildLayers(d,customs){const P=d.parts;const L=[];
  const cust=part=>{const id=d.active[part];return id&&customs[part]&&customs[part][id]?customs[part][id]:null};
@@ -23,6 +24,8 @@ export function buildLayers(d,customs){const P=d.parts;const L=[];
  const cD=cust('dial');L.push(cD?{key:'dial',url:cD.url,t:P.dial.t,z:6}:{key:'dial',cv:getProc('dial',d),proc:['dial'],t:P.dial.t,z:6});
  /* part of the case, so it is skipped when the case is the user's own image */
  if(!cC)L.push({key:'rehaut',cv:getProc('rehaut',d),proc:['rehaut'],t:P.case.t,z:7});
+ /* the user's logo, once its image has loaded, moving with the dial */
+ const lg=logoSheet(d,customs||{});if(lg&&!(lg instanceof Promise))L.push({key:'logo',cv:lg,t:P.dial.t,z:7.5});
  const cM=cust('markers');L.push(cM?{key:'markers',url:cM.url,t:P.markers.t,z:8,glow:P.markers.glow?P.markers.lume:null}:{key:'markers',cv:getProc('markers',d),proc:['markers'],t:P.markers.t,z:8,glow:P.markers.glow?P.markers.lume:null});
  const cH=cust('hands');
  if(cH)L.push({key:'handsC',url:cH.url,t:P.hands.tM,z:10,filter:MF[P.hands.metal]});

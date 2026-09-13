@@ -25,6 +25,7 @@ import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './ma
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
+import {logoSheet,logoOf,activeLogo} from '../logo.js';
 import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight} from './wear.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
@@ -88,6 +89,7 @@ function extrudeShapes(shapes,{bottom=0,thick=1,bevel=.3,segments=3}={}){
 export function headKey(d,customs){
  const parts={};for(const k in d.parts){const{t,tH,tM,tS,rot,...rest}=d.parts[k];parts[k]=rest}
  const up={};for(const p of PARTS3D){const u=activeUpload(d,customs,p);if(u)up[p]=u.url}
+ const lg=activeLogo(d,customs);if(lg)up.logo=lg.url;
  return JSON.stringify([d.caseMm,d.strapMm,d.bezelMm,d.crownMm,d.case,parts,up])}
 
 /* ---------------------------------------------------------------- materials */
@@ -512,6 +514,16 @@ export function buildHead(d,customs={},{aniso=8}={}){
   if(lumed){
    const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(lumeCv),mk.lume,mk.glow),{cast:false,noPick:true});
    lm.position.y=Hc+form.pocket+.004}}
+
+ /* ---- the user's logo (logo.js): printed as a decal on the dial, or traced
+    and raised in the hands' metal like an applied index ---- */
+ {const ls=logoSheet(d,customs);
+  if(ls instanceof Promise)pending.push(ls);
+  else if(ls){const L=logoOf(d);
+   if(L.style==='applied'){const rel=reliefFromSilhouette(ls,{profile:'bevel',height:.16,edge:.05,bevel:.5});
+    if(rel){const m=add(G.dial,'logo',rel.geometry,metalMaterial(parts.hands.metal,'polished'));m.position.y=Hc}}
+   else{const m=add(G.dial,'logo',sheet(),paintedMaterial(tex(ls),{alphaTest:.4,roughness:.45}),{cast:false,noPick:true});
+    m.position.y=Hc+.006}}}
 
  /* ---- hands: each on its own arbor height; `hand:*` carries its transform,
     the arbor inside it turns with the clock ---- */

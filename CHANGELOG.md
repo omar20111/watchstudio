@@ -41,6 +41,13 @@
   - Unlumed numerals and wedges in a dark metal on a dark dial are printed in
     cream instead, so a black-handed pilot's watch keeps legible numerals.
   - Dial text in Arabic keeps its letters joined (no letter spacing).
+- **Your logo on the dial** (`core/logo.js`, `ui/LogoControls.jsx`). In the Dial
+  panel, add a PNG, SVG or JPG (optionally removing a white background). It is
+  **printed** on the dial — in the dial's ink or its own colours — or
+  **applied**: traced and raised in the hands' metal like the numerals. Size
+  and position sliders, and one click to use it in place of the brand text.
+  The image is kept in the upload vault, so it survives reloads and appears
+  in the product render, photos, AR, the design sheet and the GLB.
 - **Six new themes:** Arabian Heritage, Flieger Pilot, Milanese Dress,
   Tapisserie Sport, Desert Field and Broad Arrow Diver. Shuffle draws on the
   new styles too.

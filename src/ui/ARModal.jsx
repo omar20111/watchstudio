@@ -38,7 +38,8 @@ export function ARModal({onClose}){const s=useApp();
  const[xr,setXr]=useState(null);                   /* the live session's status, while one runs */
  const overlay=useRef(),session=useRef(null);
  const phone=typeof matchMedia!=='undefined'&&matchMedia('(pointer: coarse)').matches;
- const uploads=Object.values(s.d.active||{}).some(Boolean);
+ /* a logo is dial artwork, not a part replaced by a flat picture */
+ const uploads=Object.entries(s.d.active||{}).some(([k,v])=>v&&k!=='logo');
 
  useEffect(()=>{let live=true;
   arSupport().then(m=>{if(live)setMode(m||'none')});
