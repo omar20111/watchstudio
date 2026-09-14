@@ -78,6 +78,13 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **An engraved bezel insert with a raised pip.** A diver or GMT insert was
+  printed flat. Its scale is now cut into it: the ticks and numerals are
+  grooves with sloped walls (a normal map made from the insert's own markings),
+  filled with a satin metal coat that is rougher and metallic where the ceramic
+  is glossy. The lume pip at zero stands proud in a polished setting, a domed
+  dot of lume, and turns with the insert. The GLB carries both, and the
+  validator passes it.
 - **Clearances between the hands and what is on the dial** (`geometry.js`
   CLEARANCES, `logo.js logoBoxOf`).
   - **Height:** a raised part may stand no taller than the underside of the

@@ -38,6 +38,12 @@ function engrave(ctx,x0,y0,x1,y1,w,ink){
    A fixed bezel (smooth/fluted/tachy) has no insert layer and bakes whole. */
 /* The bezel's radial layout. Exported so the 3D lathe puts the grip, the insert
    and the inner chamfer at exactly the radii this drawing does. */
+/* where a rotating insert's lume pip sits, on the sheet, and its sizes: the
+   polished surround and the lume inside it */
+export function bezelPipOf(g,variant){const{W,rTopOut,rInCham}=bezelRings(g,variant),rMid=(rTopOut-W*.03+rInCham)/2;
+ const[x,y]=posAt(0,rMid-(variant==='gmt'?W*0.02:W*0.06));
+ return{x,y,r:W*.19,lume:W*.13}}
+
 export function bezelRings(g,variant){const{rBezOut,rBezIn}=g,W=rBezOut-rBezIn;
  const rot=variant==='diver'||variant==='gmt';
  /* the grip is on the bezel's outer FLANK, which from above is a thin ring — it
@@ -89,10 +95,13 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
   else if(o.variant==='coin')knurl(ctx,m,rBezOut-1,rGripIn+1,200)}
 
  if(rotating){
+  /* shape: only the engraved markings, white on nothing — the 3D insert cuts
+     them into its surface (three/watch.js engravingMaps) */
+  const engr=o.mode==='shape';
   const ins=o.insertColor||(o.variant==='gmt'?'#1c3f66':'#101318');
   const rInsOut=rTopOut-W*0.03,rInsIn=rInCham;
   /* only the insert disc itself — the metal rim around it lives on the ring */
-  band(ctx,rInsOut,rInsIn,ins,()=>{
+  if(!engr)band(ctx,rInsOut,rInsIn,ins,()=>{
    /* A GMT insert is split day/night at the 6 and 18 marks. With 24 at twelve
       o'clock those fall at the 3 and 9 positions, so the division is horizontal
       and the night half is the bottom one. */
@@ -105,13 +114,13 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
    g.addColorStop(.64,'rgba(0,0,0,.24)');g.addColorStop(1,'rgba(255,255,255,.10)');
    ctx.fillStyle=g;ctx.fillRect(C-rInsOut,C-rInsOut,rInsOut*2,rInsOut*2)});
   /* inner shadow so the insert sits in a recess */
-  if(!flat){ctx.save();ringPath(ctx,C,C,rInsOut,rInsIn);ctx.clip();
+  if(!flat&&!engr){ctx.save();ringPath(ctx,C,C,rInsOut,rInsIn);ctx.clip();
    const sg=ctx.createRadialGradient(C,C,rInsIn,C,C,rInsOut);
    sg.addColorStop(0,'rgba(0,0,0,.45)');sg.addColorStop(.18,'rgba(0,0,0,0)');
    sg.addColorStop(.84,'rgba(0,0,0,0)');sg.addColorStop(1,'rgba(0,0,0,.42)');
    ctx.fillStyle=sg;ctx.fillRect(C-rInsOut,C-rInsOut,rInsOut*2,rInsOut*2);ctx.restore()}
 
-  const pin=lumOf(ins)>0.5?'#15181c':'#e9ecef';
+  const pin=engr?'#fff':lumOf(ins)>0.5?'#15181c':'#e9ecef';
   const rMid=(rInsOut+rInsIn)/2;
   if(o.variant==='gmt'){
    for(let h=0;h<24;h++){const a=h*15;const[x0,y0]=posAt(a,rInsOut-3),[x1,y1]=posAt(a,rInsOut-3-W*(h%2?0.14:0.22));
@@ -127,7 +136,8 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
    for(const v of[10,20,30,40,50]){const a=v*6;const[x,y]=posAt(a,rMid-W*0.02);
     ctx.save();ctx.translate(x,y);ctx.rotate(a*Math.PI/180);ctx.fillStyle=pin;
     ctx.fillText(String(v),0,0);ctx.restore()}}
-  /* lume pip in a polished metal surround */
+  /* lume pip in a polished metal surround (in 3D a raised mesh: bezelPipOf) */
+  if(engr)return;
   const[px,py]=posAt(0,rMid-(o.variant==='gmt'?W*0.02:W*0.06));
   ctx.beginPath();ctx.arc(px,py,W*0.19,0,7);ctx.fillStyle=flat?m.base:tone(m,.86);ctx.fill();
   if(!flat){ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1.4;ctx.stroke()}

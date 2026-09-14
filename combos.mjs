@@ -620,5 +620,19 @@ for(const caseMm of[34,40,46])for(const variant of Object.keys(G.INDEX_DEPTH)){
   /* a design can leave no clear second: then only the fallback is allowed */
   if(hit&&s!==G.MARKETING_SECONDS[0])bad(`pose ${caseMm}/${variant}/${date}`,`the seconds hand at ${s}s crosses the ${hit}`)}}
 
+/* a rotating insert's scale is engraved (a normal map and a metal fill map on
+   its own UVs) and its lume pip stands proud in a setting that turns with it */
+for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.variant=variant;const tag=`insert ${variant}`;
+ let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+ const ins=w.getObjectByName('bezelIns');
+ if(!ins){bad(tag,'no insert');continue}
+ if(!(ins.material.normalMap&&ins.material.metalnessMap&&ins.material.roughnessMap===ins.material.metalnessMap))bad(tag,'the insert\'s scale is not engraved and filled');
+ const pip=ins.getObjectByName('bezelPip'),lume=ins.getObjectByName('bezelPipLume');
+ if(!(pip&&lume))bad(tag,'no raised lume pip on the insert');
+ else{lume.geometry.computeBoundingBox();pip.geometry.computeBoundingBox();
+  if(!(lume.geometry.boundingBox.max.y>pip.geometry.boundingBox.max.y))bad(tag,'the lume pip does not stand above its setting');
+  if(!(lume.geometry.boundingBox.max.z<0))bad(tag,'the pip is not at 12 o\'clock');
+  if(!lume.material.userData.lume)bad(tag,'the pip\'s lume is not marked as lume')}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

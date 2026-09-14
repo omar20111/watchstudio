@@ -29,7 +29,8 @@ import {printedIndexInk} from '../render/markers.js';
 import {markerSetOf} from '../markerset/index.js';
 import {addMarkerSet} from './markerset.js';
 import {logoSheet,logoOf,activeLogo} from '../logo.js';
-import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight} from './wear.js';
+import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight,dataTexture} from './wear.js';
+import {bezelPipOf} from '../render/bezel.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
@@ -125,6 +126,33 @@ function dialMaterial(map,p,dialR=null){
  return mat}
 
 /* luminous compound: a faint self-glow only when "lights out" is on */
+/* A rotating insert's engraving as surface detail. Its markings (the bezel's
+   'shape' bake, white on nothing) are cut into the insert as grooves with
+   sloped walls, and filled with a satin metal coat, as a ceramic insert's are.
+   Returns a normal map, and a map with roughness in G and metalness in B, both
+   on the sheet's UVs like the printed insert — or null where the bake cannot
+   be read back. The sheet is a canvas, top row first; a DataTexture's first
+   row is its bottom, so rows are read flipped. Cached per bake. */
+const engravings=new WeakMap();
+function engravingMaps(cv){if(engravings.has(cv))return engravings.get(cv);
+ let out=null;
+ try{const W=cv.width,px=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,W).data;
+  if(!px||px.length<W*W*4)throw new Error('no pixels');
+  const a=new Float32Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++)a[y*W+x]=px[((W-1-y)*W+x)*4+3]/255;
+  /* a box blur twice over is close to a gaussian: the groove's walls slope over a few px */
+  let b=a;for(let pass=0;pass<2;pass++){const t=new Float32Array(W*W),o=new Float32Array(W*W),R=2,n=2*R+1;
+   for(let y=0;y<W;y++){let s=0;for(let x=-R;x<=R;x++)s+=b[y*W+Math.min(W-1,Math.max(0,x))];
+    for(let x=0;x<W;x++){t[y*W+x]=s/n;s+=b[y*W+Math.min(W-1,x+R+1)]-b[y*W+Math.max(0,x-R)]}}
+   for(let x=0;x<W;x++){let s=0;for(let y=-R;y<=R;y++)s+=t[Math.min(W-1,Math.max(0,y))*W+x];
+    for(let y=0;y<W;y++){o[y*W+x]=s/n;s+=t[Math.min(W-1,y+R+1)*W+x]-t[Math.max(0,y-R)*W+x]}}
+   b=o}
+  const normal=normalsFromHeight(W,(x,y)=>-b[y*W+x],1.8);
+  const mr=new Uint8Array(W*W*4);
+  for(let i=0;i<W*W;i++){const m=a[i];mr[i*4+1]=Math.round((.34+.18*m)*255);mr[i*4+2]=Math.round(.9*m*255);mr[i*4+3]=255}
+  out={normal,mr:dataTexture(W,W,mr)}}
+ catch(e){out=null}
+ engravings.set(cv,out);return out}
+
 function lumeMaterial(map,lume,glow){
  const mat=paintedMaterial(map,{alphaTest:.5,roughness:.62});
  if(glow){mat.emissive=new Color(lume);mat.emissiveMap=map;mat.emissiveIntensity=.9}
@@ -504,11 +532,24 @@ export function buildHead(d,customs={},{aniso=8}={}){
   add(G.bezel,'bezelInner',lathe(P.bezelInner),bezelMat('bevel'));
   const ring=(r0,r1)=>faceUp(sheetUV(new RingGeometry(r0,r1,180,1)));
   if(bezelRotatable(d)){
-   const ins=add(G.bezel,'bezelIns',ring(Rr.rInCham,Rr.rInsOut),
-    /* anodised or ceramic: a light coat only — a strong clearcoat mirrors the
-       overhead softbox and turns a black insert grey */
-    new MeshPhysicalMaterial({map:tex(getProc('bezel',d,'insert','flat')),roughness:.34,clearcoat:.22,clearcoatRoughness:.18}),{cast:false});
-   ins.position.y=H.bezelTop+.012;ins.userData.spin='bezelIns'}
+   /* anodised or ceramic: a light coat only — a strong clearcoat mirrors the
+      overhead softbox and turns a black insert grey */
+   const insMat=new MeshPhysicalMaterial({map:tex(getProc('bezel',d,'insert','flat')),roughness:.34,clearcoat:.22,clearcoatRoughness:.18});
+   /* the scale engraved into it and filled with metal */
+   const eng=engravingMaps(getProc('bezel',d,'insert','shape'));
+   if(eng){insMat.normalMap=eng.normal;insMat.normalScale=new Vector2(1,1);
+    insMat.roughnessMap=insMat.metalnessMap=eng.mr;insMat.roughness=1;insMat.metalness=1}
+   const ins=add(G.bezel,'bezelIns',ring(Rr.rInCham,Rr.rInsOut),insMat,{cast:false});
+   ins.position.y=H.bezelTop+.012;ins.userData.spin='bezelIns';
+   /* the lume pip at zero stands proud in a polished setting, and turns with the insert */
+   {const pip=bezelPipOf(geoOf(d),bz.variant),x=(pip.x-C)/PX,z=(pip.y-C)/PX,ro=pip.r/PX,rl=pip.lume/PX,Vv=(a,b)=>new Vector2(a,b);
+    const cup=lathe([Vv(ro,0),Vv(ro,.18),Vv(ro-.06,.26),Vv(rl,.26),Vv(rl,.14)],48);cup.translate(x,0,z);
+    add(ins,'bezelPip',cup,metalMaterial(bz.metal,'polished'),{receive:false});
+    const dome=[];for(let i=0;i<=10;i++){const t=i/10;dome.push(Vv(rl*Math.cos(t*Math.PI/2),.14+.2*Math.sin(t*Math.PI/2)))}
+    dome[10]=Vv(0,.34);const lm=lathe(dome,40);lm.translate(x,0,z);
+    const lumeMat=new MeshStandardMaterial({color:new Color(parts.markers.lume||'#dff3e4'),roughness:.55,metalness:0});
+    lumeMat.userData.lume=parts.markers.lume||'#dff3e4';
+    add(ins,'bezelPipLume',lm,lumeMat,{cast:false,receive:false})}}
   else if(bz.variant==='tachy'){
    const pr=add(G.bezel,'bezelPrint',ring(Rr.rInCham,Rr.rGripIn),paintedMaterial(tex(getProc('bezel',d,undefined,'print')),{alphaTest:.35,roughness:.6}),{cast:false});
    pr.position.y=H.bezelTop+.008}}
