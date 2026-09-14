@@ -35,7 +35,7 @@ const browser=await chromium.launch({channel:channel==='chromium'?undefined:chan
  /* CI runners have no GPU and run Chrome without its user-namespace sandbox */
  args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist',...(process.env.CI?['--no-sandbox']:[])]});
 
-const SUITES=['welcome','editor','markers','partstudio','crystal','movement','touch','logo','ar','photo','glb'];
+const SUITES=['welcome','editor','markers','partstudio','crystal','movement','night','touch','logo','ar','photo','glb'];
 const only=(process.env.E2E_ONLY||'').split(',').filter(Boolean);
 const suites=only.length?SUITES.filter(s=>only.includes(s)):SUITES;
 

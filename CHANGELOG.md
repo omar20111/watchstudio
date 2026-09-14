@@ -78,6 +78,15 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **Night mode** (the Night button by the cameras, or N). The lights go out: the
+  studio drops to a faint moonlight, and every lume material glows in its own
+  colour through its own shape. That covers the indices' lume, the hands' lume,
+  a rotating insert's pip and a PartStudio set's lume. The watch is only just
+  visible around it, and the stage's backdrop darkens with it. Turning it off
+  restores the daylight look exactly, including a lume's own Glow setting. It
+  needs no rebuild, so it switches instantly, and it is saved with the design.
+  Checked in `combos.mjs` (what is marked as lume) and `e2e/tests/night.mjs`
+  (on a diver: all four lumes glow, the studio dims, N restores daylight).
 - **A bracelet with fitted end links and a folding clasp** (`geometry.js
   BRACELET_MM`). The bracelet was the same run of links on both sides, with a
   plain block as its end link. It now lies open on the table as a real one

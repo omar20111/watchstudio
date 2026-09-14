@@ -163,6 +163,8 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
      drag latched, so the part followed the cursor with no button held */
   onPointerCancel={end} onLostPointerCapture={end}>
 
+  {/* at night the backdrop goes dark with the studio (view.js applyNight) */}
+  {!flat&&d.night&&<div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(90% 80% at 50% 45%, rgba(8,12,18,.82) 0%, rgba(2,3,6,.94) 100%)'}}/>}
   {!flat&&<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label={`Watch, ${camera} view`}/>}
   {lost&&<RestoringNotice/>}
   {camera==='profile'&&<canvas ref={overlay} className="absolute inset-0 w-full h-full pointer-events-none"/>}
@@ -201,6 +203,8 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
       :off?`An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ${label} view is unavailable while one is in use`:id==='back'?'Back camera: the caseback, and the movement behind an exhibition window':`${label} camera`}
      style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
      onClick={()=>s.setD(n=>{n.camera=id})}>{label}</button>})}
+   {!flat&&<button className={`chip ${d.night?'on':''}`} aria-pressed={!!d.night} title={d.night?'Lights on (N)':'Lights out: see the lume glow (N)'}
+    onClick={()=>s.setD(n=>{n.night=!n.night})}>Night</button>}
    {camera==='three-quarter'&&<button className="chip" title="Reset the orbit" onClick={()=>{view.current&&view.current.fit();redraw();s.setD(n=>{n.zoom=1})}}>Reset</button>}
    {/* here as well as the toolbar: on a phone the toolbar's end is scrolled out of view */}
    {onAR&&<button className="chip" title="See it in your room at real size" aria-label="View in AR" onClick={onAR}>AR</button>}

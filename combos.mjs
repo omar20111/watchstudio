@@ -634,6 +634,16 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   if(!(lume.geometry.boundingBox.max.z<0))bad(tag,'the pip is not at 12 o\'clock');
   if(!lume.material.userData.lume)bad(tag,'the pip\'s lume is not marked as lume')}}
 
+/* night mode lights what is marked as lume: the indices' lume, the hands' lume
+   and a rotating insert's pip, each in its own colour — and nothing else */
+{const d=M.clone(M.DEF);d.parts.bezel.variant='diver';d.parts.hands.variant='sword';d.parts.markers.lume='#9fd8ff';
+ const w=M.buildHead(d,{}),lume=new Map();
+ w.traverse(o=>{if(o.isMesh&&o.material.userData&&o.material.userData.lume)lume.set(o.name,o.material.userData.lume)});
+ for(const n of['indicesLume','bezelPipLume'])if(!lume.has(n))bad('night',`${n} is not marked as lume`);
+ /* (hands are ground from their baked silhouette, blank under these mocks: their lume is checked in e2e/tests/night.mjs) */
+ if(lume.get('indicesLume')!=='#9fd8ff')bad('night',`the indices glow ${lume.get('indicesLume')}, not their lume colour`);
+ for(const n of lume.keys())if(!/Lume$/.test(n))bad('night',`${n} is marked as lume`)}
+
 /* a bracelet: its end links close up to the case without entering it, the
    6 o'clock half ends in a folding clasp lying on the table at the stated
    length, the 12 o'clock half in the bar the clasp locks onto */

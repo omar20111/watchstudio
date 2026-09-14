@@ -110,6 +110,8 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
    case'[':case']':{e.preventDefault();const b=base0(sel);const dr=(e.shiftKey?15:2)*(e.key===']'?1:-1);
     patchPartT(sel,{r:Math.round(normDeg(b.r+dr))},'rot:'+sel);break}
    case'f':case'F':st.setD(n=>{n.zoom=1});break;
+   /* N: lights out, the lume glows (and back on) */
+   case'n':case'N':if(webglState().ok)st.setD(n=>{n.night=!n.night});break;
    /* V cycles cameras, 0 resets the bezel, Space/R drive the chronograph */
    case'v':case'V':{e.preventDefault();
     /* front -> three-quarter -> back -> side; a flat uploaded case, bezel, crown,

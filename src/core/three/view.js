@@ -120,6 +120,21 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
 
  const cam=()=>camera==='three-quarter'?tq:camera==='side'?side:camera==='back'?back:front;
 
+ /* Night: the studio goes down to a faint moonlight and the lume shows what it
+    is for. Every material marked as lume (userData.lume: its colour) glows in
+    that colour through its own texture, far brighter than anything the dim
+    light can make; the rest of the watch is only just there. Its daylight
+    emissive is kept aside and given back when the lights come on. */
+ let night=false;const daylight=new WeakMap();
+ const applyNight=()=>{scene.environmentIntensity=night?.035:1;key.intensity=night?.09:1.5;
+  if(!watch)return;
+  watch.traverse(o=>{const m=o.isMesh&&o.material;if(!m||!m.userData||!m.userData.lume||!m.emissive)return;
+   if(!daylight.has(m))daylight.set(m,{emissive:m.emissive.getHex(),map:m.emissiveMap,i:m.emissiveIntensity});
+   const day=daylight.get(m),hadMap=!!m.emissiveMap;
+   if(night){m.emissive.set(m.userData.lume);m.emissiveMap=m.map||null;m.emissiveIntensity=2.6}
+   else{m.emissive.setHex(day.emissive);m.emissiveMap=day.map;m.emissiveIntensity=day.i}
+   if(hadMap!==!!m.emissiveMap)m.needsUpdate=true})};
+
  const view={
   renderer,scene,
   camera:cam,target:()=>target,orbit,
@@ -134,7 +149,10 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     /* the watch rests on its strap, so the table is wherever the strap lands */
     ground.position.y=watch.userData.groundY-.02;placeSurface();
     target.set(0,watch.userData.heights.dial,0);aim();
-    if(watch.userData.pending)watch.userData.pending.then(()=>{built='';if(onDirty)onDirty()})}
+    if(watch.userData.pending)watch.userData.pending.then(()=>{built='';if(onDirty)onDirty()});
+    /* a new watch's lume starts in daylight: light it again if it is night */
+    if(night)applyNight()}
+   if(!!d.night!==night){night=!!d.night;applyNight()}
    applyPose(watch,d);ground.visible=groundOn(d);
    return watch.userData.pending},
   /* would setDesign rebuild? (lets a caller throttle rebuilds but not poses) */
@@ -172,6 +190,8 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
    renderer.setScissorTest(false)},
   /* is something moving in view that the clock does not tick once a second — the
      balance behind an exhibition caseback, seen from below */
+  /* night mode on (lume lit, studio dimmed), for the stage and for tests */
+  get night(){return night},
   get moving(){if(!watch||camera!=='back')return false;let m=false;
    watch.traverse(o=>{const k=o.userData&&o.userData.spin;if(k==='balance'||k==='glide')m=true});return m},
   /* the design part under a canvas-relative point (px), or null */

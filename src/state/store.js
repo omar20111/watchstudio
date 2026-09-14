@@ -20,7 +20,7 @@ export const DIMS=['caseMm','strapMm','bezelMm','crownMm'];
 export const DEF={caseMm:40,strapMm:'auto',
  bezelMm:'auto',crownMm:'auto',
  case:DEF_CASE(),
- view:'edit',camera:'front',zoom:1,shadow:true,bg:'studio',bgCustom:null,active:{},
+ view:'edit',camera:'front',zoom:1,night:false,shadow:true,bg:'studio',bgCustom:null,active:{},
  /* the product render's staging: the surface the watch lies on, and how much a
     photo's lens blurs what is out of focus */
  product:{surface:'studio',blur:'soft'},
@@ -93,6 +93,7 @@ export function hydrate(saved,schemaVersion){const d=clone(DEF);if(!saved)return
  d.bg=s.bg??d.bg;d.bgCustom=s.bgCustom??null;d.shadow=s.shadow!==false;
  d.view=s.view==='product'||s.view==='sheet'?s.view:'edit';
  d.camera=['profile','three-quarter','back'].includes(s.camera)?s.camera:'front';
+ d.night=!!s.night;
  if(s.case)d.case={...d.case,...clone(s.case)};
  if(s.time)d.time={...d.time,...clone(s.time)};
  if(s.chrono)d.chrono={...d.chrono,...clone(s.chrono)};

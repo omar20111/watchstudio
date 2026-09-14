@@ -37,6 +37,7 @@ function solidOf(s,h){const key=geometryKey(s)+(s.kind==='numeral'?'|'+h:'');
 const METAL_OF={steel:'steel',white:'steel',gold:'gold',rose:'rose',black:'black',blued:'steel'};
 const FINISH_OF={polished:'polished',brushed:'brushed',frosted:'matte'};
 function lumeMat(color,glow){const m=new MeshStandardMaterial({color:new Color(color),roughness:.62,metalness:0});
+ m.userData.lume=color;               /* night mode lights it (view.js) */
  if(glow){m.emissive=new Color(color);m.emissiveIntensity=.9}return m}
 function bodyMat(s,glow){const M=MATERIALS[s.material];
  if(M.kind==='paint')return new MeshPhysicalMaterial({color:new Color(s.paint),metalness:0,roughness:.5,clearcoat:.35,clearcoatRoughness:.3});

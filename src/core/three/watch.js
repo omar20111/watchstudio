@@ -165,6 +165,8 @@ function claspMarkMaterial(text){let t=claspMarks.get(text);
 
 function lumeMaterial(map,lume,glow){
  const mat=paintedMaterial(map,{alphaTest:.5,roughness:.62});
+ /* marked, so night mode (view.js) can light it in its own colour */
+ mat.userData.lume=lume||'#dff3e4';
  if(glow){mat.emissive=new Color(lume);mat.emissiveMap=map;mat.emissiveIntensity=.9}
  return mat}
 
