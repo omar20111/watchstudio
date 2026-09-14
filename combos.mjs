@@ -386,6 +386,29 @@ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(cons
  if(pitch-glyphHalf<=halfTravel)bad(tag,`neighbouring days would show (pitch ${pitch.toFixed(1)}px, window ${halfTravel.toFixed(1)}px)`);
 }
 
+/* finish zones: a brushed case, bezel and crown keep polished bevels; a polished
+   one is polished and a blasted one blasted everywhere; the lugs' edges are
+   their own faces, a real share of the lug and not all of it */
+{const MT=await import('./src/core/three/materials.js');
+ const ZONES={caseback:'turned',casebackRim:'bevel',flank:'surface',chamfer:'bevel',seat:'bevel',lugs:'surface',lugEdges:'bevel',
+  guards:'surface',guardEdges:'bevel',pusherShoulder:'surface',pusherHead:'bevel',
+  crownTube:'bevel',crownInner:'surface',crownSide:'surface',crownEnd:'bevel',
+  bezelFlank:'surface',bezelEdge:'bevel',bezelTop:'surface',bezelInner:'bevel'};
+ const WANT={polished:{surface:'polished',bevel:'polished',turned:'brushed'},brushed:{surface:'brushed',bevel:'polished',turned:'brushed'},
+  matte:{surface:'matte',bevel:'matte',turned:'matte'}};
+ for(const finish of['polished','brushed','matte'])for(const variant of['classic','sport']){
+  const d=M.clone(M.DEF);Object.assign(d.parts.case,{finish,variant});d.parts.bezel.finish=finish;d.parts.crown.finish=finish;
+  d.case.pushers=true;d.parts.bezel.variant='diver';
+  const tag=`zones ${finish}/${variant}`;let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const seen=new Set();
+  w.traverse(o=>{if(!o.isMesh||!(o.name in ZONES))return;seen.add(o.name);
+   const got=MT.finishOf.get(o.material),want=WANT[finish][ZONES[o.name]];
+   if(got!==want)bad(tag,`${o.name} is ${got}, a ${ZONES[o.name]} of a ${finish} part should be ${want}`)});
+  for(const n of Object.keys(ZONES))if(!seen.has(n)&&!(n.startsWith('guard')&&variant!=='sport'))bad(tag,`no ${n} mesh`);
+  const tris=n=>{let c=0;w.traverse(o=>{if(o.isMesh&&o.name===n)c+=o.geometry.index.count/3});return c};
+  const share=tris('lugEdges')/(tris('lugs')+tris('lugEdges'));
+  if(!(share>.1&&share<.8))bad(tag,`the lugs' edges are ${(share*100).toFixed(0)}% of the lug`)}}
+
 /* the crystal is a closed solid of sapphire: its underside clears the hands
    everywhere over the dial, it is never ground thinner than a crystal can be,
    and its rim rests above the rehaut. A cyclops sits on a flat top over the

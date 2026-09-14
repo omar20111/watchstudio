@@ -11,7 +11,7 @@
    crystal) carries `userData.part`, so picking and the part transforms address
    the same parts the panels do. */
 import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,BoxGeometry,ExtrudeGeometry,Shape,Path,ShapeGeometry,Matrix4,
-        BufferGeometry,Float32BufferAttribute,CanvasTexture,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,
+        BufferGeometry,BufferAttribute,Float32BufferAttribute,CanvasTexture,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,
         Color,Vector2} from 'three';
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
@@ -22,7 +22,7 @@ import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPT
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
-import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint} from './materials.js';
+import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
@@ -314,6 +314,28 @@ function braceletParts(d,dir){
    for(const sx of[-1,1]){const b2=bar.clone();b2.translate(sx*(cw/2+seam/2),-T*.12,0);pins.push(place(b2,mid))}bar.dispose()}}
  return{outer:mergeGeometries(outer),centre:mergeGeometries(centre),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p))}}
 
+/* ---------------------------------------------------------------- finish zones */
+
+/* An extrusion's faces by what they are: its flat top and bottom and its straight
+   sides are surface, the rounded band between them the bevel that takes a polish.
+   Read from each triangle's facing on the straight extrusion, before it is bent.
+   Returns index lists into the geometry. */
+function bevelZones(geo){const p=geo.attributes.position,ix=geo.index.array,surface=[],bevel=[];
+ for(let t=0;t<ix.length;t+=3){const a=ix[t],b=ix[t+1],c=ix[t+2];
+  const ux=p.getX(b)-p.getX(a),uy=p.getY(b)-p.getY(a),uz=p.getZ(b)-p.getZ(a),vx=p.getX(c)-p.getX(a),vy=p.getY(c)-p.getY(a),vz=p.getZ(c)-p.getZ(a);
+  const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,l=Math.hypot(nx,ny,nz);if(l<1e-12)continue;
+  const up=Math.abs(ny/l);(up>.97||up<.03?surface:bevel).push(a,b,c)}
+ return{surface,bevel}}
+/* one zone of a geometry as its own geometry, on the same vertices and normals,
+   so shading runs on unbroken across the line where the finish changes */
+function zonePart(geo,index){const at=new Map(),order=[];
+ const ix=index.map(i=>{let j=at.get(i);if(j==null){j=order.length;at.set(i,j);order.push(i)}return j});
+ const g=new BufferGeometry();
+ for(const k in geo.attributes){const a=geo.attributes[k],n=a.itemSize,arr=new a.array.constructor(order.length*n);
+  order.forEach((i,o)=>{for(let c=0;c<n;c++)arr[o*n+c]=a.array[i*n+c]});
+  g.setAttribute(k,new BufferAttribute(arr,n,a.normalized))}
+ g.setIndex(ix);return g}
+
 /* ---------------------------------------------------------------- cyclops */
 
 /* The cyclops lens (geometry.js cyclopsOf) in its own frame: its base on y=0,
@@ -405,23 +427,32 @@ export function buildHead(d,customs={},{aniso=8}={}){
    add(G.strap,'strap:buckle',bk.frame,pol());
    add(G.strap,'strap:tongue',bk.tongue,pol())}
 
- /* ---- case: turned flank, polished chamfer, horns, caseback ---- */
- const cm=parts.case;
+ /* ---- case: turned flank, polished chamfer, horns, caseback ----
+    Each face takes its zone's finish (materials.js zoneFinish): the case's own
+    finish on its surfaces, a polish on its bevels. */
+ const cm=parts.case,caseMat=zone=>metalMaterial(cm.metal,zoneFinish(cm.finish,zone));
  if(!uploaded('case',G.case,H.seat)){
-  add(G.case,'caseback',lathe(P.caseback),metalMaterial(cm.metal,'brushed'));
-  add(G.case,'flank',lathe(P.flank),metalMaterial(cm.metal,cm.finish));
-  add(G.case,'chamfer',lathe(P.chamfer),metalMaterial(cm.metal,'polished'));
-  add(G.case,'seat',lathe(P.seat),metalMaterial(cm.metal,cm.finish));
+  add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
+  add(G.case,'casebackRim',lathe(P.casebackRim),caseMat('bevel'));
+  add(G.case,'flank',lathe(P.flank),caseMat('surface'));
+  add(G.case,'chamfer',lathe(P.chamfer),caseMat('bevel'));
+  add(G.case,'seat',lathe(P.seat),caseMat('bevel'));
   add(G.case,'rehaut',lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
   const lp=lugParts(d);
   const lugGeo=smooth(extrudeShapes(lp.shapes,{bottom:lp.bottom,thick:lp.thick,bevel:.45,segments:4}));
+  /* which faces are the lugs' rounded edges is read before the lugs are bent down */
+  const lugZones=bevelZones(lugGeo);
   {const p=lugGeo.attributes.position;
    for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)-lp.drop*smoothstep(lp.z0,lp.z1,Math.abs(p.getZ(i))));
    lugGeo.computeVertexNormals()}
-  add(G.case,'lugs',lugGeo,metalMaterial(cm.metal,cm.finish));
+  add(G.case,'lugs',zonePart(lugGeo,lugZones.surface),caseMat('surface'));
+  add(G.case,'lugEdges',zonePart(lugGeo,lugZones.bevel),caseMat('bevel'));
+  lugGeo.dispose();
   const guards=guardShapes(d);
   if(guards.length){const gh=Math.min(H.seat-H.back-.6,Rr.rCase*.34);
-   add(G.case,'guards',smooth(extrudeShapes(guards,{bottom:cp.axisY-gh/2,thick:gh,bevel:.35})),metalMaterial(cm.metal,cm.finish))}
+   const gg=smooth(extrudeShapes(guards,{bottom:cp.axisY-gh/2,thick:gh,bevel:.35})),gz=bevelZones(gg);
+   add(G.case,'guards',zonePart(gg,gz.surface),caseMat('surface'));
+   add(G.case,'guardEdges',zonePart(gg,gz.bevel),caseMat('bevel'));gg.dispose()}
   /* the caseback face: engraving, or the movement behind a sapphire window */
   const backTex=tex(getProc('caseback',d,undefined,'flat'));
   const faceDown=geo=>{geo.rotateX(Math.PI/2);geo.rotateY(Math.PI);return geo};
@@ -431,39 +462,40 @@ export function buildHead(d,customs={},{aniso=8}={}){
    const glass=add(G.case,'backGlass',faceDown(new CircleGeometry(rw,96)),crystalMaterial('polished',.5),{cast:false,receive:false});
    glass.position.y=.02}
   else{const face=add(G.case,'backFace',faceDown(sheetUV(new CircleGeometry(Rr.rCase*.8,120))),
-    Object.assign(metalMaterial(cm.metal,'brushed'),{map:backTex,color:new Color(0xffffff)}),{cast:false});
+    Object.assign(caseMat('turned'),{map:backTex,color:new Color(0xffffff)}),{cast:false});
    face.position.y=-.003}
   /* pushers are part of the case band */
   for(const pu of cp.pushers){const grp=new Group();grp.position.y=cp.axisY;grp.rotation.y=-(pu.bearing-90)*Math.PI/180;G.case.add(grp);
    const sh=new CylinderGeometry(pu.shoulder.r,pu.shoulder.r,pu.shoulder.x1-pu.shoulder.x0,24);sh.rotateZ(Math.PI/2);sh.translate((pu.shoulder.x0+pu.shoulder.x1)/2,0,0);
-   add(grp,'pusherShoulder',sh,metalMaterial(cm.metal,cm.finish));
+   add(grp,'pusherShoulder',sh,caseMat('surface'));
    const r=pu.head.r,L=pu.head.len,e=Math.min(.3,r*.25),Vv=(x,y)=>new Vector2(x,y);
    const hd=lathe([Vv(pu.shoulder.r,0),Vv(r-e,0),Vv(r,e),Vv(r,L-e),Vv(r-e,L),Vv(0,L)],48);
    hd.rotateZ(-Math.PI/2);hd.translate(pu.head.x0,0,0);
-   add(grp,'pusherHead',hd,metalMaterial(cm.metal,'polished'))}}
+   add(grp,'pusherHead',hd,caseMat('bevel'))}}
 
  /* ---- crown: tube, knurled barrel, domed end, swung to its bearing ---- */
  if(!uploaded('crown',G.crown,cp.axisY+cp.tube.r*5)){
-  const cr=parts.crown,grp=new Group();grp.position.y=cp.axisY;grp.rotation.y=-(cp.bearing-90)*Math.PI/180;G.crown.add(grp);
+  const cr=parts.crown,crownMat=zone=>metalMaterial(cr.metal,zoneFinish(cr.finish,zone)),grp=new Group();grp.position.y=cp.axisY;grp.rotation.y=-(cp.bearing-90)*Math.PI/180;G.crown.add(grp);
   const tube=new CylinderGeometry(cp.tube.r,cp.tube.r,cp.tube.x1-cp.tube.x0,32);tube.rotateZ(Math.PI/2);tube.translate((cp.tube.x0+cp.tube.x1)/2,0,0);
-  add(grp,'crownTube',tube,metalMaterial(cr.metal,'polished'));
+  add(grp,'crownTube',tube,crownMat('bevel'));
   const along=pts=>{const g=lathe(pts,72);g.rotateZ(-Math.PI/2);g.translate(cp.barrelX,0,0);return g};
-  add(grp,'crownInner',along(cp.inner),metalMaterial(cr.metal,cr.finish));
-  const knurl=metalMaterial(cr.metal,cr.finish);knurl.normalMap=stripeNormalMap(cp.teeth,'knurl');knurl.normalScale=new Vector2(1,1);
+  add(grp,'crownInner',along(cp.inner),crownMat('surface'));
+  const knurl=crownMat('surface');knurl.normalMap=stripeNormalMap(cp.teeth,'knurl');knurl.normalScale=new Vector2(1,1);
   add(grp,'crownSide',along(cp.side),knurl);
-  add(grp,'crownEnd',along(cp.end),metalMaterial(cr.metal,'polished'))}
+  add(grp,'crownEnd',along(cp.end),crownMat('bevel'))}
 
  /* ---- bezel ---- */
- const bz=parts.bezel;
+ const bz=parts.bezel,bezelMat=zone=>metalMaterial(bz.metal,zoneFinish(bz.finish,zone));
  if(!uploaded('bezel',G.bezel,H.bezelTop+.02)){
-  const flankMat=metalMaterial(bz.metal,bz.finish);
+  const flankMat=bezelMat('surface');
   if(Rr.rotating){flankMat.normalMap=stripeNormalMap(110,'knurl');flankMat.normalScale=new Vector2(.9,.9)}
   else if(bz.variant==='coin'){flankMat.normalMap=stripeNormalMap(220,'knurl');flankMat.normalScale=new Vector2(.8,.8)}
   add(G.bezel,'bezelFlank',lathe(P.bezelFlank),flankMat);
-  const topMat=metalMaterial(bz.metal,bz.finish);
+  add(G.bezel,'bezelEdge',lathe(P.bezelEdge),bezelMat('bevel'));
+  const topMat=bezelMat('surface');
   if(bz.variant==='fluted'){topMat.normalMap=stripeNormalMap(84,'flute');topMat.normalScale=new Vector2(1.4,1.4)}
   add(G.bezel,'bezelTop',lathe(P.bezelTop),topMat);
-  add(G.bezel,'bezelInner',lathe(P.bezelInner),metalMaterial(bz.metal,'polished'));
+  add(G.bezel,'bezelInner',lathe(P.bezelInner),bezelMat('bevel'));
   const ring=(r0,r1)=>faceUp(sheetUV(new RingGeometry(r0,r1,180,1)));
   if(bezelRotatable(d)){
    const ins=add(G.bezel,'bezelIns',ring(Rr.rInCham,Rr.rInsOut),

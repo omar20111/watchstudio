@@ -51,7 +51,9 @@ export function headProfiles(d){
 
  /* an exhibition back is a ring around a sapphire window, its wall facing in */
  const back0=arch.caseback==='exhibition'?[V(rCase*CASEBACK_WINDOW,H.back*.55),V(rCase*CASEBACK_WINDOW,0)]:[V(0,0)];
- P.caseback=[...back0,V(rCase*.80,0),...round(V(rCase*.80,0),V(rCase*.88,0),V(rCase*.88,H.back*.6),4),
+ P.caseback=[...back0,V(rCase*.80,0)];
+ /* its rounded rim, polished apart from the turned centre */
+ P.casebackRim=[V(rCase*.80,0),...round(V(rCase*.80,0),V(rCase*.88,0),V(rCase*.88,H.back*.6),4),
   V(rCase*.88,H.back*.6),V(rCase*.92,H.back)];
 
  /* mid-case flank: tucks in under the caseback, rises vertically to the chamfer */
@@ -63,12 +65,15 @@ export function headProfiles(d){
  /* bezel: flank, then a top face that is flat for an insert and crowned for a
     dress bezel, then the inner chamfer dropping to the crystal */
  const bh=H.bezelTop-H.seat,eb=Math.min(.3,bh*.28);
- P.bezelFlank=[V(rBezOut,H.seat),V(rBezOut,H.bezelTop-eb),...round(V(rBezOut,H.bezelTop-eb),V(rBezOut,H.bezelTop),V(rBezOut-eb,H.bezelTop)),
-  V(rBezOut-eb,H.bezelTop),V(rGripIn,H.bezelTop)];
+ P.bezelFlank=[V(rBezOut,H.seat),V(rBezOut,H.bezelTop-eb)];
+ /* the rounded edge between flank and top, polished (materials.js zoneFinish) */
+ P.bezelEdge=[V(rBezOut,H.bezelTop-eb),...round(V(rBezOut,H.bezelTop-eb),V(rBezOut,H.bezelTop),V(rBezOut-eb,H.bezelTop)),V(rBezOut-eb,H.bezelTop)];
+ /* the top runs on from the edge; a grip ring's flat lies between them */
+ const grip=rGripIn<rBezOut-eb-1e-6?[V(rBezOut-eb,H.bezelTop)]:[];
  /* an insert, or an engraved tachymeter scale, needs a flat face to sit on */
- if(Rr.rotating||d.parts.bezel.variant==='tachy')P.bezelTop=[V(rGripIn,H.bezelTop),V(rInCham,H.bezelTop)];
+ if(Rr.rotating||d.parts.bezel.variant==='tachy')P.bezelTop=[...grip,V(rGripIn,H.bezelTop),V(rInCham,H.bezelTop)];
  else{const crown=bh*.18,mid=(rGripIn+rInCham)/2;
-  P.bezelTop=[V(rGripIn,H.bezelTop),...round(V(rGripIn,H.bezelTop),V(mid,H.bezelTop+crown*1.6),V(rInCham,H.bezelTop),8),V(rInCham,H.bezelTop)]}
+  P.bezelTop=[...grip,V(rGripIn,H.bezelTop),...round(V(rGripIn,H.bezelTop),V(mid,H.bezelTop+crown*1.6),V(rInCham,H.bezelTop),8),V(rInCham,H.bezelTop)]}
  const innerDrop=Math.min(bh*.45,(rInCham-rBezIn)*1.6);
  P.bezelInner=[V(rInCham,H.bezelTop),V(rBezIn,H.bezelTop-innerDrop)];
 

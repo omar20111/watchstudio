@@ -68,6 +68,23 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **Finish zones on the case, bezel and crown** (`materials.js zoneFinish`).
+  A finish used to cover a whole part, so a brushed case had brushed bevels
+  too. Now:
+  - the finish you choose covers the flat surfaces: the case band, lug tops and
+    sides, crown-guard faces, the bezel's top and side, and the crown barrel;
+  - the bevels are polished on a brushed case: the case chamfer, the lugs' and
+    crown guards' rounded edges (their own faces now, split from the
+    straight extrusion before the lugs are bent down), the bezel's outer and
+    inner edges, the crown end, the pusher heads and the caseback rim;
+  - a polished part is polished everywhere, and a bead-blasted (matte) one is
+    blasted everywhere;
+  - the caseback centre stays circle-grained unless the case is blasted.
+
+  The two halves of a lug share their vertices and normals, so the shading
+  runs on across the line where the finish changes. The Finish panel says what
+  Brushed means on these parts. Checked per mesh and per finish in
+  `combos.mjs`.
 - **A solid sapphire crystal** (`lathe.js crystalSolid`). The crystal was a
   single glass skin with nothing under it. It is now a closed solid:
   - a flat crystal has a ground 45° bevel, a dome is a shell, and a box crystal

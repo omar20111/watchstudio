@@ -47,6 +47,19 @@ export function metalMaterial(metalId,finish='polished',o={}){
   mat.metalness=.15;mat.roughness=.55;mat.clearcoat=.6;mat.clearcoatRoughness=.12}
  return mat}
 
+/* Where a finish goes. A case, bezel or crown is not one finish all over: its
+   flat surfaces carry the finish chosen for the part, and its bevels — the
+   case chamfer, the rounded edges of the lugs and crown guards, the bezel's
+   edges, the crown's end — are polished, the lines of light that outline a
+   brushed sport case. A polished part is polished everywhere; a bead-blasted
+   (matte) part is blasted everywhere, bevels too. A caseback's centre is turned
+   in circles unless the case is blasted. */
+export const FINISH_ZONES=['surface','bevel','turned'];
+export function zoneFinish(finish,zone){const f=!finish||finish==='none'?'polished':finish;
+ if(zone==='bevel')return f==='matte'?'matte':'polished';
+ if(zone==='turned')return f==='matte'?'matte':'brushed';
+ return f}
+
 /* AR coating strength by finish, as in render/crystal.js */
 const AR={none:1,brushed:.85,polished:.6,matte:.28};
 

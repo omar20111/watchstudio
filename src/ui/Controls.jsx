@@ -61,7 +61,8 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
   {['strap','case','crown','bezel','hands'].includes(part)&&
    <Section title="Metal"><MetalRow val={p.metal} onChange={v=>up({metal:v})}/>{d.active[part]&&<p className="text-[10px] text-neutral-500">applied as tint filter on uploads</p>}</Section>}
   {['strap','case','crown','bezel','hands','dial','crystal'].includes(part)&&
-   <Section title="Finish"><FinishRow val={p.finish||'none'} onChange={v=>up({finish:v})}/></Section>}
+   <Section title="Finish"><FinishRow val={p.finish||'none'} onChange={v=>up({finish:v})}/>
+    {['case','crown','bezel'].includes(part)&&p.finish==='brushed'&&<p className="text-[10px] text-neutral-500">Brushed on the flat surfaces, polished on the bevelled edges — the way a sport case is finished.</p>}</Section>}
   {part==='case'&&(()=>{const c=caseOf(d),st=thicknessStack(d);
    const setc=(patch,tag)=>s.upd(n=>{n.case={...n.case,...patch}},tag||'case');
    const Pick=({label,val,opts,onPick,tag})=><div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
