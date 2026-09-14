@@ -90,8 +90,9 @@ export function drMarkers(ctx,o){
  ctx.textAlign='center';ctx.textBaseline='middle';
 
  /* a date window takes the place of the index at its hour */
- const skip=o.layout&&o.layout.win?o.layout.win.skipHour:null;
- for(let h=0;h<12;h++){if(h===skip)continue;const deg=h*30,rad0=deg*Math.PI/180;
+ /* the hours a date window or a register takes (geometry.js dialLayoutOf) */
+ const skip=new Set(o.layout?o.layout.skipHours||[]:[]);
+ for(let h=0;h<12;h++){if(skip.has(h))continue;const deg=h*30,rad0=deg*Math.PI/180;
 
   if(o.variant==='batons'||o.variant==='minimal'){
    const mini=o.variant==='minimal';

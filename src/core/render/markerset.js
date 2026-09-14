@@ -36,8 +36,9 @@ export function placementOf(s,h,ringMm){
 
 export function drMarkerSet(ctx,o,set){
  const ringMm=o.g.dialR/PX*set.ringRatio,mode=o.mode;
- const skip=o.layout&&o.layout.win?o.layout.win.skipHour:null;
- for(let h=0;h<12;h++){if(h===skip)continue;const s=styleAt(set,h);if(!s)continue;
+ /* the hours a date window or a register takes (geometry.js dialLayoutOf) */
+ const skip=new Set(o.layout?o.layout.skipHours||[]:[]);
+ for(let h=0;h<12;h++){if(skip.has(h))continue;const s=styleAt(set,h);if(!s)continue;
   const M=MATERIALS[s.material],body=bodyColorOf(s),p=placementOf(s,h,ringMm);
   const at=(shadow=0)=>{ctx.translate(C+p.x*PX+SHADOW.dx*shadow,C+p.z*PX+SHADOW.dy*shadow);ctx.rotate(-p.rotY)};
   if(s.kind==='numeral'){const m=numeralMetrics(s,h);

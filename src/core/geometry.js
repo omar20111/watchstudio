@@ -201,12 +201,15 @@ export const INDEX_DEPTH={batons:.17,wedges:.17,minimal:.075,dots:.104,roman:.14
 /* the hands' widths and shapes are drawn to these reference lengths, so a
    hand that grows longer does not also grow fatter */
 export const HAND_REF={hour:.55,min:.8,sec:.9};
-export function handLengthsOf(d){const r=geoOf(d).dialR,v=(d.parts.markers||{}).variant;
- const sec=MINUTE_TRACK_R-2/r;
- const min=MINUTE_TRACK_R-TRACK_TICK_PX.minor*.6/r;
+/* where the hour indices' inner ends lie, in dial radii */
+export function indexInnerOf(d){const r=geoOf(d).dialR,v=(d.parts.markers||{}).variant;
  /* a PartStudio set carries its own ring and index lengths, in mm */
  const set=v===MARKERSET_VARIANT?markerSetOf(d):null;
- const inner=set?set.ringRatio-setDepthMm(set)/(r/PX):INDEX_OUTER-(INDEX_DEPTH[v]??INDEX_DEPTH.batons);
+ return set?set.ringRatio-setDepthMm(set)/(r/PX):INDEX_OUTER-(INDEX_DEPTH[v]??INDEX_DEPTH.batons)}
+export function handLengthsOf(d){const r=geoOf(d).dialR;
+ const sec=MINUTE_TRACK_R-2/r;
+ const min=MINUTE_TRACK_R-TRACK_TICK_PX.minor*.6/r;
+ const inner=indexInnerOf(d);
  const hour=Math.min(Math.max(inner+.012,.6),min*.8);
  return{hour,min,sec}}
 /* how high each hand's arbor stands above the dial, mm: the hour hand rides
@@ -306,6 +309,21 @@ export const strapReachPx=(d,which)=>(springBarMm(d)+strapLengthsOf(d)[which])*P
    win       the date window: an upright aperture onto a date wheel below */
 export const DATE_POSITIONS=['none','3','430','6'];
 export const DIAL_STEP_MM=.18;          /* depth of the sunk centre below the chapter ring */
+
+/* Real sizes on a dial, in mm. A date window and a chronograph's registers
+   belong to the movement, and printing is set for legibility, so none of them
+   grows with the case: a 46 mm watch does not get a date window a third larger
+   than a 34 mm one, and its registers sit where the movement puts them. A small
+   dial with no room for a size shrinks it to fit, as a small calibre does.
+     date      aperture [width, height] by position; corner radius; frame width
+     register  centre distance from the dial centre, radius, clearance to the track
+     text      font size of the brand and the model line; gap when they stack
+     pinion    the dot at the centre; tapisserie the pyramids' pitch */
+export const DIAL_MM={
+ date:{'3':[3.1,2.4],chrono3:[2.6,2.4],'6':[2.7,2.3],'430':[2.5,2.1],rad:.45,frame:.2},
+ register:{dist:8,r:3.9,gap:.35},
+ text:{brand:2,line:1.2,stack:.6},
+ pinion:.45,tapisserie:1};
 export const SUBDIAL_DEPTH_MM=.28;      /* depth of a register below the plate */
 
 export function dialLayoutOf(d){
@@ -314,13 +332,24 @@ export function dialLayoutOf(d){
  /* a chronograph's 6 o'clock register and model line leave no room at 6 */
  if(chrono&&date==='6')date='430';
  const stepped=P.step==='stepped';
+ /* registers where a chronograph movement puts them, no further out than the
+    track (or the step) allows and never touching each other */
+ const RG=DIAL_MM.register,rMm=r/PX,dist=Math.min(RG.dist,rMm*.5);
+ const rs=Math.min(RG.r,(stepped?r*.915:r*.9)/PX-RG.gap-dist,dist*.68);
  const subdials=chrono?[[90,'smallsec'],[180,'chHr'],[270,'chMin']].map(([deg,key])=>{
-  const[x,y]=posAt(deg,r*.45);return{deg,key,x,y,r:r*.2}}):[];
+  const[x,y]=posAt(deg,dist*PX);return{deg,key,x,y,r:rs*PX}}):[];
+ /* A chronograph's date at 3 goes between the running-seconds register and the
+    track when there is room for the window and its frame; on a smaller dial
+    there is not, and it moves to 4:30 as it does from 6. */
+ const D=DIAL_MM.date,limitMm=(stepped?r*.915:r*.905)/PX;
+ let at3=.77;
+ if(chrono&&date==='3'){const wMm=Math.min(D.chrono3[0],r*.18/PX),need=wMm+2*D.frame+.6,from=dist+rs;
+  if(limitMm-from>=need)at3=(from+.3+D.frame+wMm/2)*PX/r;else date='430'}
  let win=null;
  if(date!=='none'){const deg={'3':90,'430':135,'6':180}[date];
   /* centred where the index was, pulled in at 4:30 so the corners of an upright
      window clear the step */
-  const at=date==='430'?.75:.77;
+  const at=date==='430'?.75:date==='3'?at3:.77;
   const[x,y]=posAt(deg,r*at);
   /* The wheel's days are 360/31 deg apart, about 0.156 r at this radius. The
      window must stay narrower than that across the wheel's direction of travel,
@@ -328,8 +357,35 @@ export function dialLayoutOf(d){
      window's height, at 6 its width, at 4:30 both. A chronograph's window at 3
      is also narrower radially, to fit between its register and the track. */
   const[ww,wh]=date==='3'?[chrono?.18:.22,.165]:date==='6'?[.155,.14]:[.145,.12];
-  win={deg,x,y,w:r*ww,h:r*wh,rad:r*.028,frame:r*.012,skipHour:date==='3'?3:date==='6'?6:null}}
- return{r,chrono,stepped,stepR:r*.915,subdials,date,win}}
+  /* the movement's aperture in mm, or the dial's proportion where that is smaller */
+  const[mw,mh]=D[chrono&&date==='3'?'chrono3':date];
+  win={deg,x,y,w:Math.min(mw*PX,r*ww),h:Math.min(mh*PX,r*wh),rad:Math.min(D.rad*PX,r*.028),frame:Math.min(D.frame*PX,r*.012),
+   skipHour:date==='3'?3:date==='6'?6:null}}
+ /* hours whose index is left out: the one a date window replaces, and those a
+    register reaches into */
+ const skipHours=win&&win.skipHour!=null?[win.skipHour]:[];
+ if(chrono&&(dist+rs+.2)*PX>indexInnerOf(d)*r)for(const h of[3,6,9])if(!skipHours.includes(h))skipHours.push(h);
+ return{r,chrono,stepped,stepR:r*.915,subdials,date,win,skipHours}}
+
+/* The dial's printing, in sheet px: the brand below 12 and the model line above
+   6, each at its printed size in mm, shrunk only where it is wider than the dial
+   has room for (`maxW`). On a chronograph the 6 o'clock register takes the model
+   line's place, so it stacks under the brand. */
+export function dialTextOf(d){const r=geoOf(d).dialR,L=dialLayoutOf(d),T=DIAL_MM.text;
+ const brand={size:T.brand*PX,y:C-r*.4,maxW:r*1.1};
+ const lead=(T.brand*.62+T.line*.62+T.stack)*PX,gap=.3*PX;
+ const line={size:T.line*PX,y:L.chrono?brand.y+lead:C+r*.46,maxW:r*1.0};
+ /* stacked above the registers at 3 and 9, not squeezed between them: the pair
+    moves up toward 12 as far as that needs */
+ if(L.chrono&&L.subdials.length){line.y=Math.min(line.y,C-L.subdials[0].r-gap-line.size*.6);brand.y=Math.min(brand.y,line.y-lead)}
+ /* a line of print is centred; anything level with it — a register, the date
+    window — leaves it the width up to its nearer edge, less a clearance */
+ const obstacles=[...L.subdials.map(s=>({x0:s.x-s.r,x1:s.x+s.r,y0:s.y-s.r,y1:s.y+s.r})),
+  ...(L.win?[{x0:L.win.x-L.win.w/2-L.win.frame,x1:L.win.x+L.win.w/2+L.win.frame,y0:L.win.y-L.win.h/2-L.win.frame,y1:L.win.y+L.win.h/2+L.win.frame}]:[])];
+ for(const t of[brand,line]){const half=t.size*.6;
+  for(const o of obstacles){if(o.y1<t.y-half||o.y0>t.y+half)continue;
+   const near=o.x0>C?o.x0-C:o.x1<C?C-o.x1:0;t.maxW=Math.max(0,Math.min(t.maxW,2*(near-gap)))}}
+ return{brand,line}}
 
 /* the day the date wheel shows: the set date for a posed design, today otherwise */
 export function dialDayOf(d,nowMs=Date.now()){const t=d.time||{},now=new Date(nowMs);

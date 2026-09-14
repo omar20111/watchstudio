@@ -166,6 +166,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
       return<button key={v} className={`chip ${at===v?'on':''}`} disabled={off} aria-pressed={at===v}
        title={off?'A chronograph’s 6 o’clock register and model line leave no room — its date sits at 4:30':v==='none'?'No date':v==='430'?'Date window at 4:30':`Date window at ${t} o’clock`}
        style={off?{opacity:.35,cursor:'not-allowed'}:undefined} onClick={()=>up({date:v},'date')}>{t}</button>})}</div></div>
+    {chrono&&p.date==='3'&&at==='430'&&<p className="text-[10px] text-neutral-500">On a dial this size the running-seconds register leaves no room for a window at 3, so the date sits at 4:30.</p>}
     <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Chapter ring">
      <span>Chapter ring</span><div className="flex gap-1">{[['flat','Flat'],['stepped','Stepped']].map(([v,t])=>
       <button key={v} className={`chip ${(p.step||'flat')===v?'on':''}`} aria-pressed={(p.step||'flat')===v} onClick={()=>up({step:v},'step')}>{t}</button>)}</div></div>

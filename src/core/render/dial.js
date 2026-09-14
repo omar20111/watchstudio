@@ -1,8 +1,8 @@
 /* Dial renderer: sunburst / matte / chrono / guilloché / fumé / enamel /
    tapisserie + track + text. */
-import {C} from '../constants.js';
+import {C,PX} from '../constants.js';
 import {lumOf,lighten,shade} from '../utils.js';
-import {posAt,MINUTE_TRACK_R,TRACK_TICK_PX} from '../geometry.js';
+import {posAt,MINUTE_TRACK_R,TRACK_TICK_PX,DIAL_MM} from '../geometry.js';
 import {noiseFill} from '../textures.js';
 import {circGrain,SHADOW} from './material.js';
 
@@ -27,7 +27,7 @@ const roundRect=(ctx,x,y,w,h,rr)=>{ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h
 
 /* one tapisserie pyramid, in sheet px: a little over a millimetre on a 40 mm
    watch. Shared with the 3D dial, whose normal map is laid on the same grid. */
-export const tapisserieCell=dialR=>dialR*.065;
+export const tapisserieCell=()=>DIAL_MM.tapisserie*PX;
 
 export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  const W=ctx.canvas.width,H=ctx.canvas.height,L=o.layout||{};
@@ -91,7 +91,8 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  if(!flat){let g=ctx.createRadialGradient(C,C,r*0.62,C,C,r);
   g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.34)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
 
- if(o.variant==='chrono'){for(const deg of[90,180,270]){const[x,y]=posAt(deg,r*0.45),rs=r*0.2;
+ /* the registers where the layout (and the 3D plate) puts them */
+ if(o.variant==='chrono'&&L){for(const sd of L.subdials||[]){const{x,y,deg}=sd,rs=sd.r;
   /* sub-dials are milled into the dial plate: a shadowed wall on the light side
      and a lit wall opposite is what gives them their depth */
   if(!flat){const wall=ctx.createRadialGradient(x,y,rs*0.72,x,y,rs*1.06);
@@ -119,14 +120,18 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   try{ctx.letterSpacing=t.font==='caps'?'4px':'1px'}catch(e){}
   /* pad printing sits proud of the dial: a hairline shadow under it and a lit
      top edge, so the branding reads as applied ink rather than a text layer */
-  const line=(s,fs,yy)=>{ctx.font=fnt(fs);
+  const line=(s,{size,y:yy,maxW})=>{let fs=size;ctx.font=fnt(fs);
    /* Arabic is a joined script: letter spacing pulls its letters apart */
    if(/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(s))try{ctx.letterSpacing='0px'}catch(e){}
+   /* printed at its size in mm, smaller only if the dial has no room for it */
+   const wd=ctx.measureText(s).width;if(wd>maxW){fs*=maxW/wd;ctx.font=fnt(fs)}
    if(!flat){ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillText(s,C+SHADOW.dx*fs*0.07,yy+SHADOW.dy*fs*0.07)}
    ctx.fillStyle=ink;ctx.fillText(s,C,yy);
    if(!flat){ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillText(s,C-SHADOW.dx*fs*0.03,yy-SHADOW.dy*fs*0.03)}};
-  if(t.top)line(t.font==='caps'?t.top.toUpperCase():t.top,r*0.105,C-r*0.40);
-  if(t.bottom)line(t.font==='caps'?t.bottom.toUpperCase():t.bottom,r*0.075,C+(o.variant==='chrono'?r*0.70:r*0.46));
+  /* sizes and places from geometry.js dialTextOf, handed in by procOpts */
+  const T=DIAL_MM.text,TX=o.printing||{brand:{size:T.brand*PX,y:C-r*.4,maxW:r*1.1},line:{size:T.line*PX,y:C+r*.46,maxW:r}};
+  if(t.top)line(t.font==='caps'?t.top.toUpperCase():t.top,TX.brand);
+  if(t.bottom)line(t.font==='caps'?t.bottom.toUpperCase():t.bottom,TX.line);
   try{ctx.letterSpacing='0px'}catch(e){}}
 
  /* on a stepped dial the minute track lives on the chapter ring, outside the step */
@@ -143,5 +148,5 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1.2;ctx.stroke();
   ctx.fillStyle=dark?'#e9e6dc':'#1b1c1f';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.font=`700 ${w.h*.72}px system-ui`;ctx.fillText(String(o.day||1),w.x,w.y+w.h*.04)}
- ctx.beginPath();ctx.arc(C,C,r*0.03,0,7);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fill();
+ ctx.beginPath();ctx.arc(C,C,DIAL_MM.pinion*PX,0,7);ctx.fillStyle='rgba(0,0,0,.55)';ctx.fill();
  ctx.restore();}

@@ -409,6 +409,37 @@ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(cons
   const share=tris('lugEdges')/(tris('lugs')+tris('lugEdges'));
   if(!(share>.1&&share<.8))bad(tag,`the lugs' edges are ${(share*100).toFixed(0)}% of the lug`)}}
 
+/* dial elements at real sizes: a date window is the movement's aperture, never
+   larger and only smaller where a small dial has no room; registers sit where
+   the movement puts them and replace the indices they reach into; a chronograph
+   date at 3 moves to 4:30 only where it cannot fit; the printing is at its size
+   in mm and stays clear of registers and the window */
+{const DM=G.DIAL_MM;
+ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(const date of['none','3','430','6'])for(const step of['flat','stepped']){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;Object.assign(d.parts.dial,{variant,date,step});
+  const L=G.dialLayoutOf(d),tag=`dial mm ${caseMm}/${variant}/date ${date}/${step}`,mm=v=>v/PX;
+  if(L.win){const key=variant==='chrono'&&L.date==='3'?'chrono3':L.date,[mw,mh]=DM.date[key];
+   if(mm(L.win.w)>mw+1e-9||mm(L.win.h)>mh+1e-9)bad(tag,`window ${mm(L.win.w).toFixed(2)}x${mm(L.win.h).toFixed(2)}mm, larger than the movement's ${mw}x${mh}mm`);
+   if(caseMm===46&&(Math.abs(mm(L.win.w)-mw)>1e-9||Math.abs(mm(L.win.h)-mh)>1e-9))bad(tag,`window ${mm(L.win.w).toFixed(2)}x${mm(L.win.h).toFixed(2)}mm on a dial with room for ${mw}x${mh}mm`);
+   if(!L.skipHours.includes(L.win.skipHour)&&L.win.skipHour!=null)bad(tag,'the date window does not replace its index')}
+  if(variant==='chrono'){
+   const rs=mm(L.subdials[0].r),dist=Math.hypot(L.subdials[0].x-C,L.subdials[0].y-C)/PX;
+   if(caseMm>=40&&Math.abs(rs-DM.register.r)>1e-9)bad(tag,`registers ${(rs*2).toFixed(1)}mm across on a dial with room for ${DM.register.r*2}mm`);
+   if(dist>DM.register.dist+1e-9)bad(tag,`registers ${dist.toFixed(1)}mm out, beyond the movement's ${DM.register.dist}mm`);
+   if(!(dist*Math.SQRT2>2*rs))bad(tag,'neighbouring registers overlap');
+   const reachesIndices=(dist+rs+.2)>G.indexInnerOf(d)*mm(L.r);
+   if(reachesIndices!==[3,6,9].every(h=>L.skipHours.includes(h)))bad(tag,`indices at 3, 6 and 9 ${reachesIndices?'kept under':'left out beside'} the registers`);
+   if(date==='3'){const room=(step==='stepped'?L.r*.915:L.r*.905)/PX-(dist+rs);
+    if((L.date==='3')!==(room>=Math.min(DM.date.chrono3[0],L.r*.18/PX)+2*DM.date.frame+.6))bad(tag,`a chronograph date at 3 sits at ${L.date} with ${room.toFixed(2)}mm between register and track`)}}
+  /* the printing */
+  const T=G.dialTextOf(d);
+  if(Math.abs(T.brand.size-DM.text.brand*PX)>1e-9||Math.abs(T.line.size-DM.text.line*PX)>1e-9)bad(tag,'dial text is not at its printed size');
+  const boxes=[...L.subdials.map(s=>[s.x-s.r,s.x+s.r,s.y-s.r,s.y+s.r]),...(L.win?[[L.win.x-L.win.w/2-L.win.frame,L.win.x+L.win.w/2+L.win.frame,L.win.y-L.win.h/2-L.win.frame,L.win.y+L.win.h/2+L.win.frame]]:[])];
+  for(const[n,t]of[['brand',T.brand],['model line',T.line]]){
+   if(!(t.maxW>=3*PX))bad(tag,`the ${n} has only ${mm(t.maxW).toFixed(1)}mm to print in`);
+   const tb=[C-t.maxW/2,C+t.maxW/2,t.y-t.size*.6,t.y+t.size*.6];
+   for(const b of boxes)if(tb[0]<b[1]&&tb[1]>b[0]&&tb[2]<b[3]&&tb[3]>b[2])bad(tag,`the ${n} runs into a register or the date window`)}}}
+
 /* the movement behind an exhibition caseback: inside the case between the
    caseback and the dial, wider than the window and no wider than the dial,
    clear of the sapphire window; a balance (or glide wheel) that swings, a

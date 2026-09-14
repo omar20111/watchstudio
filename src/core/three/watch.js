@@ -549,7 +549,8 @@ export function buildHead(d,customs={},{aniso=8}={}){
     {const p=floor.attributes.position,u1=new Float32Array(p.count*2);
      for(let i=0;i<p.count;i++){u1[i*2]=.5+(p.getX(i)-x)/(2*rs);u1[i*2+1]=.5+(p.getY(i)-y)/(2*rs)}
      floor.setAttribute('uv1',new Float32BufferAttribute(u1,2))}
-    const fm=dialMaterial(mat.map,parts.dial);fm.normalMap=snailNormalMap(16);fm.normalMap.channel=1;fm.normalScale=new Vector2(.55,.55);
+    /* grooves about a quarter of a millimetre apart, however big the register */
+    const fm=dialMaterial(mat.map,parts.dial);fm.normalMap=snailNormalMap(Math.max(8,Math.round(rs/.25)));fm.normalMap.channel=1;fm.normalScale=new Vector2(.55,.55);
     const f=add(G.dial,'register:'+sd.key,faceUp(floor),fm,{cast:false});f.position.y=Hc-SUBDIAL_DEPTH_MM;
     const wall=lathe([new Vector2(rs,Hc),new Vector2(rs,Hc-SUBDIAL_DEPTH_MM)],96);wall.translate(x,0,-y);
     add(G.dial,'registerWall:'+sd.key,wall,wallMat(),{cast:false})}
@@ -567,9 +568,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
      paintedMaterial(tex(getProc('dial',d,'dateWheel','flat')),{roughness:.5}),{cast:false});
     wheel.position.y=wheelY;wheel.userData.spin='dateWheel'}}}
  /* chronograph registers: running seconds at 3, 12-hour at 6, 30-minute at 9 */
- if(parts.dial.variant==='chrono'&&!dialUpload){const r=Rr.dialR*PX,rs=r*.2,hp=parts.hands;
-  for(const[deg,key]of[[90,'smallsec'],[180,'chHr'],[270,'chMin']]){
-   const[px,py]=posAt(deg,r*.45),reg=new Group();reg.name='reg:'+key;
+ if(parts.dial.variant==='chrono'&&!dialUpload){const hp=parts.hands;
+  /* on the registers the layout placed, sized in mm (geometry.js DIAL_MM) */
+  for(const{key,x:px,y:py,r:rs}of DL.subdials){
+   const reg=new Group();reg.name='reg:'+key;
    reg.position.set((px-C)/PX,Hc-SUBDIAL_DEPTH_MM+.12,(py-C)/PX);reg.userData.spin=key;G.dial.add(reg);
    const len=rs*.72/PX,w=Math.max(.12,len*.08);
    const hand=add(reg,key+'Hand',new BoxGeometry(w,.08,len),metalMaterial(hp.metal,'polished'),{receive:false});
@@ -583,7 +585,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const mk=parts.markers,frame=parts.hands.metal,mset=markerSetOf(d);
  if(!uploaded('markers',G.markers,H.dial+.05,mk.glow?{emissive:new Color(mk.lume),emissiveIntensity:.5}:{})){
   /* a set designed in PartStudio, ground from its own millimetre outlines */
-  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hc,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,glow:mk.glow});
+  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hc,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,skipHours:DL.skipHours,glow:mk.glow});
   else{
   const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
   const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;

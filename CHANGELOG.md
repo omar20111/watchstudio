@@ -78,6 +78,29 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **Dial elements at their real sizes** (`geometry.js DIAL_MM`). Several dial
+  elements grew and shrank with the case diameter, so a 46 mm watch had a date
+  window a third larger than a 34 mm one. On a real watch the date aperture and
+  the chronograph registers belong to the movement, and the printing is set
+  for legibility. Now they keep their sizes in mm, and shrink only where a
+  small dial has no room:
+  - **Date window:** 3.1 × 2.4 mm at 3, 2.7 × 2.3 mm at 6, 2.5 × 2.1 mm at 4:30,
+    with a 0.2 mm frame and numerals sized to the aperture.
+  - **Chronograph registers:** 7.8 mm across and up to 8 mm from the centre.
+    Where they reach into the hour indices, the indices at 3, 6 and 9 are left
+    out, PartStudio sets included.
+  - **Chronograph date at 3:** it sits between the seconds register and the
+    track when there is room, as on a 46 mm case. Otherwise it moves to 4:30,
+    and the Dial panel says why.
+  - **Printing:** the brand is 2 mm and the model line 1.2 mm. Each shrinks only
+    to clear a register or the date window level with it. On a chronograph the
+    model line stacks under the brand, above the registers.
+  - **Details:** the centre pinion is 0.45 mm, tapisserie pyramids have a 1 mm
+    pitch, and register snailing has a groove every quarter millimetre.
+
+  The 2D dial, the 3D registers and hands, and the marker renderers read one
+  layout, so they cannot drift. Checked for every size, position and chapter
+  ring in `combos.mjs`.
 - **A real movement behind the exhibition caseback** (`three/movement.js`).
   The window used to show a painted disc. It now shows a movement built from
   parts, sized to the thickness stack: it sits between the caseback and the

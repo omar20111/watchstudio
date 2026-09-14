@@ -47,12 +47,12 @@ function bodyMat(s,glow){const M=MATERIALS[s.material];
 
 /* Put the set's indices into `group` through the head's add(): the dial face at
    height y, its radius dialRmm; skipHour is the hour a date window replaces. */
-export function addMarkerSet(set,{group,add,y,dialRmm,skipHour=null,glow=false}){
+export function addMarkerSet(set,{group,add,y,dialRmm,skipHour=null,skipHours=[],glow=false}){
  const ring=dialRmm*set.ringRatio,mats=new Map();
  const mat=(s,lume)=>{const k=s.id+(lume?':lume':'');
   if(!mats.has(k))mats.set(k,lume?lumeMat(s.lumeColor,glow):bodyMat(s,glow));return mats.get(k)};
  let n=0;
- for(let h=0;h<12;h++){if(h===skipHour)continue;const s=styleAt(set,h);if(!s)continue;
+ for(let h=0;h<12;h++){if(h===skipHour||skipHours.includes(h))continue;const s=styleAt(set,h);if(!s)continue;
   const sol=solidOf(s,h);if(!sol)continue;
   const p=placementOf(s,h,ring);
   const put=(geo,name,m,o)=>{const mesh=add(group,name,geo.clone(),m,o);mesh.position.set(p.x,y,p.z);mesh.rotation.y=p.rotY;mesh.userData.hour=h;return mesh};
