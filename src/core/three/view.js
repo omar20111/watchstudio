@@ -25,7 +25,7 @@ import {webglState,markWebglFailed} from './support.js';
 import {surfaceMesh} from './surfaces.js';
 
 export const SHEET=CAN/PX;
-export const CAMERAS=['front','three-quarter','profile'];
+export const CAMERAS=['front','three-quarter','back','profile'];
 
 /* The profile layout: side elevation above the caseback, each at its own scale.
    Pure, so the stage can draw dimension callouts on exactly what is rendered.
@@ -53,11 +53,19 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  /* the key light sits on the 2D rig's bearing (LIGHT.key, canvas radians) so
     shadows fall the way every existing drawing already assumes */
  const key=new DirectionalLight(0xffffff,1.5);
- key.position.set(Math.cos(LIGHT.key)*55,85,Math.sin(LIGHT.key)*55);
+ const KEY=[Math.cos(LIGHT.key)*55,85,Math.sin(LIGHT.key)*55];
+ key.position.set(...KEY);
  key.castShadow=true;key.shadow.mapSize.set(2048,2048);
  Object.assign(key.shadow.camera,{left:-55,right:55,top:55,bottom:-55,near:1,far:300});
  key.shadow.radius=5;key.shadow.blurSamples=16;key.shadow.bias=-.0004;
  scene.add(key,key.target);
+
+ /* Seen from below, the watch is turned over under the studio rather than lit
+    from behind: the key light and the environment swing round the 12-6 axis
+    to the viewer's side, so the caseback and the movement behind its window
+    are lit the way the front is. Only for the render that looks up. */
+ const underside=on=>{key.position.set(on?-KEY[0]:KEY[0],on?-KEY[1]:KEY[1],KEY[2]);
+  scene.environmentRotation.set(0,0,on?Math.PI:0)};
 
  /* catches the watch's shadow on the table without drawing a table */
  const ground=new Mesh(new PlaneGeometry(260,260),new ShadowMaterial({opacity:.32}));
@@ -106,7 +114,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   side.position.set(600,0,0);side.up.set(0,1,0);side.lookAt(0,0,0);
   back.position.set(0,-600,0);back.lookAt(0,0,0);
   if(camera==='side')ortho(side,w,h,Math.min(w*.8/lugToLugOf(lastD),h*.7/(H.top-watch.userData.groundY+4)),0,(H.top+watch.userData.groundY)/2);
-  if(camera==='back')ortho(back,w,h,Math.min(w,h)*.8/(watch.userData.radii.rCase*2));
+  if(camera==='back')ortho(back,w,h,Math.min(w,h)*.8/(watch.userData.radii.rCase*2)*zoom);
   const L=camera==='profile'&&layout();
   if(L){ortho(side,L.side.w,L.side.h,L.side.ppm,0,L.side.midY);ortho(back,L.back.w,L.back.h,L.back.ppm)}};
 
@@ -151,15 +159,21 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   setAO(on){aoOn=!!on},
   get aoOn(){return aoOn},
   render(clock){if(!watch)return;if(clock)poseHead(watch,clock);
-   if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);renderer.render(scene,cam());
+   if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
+    underside(camera==='back');renderer.render(scene,cam());
     if(aoOn){renderer.getDrawingBufferSize(buf);ao.apply(cam(),buf.x,buf.y,aoScale)}
-    return}
+    underside(false);return}
    /* the profile is a measured technical drawing: no occlusion shading */
    const L=layout();renderer.setScissorTest(true);
    for(const[c,r]of[[side,L.side],[back,L.back]]){
     /* WebGL viewports count from the bottom */
-    renderer.setViewport(r.x,h-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,h-r.y-r.h,r.w,r.h);renderer.render(scene,c)}
+    renderer.setViewport(r.x,h-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,h-r.y-r.h,r.w,r.h);
+    underside(c===back);renderer.render(scene,c);underside(false)}
    renderer.setScissorTest(false)},
+  /* is something moving in view that the clock does not tick once a second — the
+     balance behind an exhibition caseback, seen from below */
+  get moving(){if(!watch||camera!=='back')return false;let m=false;
+   watch.traverse(o=>{const k=o.userData&&o.userData.spin;if(k==='balance'||k==='glide')m=true});return m},
   /* the design part under a canvas-relative point (px), or null */
   pick(x,y,sel){if(!watch||camera==='profile')return null;
    const rc=new Raycaster();rc.setFromCamera(new Vector2(x/w*2-1,-(y/h*2-1)),cam());

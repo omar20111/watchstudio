@@ -34,8 +34,8 @@ function ChronoReadout(){const c=useSceneClock();
 /* the flat 2D drawing only has a front */
 export const stageCamera=(d,customs)=>{
  if(!webglState().ok)return'front';
- const c=['front','three-quarter','profile'].includes(d.camera)?d.camera:'front';
- return c==='three-quarter'&&hasStructuralUpload(d,customs)?'front':c};
+ const c=['front','three-quarter','back','profile'].includes(d.camera)?d.camera:'front';
+ return(c==='three-quarter'||c==='back')&&hasStructuralUpload(d,customs)?'front':c};
 
 export function Stage({onAR}){const s=useApp();const d=s.d;
  const structural=hasStructuralUpload(d,s.customs);
@@ -185,18 +185,20 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
     ?(flat?'Pick a part in the list, then drag to move it · pinch to zoom'
      :camera==='front'?'Drag a part to move it · pinch to zoom · two fingers to tilt · drag a diver bezel to turn it'
      :camera==='three-quarter'?'Drag to turn · pinch to zoom · tap a part to select it'
+     :camera==='back'?'The caseback, the watch turned over · pinch to zoom'
      :'Side elevation and caseback, measured')
     :(flat?'Flat 2D drawing · pick a part in the list, then drag to move it · Alt-drag rotate · drag a diver bezel to turn it · arrows nudge · 1–8 select · Ctrl+Z undo'
      :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · right-drag to tilt · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
      :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
+     :camera==='back'?'The caseback, the watch turned over · scroll to zoom · V camera'
      :'Side elevation and caseback, measured · V camera')}</div>
 
   <div data-ui="1" role="group" aria-label="Camera" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
-   {[['front','Front'],['three-quarter','¾'],['profile','Side']].map(([id,label])=>{
-    const off=(id!=='front'&&flat)||(id==='three-quarter'&&structural);
+   {[['front','Front'],['three-quarter','¾'],['back','Back'],['profile','Side']].map(([id,label])=>{
+    const off=(id!=='front'&&flat)||((id==='three-quarter'||id==='back')&&structural);
     return<button key={id} className={`chip ${camera===id?'on':''}`} disabled={off} aria-pressed={camera===id}
      title={flat&&id!=='front'?`The ${label} view needs 3D graphics (WebGL), which this browser isn’t providing`
-      :off?'An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ¾ view is unavailable while one is in use':`${label} camera`}
+      :off?`An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ${label} view is unavailable while one is in use`:id==='back'?'Back camera: the caseback, and the movement behind an exhibition window':`${label} camera`}
      style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
      onClick={()=>s.setD(n=>{n.camera=id})}>{label}</button>})}
    {camera==='three-quarter'&&<button className="chip" title="Reset the orbit" onClick={()=>{view.current&&view.current.fit();redraw();s.setD(n=>{n.zoom=1})}}>Reset</button>}

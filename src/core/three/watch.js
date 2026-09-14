@@ -31,6 +31,7 @@ import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight} from './wear.j
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
+import {buildMovement} from './movement.js';
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
    the floor of the lume channel; numerals carry no lume. */
@@ -454,14 +455,17 @@ export function buildHead(d,customs={},{aniso=8}={}){
    add(G.case,'guards',zonePart(gg,gz.surface),caseMat('surface'));
    add(G.case,'guardEdges',zonePart(gg,gz.bevel),caseMat('bevel'));gg.dispose()}
   /* the caseback face: engraving, or the movement behind a sapphire window */
-  const backTex=tex(getProc('caseback',d,undefined,'flat'));
   const faceDown=geo=>{geo.rotateX(Math.PI/2);geo.rotateY(Math.PI);return geo};
   if(arch.caseback==='exhibition'){const rw=Rr.rCase*CASEBACK_WINDOW;
-   const mv=add(G.case,'movement',faceDown(sheetUV(new CircleGeometry(rw,96))),paintedMaterial(backTex,{roughness:.35}),{cast:false});
-   mv.position.y=H.back*.55-.01;
-   const glass=add(G.case,'backGlass',faceDown(new CircleGeometry(rw,96)),crystalMaterial('polished',.5),{cast:false,receive:false});
-   glass.position.y=.02}
-  else{const face=add(G.case,'backFace',faceDown(sheetUV(new CircleGeometry(Rr.rCase*.8,120))),
+   /* the movement itself (movement.js), and a solid sapphire window set just
+      inside the caseback's face */
+   G.case.add(buildMovement(arch.movement,H,Rr,{engrave:arch.engraving}));
+   const g0=.1,g1=Math.min(H.back-.15,g0+1),Vv=(x,y)=>new Vector2(x,y);
+   const glass=add(G.case,'backGlass',lathe([Vv(0,g0),Vv(rw,g0),Vv(rw,g1),Vv(0,g1)],96),
+    crystalMaterial('polished',.5,{solid:g1-g0}),{cast:false,receive:false});
+   glass.renderOrder=10}
+  else{const backTex=tex(getProc('caseback',d,undefined,'flat'));
+   const face=add(G.case,'backFace',faceDown(sheetUV(new CircleGeometry(Rr.rCase*.8,120))),
     Object.assign(caseMat('turned'),{map:backTex,color:new Color(0xffffff)}),{cast:false});
    face.position.y=-.003}
   /* pushers are part of the case band */

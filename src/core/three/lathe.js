@@ -49,8 +49,9 @@ export function headProfiles(d){
  const e=Math.min(.35,(H.seat-H.back)*.08);        /* edge break on the flank */
  const P={};
 
- /* an exhibition back is a ring around a sapphire window, its wall facing in */
- const back0=arch.caseback==='exhibition'?[V(rCase*CASEBACK_WINDOW,H.back*.55),V(rCase*CASEBACK_WINDOW,0)]:[V(0,0)];
+ /* an exhibition back is a ring around a sapphire window, its bore facing in and
+    running up to the movement */
+ const back0=arch.caseback==='exhibition'?[V(rCase*CASEBACK_WINDOW,H.back),V(rCase*CASEBACK_WINDOW,0)]:[V(0,0)];
  P.caseback=[...back0,V(rCase*.80,0)];
  /* its rounded rim, polished apart from the turned centre */
  P.casebackRim=[V(rCase*.80,0),...round(V(rCase*.80,0),V(rCase*.88,0),V(rCase*.88,H.back*.6),4),

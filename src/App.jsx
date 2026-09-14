@@ -103,10 +103,10 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
    case'f':case'F':st.setD(n=>{n.zoom=1});break;
    /* V cycles cameras, 0 resets the bezel, Space/R drive the chronograph */
    case'v':case'V':{e.preventDefault();
-    /* front -> three-quarter -> side; a flat uploaded case, bezel, crown,
-       hands or strap has no depth to turn, so three-quarter is skipped */
+    /* front -> three-quarter -> back -> side; a flat uploaded case, bezel, crown,
+       hands or strap has no depth to turn or turn over, so those are skipped */
     const order=!webglState().ok?['front']
-     :hasStructuralUpload(st.d,st.customs)?['front','profile']:['front','three-quarter','profile'];
+     :hasStructuralUpload(st.d,st.customs)?['front','profile']:['front','three-quarter','back','profile'];
     st.setD(n=>{n.camera=order[(order.indexOf(stageCamera(n,st.customs))+1)%order.length]});break}
    case'0':{if(bezelRotatable(st.d)){e.preventDefault();st.resetBezel()}break}
    case' ':{if(st.d.parts.dial.variant==='chrono'){e.preventDefault();st.chronoToggle()}break}

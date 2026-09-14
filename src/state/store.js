@@ -92,7 +92,7 @@ export function hydrate(saved,schemaVersion){const d=clone(DEF);if(!saved)return
  for(const k of DIMS)if(s[k]!=null)d[k]=s[k];
  d.bg=s.bg??d.bg;d.bgCustom=s.bgCustom??null;d.shadow=s.shadow!==false;
  d.view=s.view==='product'||s.view==='sheet'?s.view:'edit';
- d.camera=['profile','three-quarter'].includes(s.camera)?s.camera:'front';
+ d.camera=['profile','three-quarter','back'].includes(s.camera)?s.camera:'front';
  if(s.case)d.case={...d.case,...clone(s.case)};
  if(s.time)d.time={...d.time,...clone(s.time)};
  if(s.chrono)d.chrono={...d.chrono,...clone(s.chrono)};

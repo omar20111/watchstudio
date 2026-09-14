@@ -9,7 +9,7 @@
    never computes angles itself. */
 import React from 'react';
 import {clamp} from './utils.js';
-import {detentOf,detentStep,bezelRotOf,bezelRotatable,bezelElapsedMin,gmtReadHours} from './geometry.js';
+import {detentOf,detentStep,bezelRotOf,bezelRotatable,bezelElapsedMin,gmtReadHours,caseOf,movementAngles} from './geometry.js';
 import {useApp} from '../state/store.js';
 const {useState,useEffect}=React;
 
@@ -65,6 +65,8 @@ export function sceneClock(d,nowMs,perfNow){
  const rot=bezelRotOf(d);
  const n=detentOf(d);
  return{date,gmtDate:g,nowMs,
+  /* the balance (or glide wheel) behind an exhibition caseback, in real time */
+  movement:movementAngles(caseOf(d).movement,nowMs),
   ang:{hour:A.h,min:A.m,sec:A.s,gmt:A.g},
   /* the central seconds hand is the chrono seconds on a chrono dial */
   secAng:isChrono?ch.sec30:A.s,

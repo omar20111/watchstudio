@@ -409,6 +409,44 @@ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(cons
   const share=tris('lugEdges')/(tris('lugs')+tris('lugEdges'));
   if(!(share>.1&&share<.8))bad(tag,`the lugs' edges are ${(share*100).toFixed(0)}% of the lug`)}}
 
+/* the movement behind an exhibition caseback: inside the case between the
+   caseback and the dial, wider than the window and no wider than the dial,
+   clear of the sapphire window; a balance (or glide wheel) that swings, a
+   rotor only where one winds it, a battery only in a quartz */
+{const MV=await import('./src/core/three/movement.js');
+ const within=(w,H,R,tag,g0top)=>{let y0=1e9,y1=-1e9,rad=0,n=0;w.updateMatrixWorld(true);
+  w.getObjectByName('movement').traverse(o=>{if(!o.isMesh)return;const e=o.matrixWorld.elements,p=o.geometry.attributes.position;
+   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    const X=e[0]*x+e[4]*y+e[8]*z+e[12],Y=e[1]*x+e[5]*y+e[9]*z+e[13],Z=e[2]*x+e[6]*y+e[10]*z+e[14];
+    y0=Math.min(y0,Y);y1=Math.max(y1,Y);rad=Math.max(rad,Math.hypot(X,Z));n++}});
+  if(!n){bad(tag,'the movement has no parts');return}
+  if(y0<g0top-1e-6)bad(tag,`the movement reaches ${(g0top-y0).toFixed(2)}mm into the caseback window`);
+  if(y0<H.back-1e-6)bad(tag,'the movement pokes out of the caseback');
+  if(y1>H.dial-H.stack.dial+1e-6)bad(tag,`the movement stands ${(y1-(H.dial-H.stack.dial)).toFixed(2)}mm into the dial`);
+  if(rad>R.dialR+1e-6)bad(tag,`the movement is ${(rad*2).toFixed(1)}mm across, wider than the ${(R.dialR*2).toFixed(1)}mm dial`)};
+ for(const kind of['automatic','manual','spring','quartz'])for(const caseMm of[34,46]){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;Object.assign(d.case,{caseback:'exhibition',movement:kind});
+  const tag=`movement ${kind}/${caseMm}`;let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const{heights:H,radii:R}=L3.headProfiles(d),L=MV.movementLayout(kind,H,R);
+  if(!w.getObjectByName('movement')){bad(tag,'no movement behind the window');continue}
+  const glass=w.getObjectByName('backGlass');
+  if(!glass||!(volumeOf(glass.geometry)>0)){bad(tag,'the caseback window is not a closed sapphire solid');continue}
+  glass.geometry.computeBoundingBox();
+  within(w,H,R,tag,glass.geometry.boundingBox.max.y);
+  if(!(L.r>L.rw))bad(tag,`the movement (${L.r.toFixed(1)}mm) is narrower than the window (${L.rw.toFixed(1)}mm)`);
+  const spins=new Set();w.traverse(o=>{if(o.userData.spin)spins.add(o.userData.spin)});
+  const wantSpin=kind==='spring'?'glide':kind==='quartz'?null:'balance';
+  if(wantSpin&&!spins.has(wantSpin))bad(tag,`no ${wantSpin} turning`);
+  if(!wantSpin&&(spins.has('balance')||spins.has('glide')))bad(tag,'a quartz movement with a balance');
+  const has=n=>{let f=false;w.traverse(o=>{if(o.name===n)f=true});return f};
+  if(has('rotor')!==(kind==='automatic'||kind==='spring'))bad(tag,`rotor ${has('rotor')?'on':'missing from'} a ${kind} movement`);
+  if(has('movement:battery')!==(kind==='quartz'))bad(tag,'the battery belongs to a quartz movement only')}
+ {const d=M.clone(M.DEF);d.case.caseback='solid';if(M.buildHead(d,{}).getObjectByName('movement'))bad('movement','a movement shows behind a solid caseback')}
+ /* the beat: 28,800 an hour swings to full amplitude a sixteenth of a second in; 21,600 a twelfth */
+ const A=G.movementAngles;
+ if(Math.abs(A('automatic',1000/16).balance-G.BALANCE_AMPLITUDE_DEG)>1e-6||Math.abs(A('manual',1000/12).balance-G.BALANCE_AMPLITUDE_DEG)>1e-6)bad('beat','the balance does not beat at 28,800 / 21,600 vph');
+ if(A('quartz',123).balance!==0||Math.abs(A('spring',1000/16).glide-180)>1e-6)bad('beat','a quartz swings, or a glide wheel does not turn 8 times a second')}
+
 /* the crystal is a closed solid of sapphire: its underside clears the hands
    everywhere over the dial, it is never ground thinner than a crystal can be,
    and its rim rests above the rehaut. A cyclops sits on a flat top over the

@@ -62,7 +62,8 @@ export function useWatchView({camera='front',orbit=false}={}){
     if(v.stale(st.d,st.customs)&&t-lastBuild<90)v.pose(st.d);
     else{v.setDesign(st.d,st.customs);lastBuild=t;lastD=st.d;lastC=st.customs}}
    const tm=st.d.time||{},running=!!(st.d.chrono&&st.d.chrono.running);
-   const ticking=tm.mode==='live'||running,smooth=ticking&&(tm.sweep||running);
+   /* a balance seen through an exhibition caseback swings several times a second */
+   const ticking=tm.mode==='live'||running,smooth=(ticking&&(tm.sweep||running))||v.moving;
    if(dirty.current||smooth||(ticking&&t-lastDraw>200)){
     /* Ambient occlusion roughly doubles the cost of a frame. While the view is
        redrawing every frame (a sweeping seconds hand), measure it: three

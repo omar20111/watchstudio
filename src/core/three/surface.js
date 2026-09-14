@@ -49,3 +49,27 @@ export const stripeNormalMap=(count,profile='flute')=>once(`stripe:${count}:${pr
   /* slope of the ridge profile across u */
   const s=profile==='knurl'?(p<.5?1:-1)*.9:-Math.sin(p*Math.PI*2)*.85;
   const nz=Math.sqrt(Math.max(0,1-s*s));return[s*.5+.5,.5,nz*.5+.5]},RepeatWrapping)});
+
+/* Côtes de Genève: the broad parallel waves a movement's bridges are decorated
+   with, one wave per `mm` millimetres of the shape's own UVs (an extrusion's
+   caps carry shape coordinates), laid at an angle across the movement. Each
+   wave is a shallow ridge, so bands of light run across the bridges. */
+export const cotesNormalMap=(mm=1.7,angle=.6)=>once(`cotes:${mm}:${angle}`,()=>{
+ const t=tex(256,4,u=>{const s=-Math.sin(u*Math.PI*2)*.6,nz=Math.sqrt(1-s*s);return[s*.5+.5,.5,nz*.5+.5]},RepeatWrapping);
+ t.wrapT=RepeatWrapping;t.repeat.set(1/mm,1/mm);t.rotation=angle;
+ t.generateMipmaps=true;t.minFilter=LinearMipmapLinearFilter;t.anisotropy=8;return t});
+
+/* Perlage: overlapping spots, each turned with fine concentric grooves, the
+   later spot over the earlier, `mm` millimetres apart in the shape's UVs. The
+   pattern on a movement's plate. */
+export const perlageNormalMap=(mm=.9)=>once('perlage:'+mm,()=>{
+ const N=4,R=.68/N,rings=5,spots=[];            /* spots overlap: radius beyond half their spacing */
+ for(let j=0;j<N;j++)for(let i=0;i<N;i++)spots.push([(i+(j%2)*.5)/N,(j+.5)/N]);
+ const t=tex(256,256,(u,v)=>{let best=-1,dx=0,dy=0;
+  spots.forEach(([sx,sy],k)=>{for(const ox of[-1,0,1])for(const oy of[-1,0,1]){
+   const ex=u-(sx+ox),ey=v-(sy+oy);if(Math.hypot(ex,ey)<R&&k>best){best=k;dx=ex;dy=ey}}});
+  if(best<0)return[.5,.5,1];
+  const r=Math.hypot(dx,dy)||1e-6,s=Math.cos(r/R*rings*Math.PI*2)*.45;
+  const nx=s*dx/r,ny=s*dy/r,nz=Math.sqrt(Math.max(0,1-nx*nx-ny*ny));return[nx*.5+.5,ny*.5+.5,nz*.5+.5]},RepeatWrapping);
+ t.wrapT=RepeatWrapping;t.repeat.set(1/(mm*N),1/(mm*N));
+ t.generateMipmaps=true;t.minFilter=LinearMipmapLinearFilter;t.anisotropy=8;return t});

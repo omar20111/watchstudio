@@ -367,3 +367,13 @@ export function frames(sel,d){const g=geoOf(d),r=g.R;switch(sel){
 export function crownBox(d){const g=geoOf(d);const sc=crownScale(d);
  const h=g.crownR*2*sc+16,w=g.crownR*(1.5*sc+0.75)+16;
  return{x:C+g.R-g.crownR*0.45-8,y:C-h/2,w,h}}
+
+/* ==================== MOVEMENT ====================
+   What moves behind an exhibition caseback. A mechanical balance swings to and
+   fro at its beat: 28,800 vibrations an hour (4 full swings a second) for an
+   automatic, 21,600 (3) for a hand-wound calibre, about 270 degrees either side
+   of rest. A spring drive has no balance; its glide wheel turns steadily, 8
+   times a second. Nothing moves that shows in a quartz movement. */
+export const BEAT_HZ={automatic:4,manual:3}, BALANCE_AMPLITUDE_DEG=270, GLIDE_RPS=8;
+export function movementAngles(kind,ms){const s=ms/1000,hz=BEAT_HZ[kind];
+ return{balance:hz?BALANCE_AMPLITUDE_DEG*Math.sin(2*Math.PI*hz*s):0,glide:kind==='spring'?(s*GLIDE_RPS*360)%360:0}}

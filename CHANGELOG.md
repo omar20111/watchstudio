@@ -68,6 +68,30 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **A real movement behind the exhibition caseback** (`three/movement.js`).
+  The window used to show a painted disc. It now shows a movement built from
+  parts, sized to the thickness stack: it sits between the caseback and the
+  dial, and is wider than the window but narrower than the dial.
+  - **Automatic:** a half-disc rotor with a gold rim and an engraving (the case's
+    engraving text) on a centre bearing.
+  - **Bridges and wheels:** barrel and train bridges and a balance cock with
+    Côtes de Genève; a toothed ratchet and crown wheel with sunray faces; jewels
+    in gold settings; blued screws; and a perlage-grained plate.
+  - **Balance:** a balance wheel with timing screws and a hairspring, swinging
+    270° either way at the calibre's beat (28,800 an hour for an automatic,
+    21,600 for a hand-wound one).
+  - **Other movements:** a hand-wound movement has no rotor. A spring drive
+    turns a glide wheel 8 times a second. A quartz movement shows its battery,
+    coil, quartz capsule and a gilt cover.
+  - **Window:** the window is now a solid sapphire disc.
+- **Back camera.** The watch turned over, caseback toward you. The key light
+  and studio swing round to the viewer's side, so the movement is lit like the
+  front. The view redraws every frame while a balance swings in it. It is
+  saved with the design, is reachable with V, and is unavailable while an
+  uploaded flat part is in use. The Side view's caseback drawing is lit the
+  same way. Checked in `combos.mjs` (fit in the case, parts per movement, the
+  beat) and in `e2e/tests/movement.mjs` (Exhibition, Back, a swinging balance,
+  and a GLB with the movement that passes the Khronos validator).
 - **Finish zones on the case, bezel and crown** (`materials.js zoneFinish`).
   A finish used to cover a whole part, so a brushed case had brushed bevels
   too. Now:
