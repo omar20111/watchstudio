@@ -18,7 +18,7 @@ import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
 import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
-        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf} from '../geometry.js';
+        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
@@ -152,6 +152,16 @@ function engravingMaps(cv){if(engravings.has(cv))return engravings.get(cv);
   out={normal,mr:dataTexture(W,W,mr)}}
  catch(e){out=null}
  engravings.set(cv,out);return out}
+
+/* the brand engraved on a clasp's cover: dark cut letters, one texture per text */
+const claspMarks=new Map();
+function claspMarkMaterial(text){let t=claspMarks.get(text);
+ if(!t){const cv=document.createElement('canvas');cv.width=512;cv.height=128;const x=cv.getContext('2d');
+  x.fillStyle='rgba(25,27,31,.85)';x.textAlign='center';x.textBaseline='middle';x.font='600 64px Georgia, serif';
+  /* long engravings are set smaller rather than run off the cover */
+  const s=String(text).toUpperCase(),wd=x.measureText(s).width;if(wd>470)x.font=`600 ${Math.floor(64*470/wd)}px Georgia, serif`;
+  x.fillText(s,256,66);t=new CanvasTexture(cv);t.colorSpace=SRGBColorSpace;claspMarks.set(text,t)}
+ return new MeshStandardMaterial({map:t,transparent:true,alphaTest:.3,roughness:.6,metalness:0,depthWrite:false})}
 
 function lumeMaterial(map,lume,glow){
  const mat=paintedMaterial(map,{alphaTest:.5,roughness:.62});
@@ -321,18 +331,27 @@ function linkBlock(pw,pl,t){const r=Math.min(.7,pw*.22,pl*.22),x=pw/2,z=pl/2;
    the space between the lugs. Rows are merged per material: a few meshes, not
    hundreds, and one node each in a GLB. */
 function braceletParts(d,dir){
- const sp=strapPath(d),widthAt=strapWidthAt(d),T=sp.T;
+ const sp=strapPath(d),T=sp.T,bottom=dir>0;
+ /* each half its own length; the width tapers to where the bracelet ends, the clasp's end on the 6 o'clock half */
+ const sEnd=BRACELET_MM[bottom?'bottom':'top'],widthAt=strapWidthAt(d,(sp.start+sEnd+(bottom?BRACELET_MM.clasp:0))*PX);
  const w0=widthAt(0),pitch=Math.min(8,Math.max(5.2,w0*.36)),gap=Math.max(.18,pitch*.035);
- const sEnd=(STRAP_REACH_3D+26)/PX-sp.start;
  const place=(geo,s,xc=0)=>{const[along,yc,ang]=sp.pos(s);
   const m=new Matrix4().makeTranslation(0,yc,dir*(sp.start+along))
    .multiply(new Matrix4().makeRotationX(-dir*ang)).multiply(new Matrix4().makeTranslation(xc,0,0));
   geo.applyMatrix4(m);return geo};
  const outer=[],centre=[],pins=[];
- /* end link: full width, from under the lugs to the first joint */
- const e0=-1.2,e1=e0+pitch*.95;
- centre.push(place(linkBlock(widthAt((e0+e1)/2)*.98,e1-e0-gap,T*.96),(e0+e1)/2));
- for(let s=e1;s+pitch<sEnd;s+=pitch){
+ /* end link: full width, from the case to the first joint, its inner edge cut to
+    the case's curve so it closes the gap between the lugs as a fitted end link does */
+ const e1=pitch*.8,R=geoOf(d).R/PX+.25;
+ {const smid=e1/2,x=w0*.98/2,n=20,edge=xx=>Math.sqrt(Math.max(0,R*R-xx*xx))-sp.start,sy=u=>-dir*(u-smid);
+  const sh=new Shape();sh.moveTo(-x,sy(edge(-x)));
+  for(let i=1;i<=n;i++){const xx=-x+2*x*i/n;sh.lineTo(xx,sy(edge(xx)))}
+  sh.lineTo(x,sy(e1-gap/2));sh.lineTo(-x,sy(e1-gap/2));sh.closePath();
+  const t=T*.96,b=Math.min(.38,t*.18);
+  const g=new ExtrudeGeometry(sh,{depth:Math.max(.05,t-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b*.8,bevelOffset:-b*.8,bevelSegments:3,curveSegments:4});
+  g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);centre.push(place(g,smid))}
+ let s=e1;
+ for(;s+pitch<sEnd;s+=pitch){
   const mid=s+pitch/2,w=widthAt(mid),pl=pitch-gap;
   const ow=w*.29,cw=w*.36,seam=(w-2*ow-cw)/2;
   outer.push(place(linkBlock(ow,pl,T*.9),mid,-(w/2-ow/2)));
@@ -343,7 +362,27 @@ function braceletParts(d,dir){
   pins.push(place(pin,s));
   if(seam>.01){const bar=new BoxGeometry(seam+.3,T*.55,pl*.9);
    for(const sx of[-1,1]){const b2=bar.clone();b2.translate(sx*(cw/2+seam/2),-T*.12,0);pins.push(place(b2,mid))}bar.dispose()}}
- return{outer:mergeGeometries(outer),centre:mergeGeometries(centre),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p))}}
+ /* the pin at the last joint */
+ {const w=widthAt(s),pin=new CylinderGeometry(T*.3,T*.3,w*.96,10);pin.rotateZ(Math.PI/2);pin.translate(0,-T*.12,0);pins.push(place(pin,s))}
+ const out={outer:mergeGeometries(outer),centre:mergeGeometries(centre),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p)),end:s};
+ /* The 12 o'clock half ends in the bar the clasp locks onto, carried by a short
+    end piece; the 6 o'clock half in a folding clasp lying closed: a cover plate
+    over two blades, hinged to the last link. Both built along +z, then placed. */
+ const lay=(geo,at)=>{geo.applyMatrix4(new Matrix4().makeScale(1,1,dir));if(dir<0){const ix=geo.index;if(ix){const a=ix.array;for(let i=0;i<a.length;i+=3){const t=a[i+1];a[i+1]=a[i+2];a[i+2]=t}}}return place(geo,at)};
+ const w=widthAt(s);
+ if(!bottom){const piece=linkBlock(w*.9,3.2,T*.8);piece.translate(0,0,1.6+gap);
+  const bar=new CylinderGeometry(T*.32,T*.32,w*.98,20);bar.rotateZ(Math.PI/2);bar.translate(0,0,3.4+gap);
+  out.claspEnd=mergeGeometries([lay(piece,s),lay(bar,s)].map(g=>g.index?g.toNonIndexed():g))}
+ else{const L=BRACELET_MM.clasp,wc=w+.6;
+  const rr=(ww,ll)=>roundRectPath(new Shape(),0,0,ww,ll,Math.min(1.4,ww*.2));
+  /* the cover: extruded, its flat faces brushed and its bevel polished (bevelZones) */
+  const cover=smooth(extrudeShapes([rr(wc,L)],{bottom:-T/2+T*.62,thick:T*.66,bevel:.35,segments:3}));
+  cover.translate(0,0,L/2+gap);
+  const blades=[1,.93].map((k,i)=>{const b=smooth(extrudeShapes([rr(wc-.9-i*.5,L*k)],{bottom:-T/2+i*T*.3,thick:T*.28,bevel:.1,segments:2}));b.translate(0,0,L*k/2+gap);return b});
+  const knuckle=new CylinderGeometry(T*.38,T*.38,wc*.96,20);knuckle.rotateZ(Math.PI/2);knuckle.translate(0,-T*.05,gap+T*.2);
+  out.clasp={cover:lay(cover,s),blades:mergeGeometries(blades.map(b=>lay(b,s)).map(g=>g.index?g.toNonIndexed():g)),knuckle:lay(knuckle,s),
+   length:L,width:wc,top:-T/2+T*.62+T*.66,start:s}}
+ return out}
 
 /* ---------------------------------------------------------------- finish zones */
 
@@ -441,7 +480,16 @@ export function buildHead(d,customs={},{aniso=8}={}){
    for(const[dir,which]of[[-1,'top'],[1,'bottom']]){const b=braceletParts(d,dir);
     add(G.strap,'bracelet:'+which+':outer',b.outer,brushed());
     add(G.strap,'bracelet:'+which+':centre',b.centre,st.finish==='polished'?Object.assign(metalMaterial(st.metal,'polished'),{roughness:.14}):brushed());
-    add(G.strap,'bracelet:'+which+':pins',b.pins,new MeshPhysicalMaterial({color:0x1c1e22,metalness:.7,roughness:.55}),{cast:false})}}
+    add(G.strap,'bracelet:'+which+':pins',b.pins,new MeshPhysicalMaterial({color:0x1c1e22,metalness:.7,roughness:.55}),{cast:false});
+    if(b.claspEnd)add(G.strap,'bracelet:top:claspEnd',b.claspEnd,brushed());
+    if(b.clasp){const c=b.clasp,z=bevelZones(c.cover);
+     /* brushed along its length like the links, its bevel polished, the brand engraved on it */
+     add(G.strap,'bracelet:clasp',zonePart(c.cover,z.surface),brushed());
+     add(G.strap,'bracelet:claspEdges',zonePart(c.cover,z.bevel),metalMaterial(st.metal,'polished'));c.cover.dispose();
+     add(G.strap,'bracelet:claspBlades',c.blades,brushed());
+     add(G.strap,'bracelet:claspHinge',c.knuckle,metalMaterial(st.metal,'polished'));
+     const mark=add(G.strap,'bracelet:claspMark',faceUp(new PlaneGeometry(c.width*.62,c.width*.62*.25)),claspMarkMaterial((d.case&&d.case.engraving)||'WATCHSTUDIO'),{cast:false,receive:false,noPick:true});
+     mark.rotation.y=Math.PI/2;mark.position.set(0,sp.pos(c.start+c.length/2)[1]+c.top+.004,sp.start+sp.pos(c.start+c.length/2)[0])}}}
   else{const st=parts.strap;
    for(const[dir,which]of[[-1,'top'],[1,'bottom']])
     add(G.strap,'strap:'+which,strapGeometry(d,dir),strapMaterial(tex(getProc('strap',d,which,'flat')),st));

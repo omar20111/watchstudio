@@ -78,6 +78,22 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **A bracelet with fitted end links and a folding clasp** (`geometry.js
+  BRACELET_MM`). The bracelet was the same run of links on both sides, with a
+  plain block as its end link. It now lies open on the table as a real one
+  does:
+  - **End links:** each is cut to the case's own curve, closing the gap
+    between the lugs without touching the case.
+  - **Lengths:** 62 mm of links at 12 o'clock, 80 mm at 6.
+  - **Clasp:** the 6 o'clock half ends in a 34 mm folding clasp lying closed: a
+    cover brushed along its length with polished bevels (the finish zones),
+    engraved with the case's engraving, over two blades and a hinge. The
+    12 o'clock half ends in the bar the clasp locks onto.
+  - **Taper:** the links narrow to where each half ends.
+
+  A GLB with the bracelet, a diver insert and a movement passes the Khronos
+  validator. Checked in `combos.mjs`: end links against the case, the clasp on
+  the table and its length.
 - **An engraved bezel insert with a raised pip.** A diver or GMT insert was
   printed flat. Its scale is now cut into it: the ticks and numerals are
   grooves with sloped walls (a normal map made from the insert's own markings),

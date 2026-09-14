@@ -634,5 +634,27 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   if(!(lume.geometry.boundingBox.max.z<0))bad(tag,'the pip is not at 12 o\'clock');
   if(!lume.material.userData.lume)bad(tag,'the pip\'s lume is not marked as lume')}}
 
+/* a bracelet: its end links close up to the case without entering it, the
+   6 o'clock half ends in a folding clasp lying on the table at the stated
+   length, the 12 o'clock half in the bar the clasp locks onto */
+for(const caseMm of[34,46]){const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap.variant='steel';const tag='bracelet '+caseMm;
+ let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+ const sp=L3.strapPath(d),R=G.geoOf(d).R/PX,meshes=n=>{const o=[];w.traverse(m=>{if(m.isMesh&&m.name===n)o.push(m)});return o};
+ for(const n of['bracelet:clasp','bracelet:claspEdges','bracelet:claspBlades','bracelet:claspHinge','bracelet:top:claspEnd'])if(!meshes(n).length)bad(tag,'no '+n);
+ let inside=0,closest=1e9;
+ for(const which of['top','bottom'])for(const m of meshes('bracelet:'+which+':centre')){const p=m.geometry.attributes.position;
+  for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=p.getY(i);if(Math.abs(z)>R+4)continue;const r=Math.hypot(x,z);
+   if(y>sp.groundY+.2&&r<R+.05)inside++;if(Math.abs(x)<1)closest=Math.min(closest,Math.abs(z)-R)}}
+ if(inside)bad(tag,`${inside} end link vertices inside the case`);
+ if(!(closest<1.2))bad(tag,`the end links stop ${closest.toFixed(2)}mm short of the case`);
+ const clasp=meshes('bracelet:clasp')[0];if(clasp){const b=boundsOf(clasp.geometry);
+  /* the cover rides on its blades: the lowest blade is what lies on the table */
+  const bl=meshes('bracelet:claspBlades')[0],bb=bl&&boundsOf(bl.geometry);
+  if(!bb||Math.abs(bb.y0-sp.groundY)>.6)bad(tag,`the clasp does not lie on the table (${bb?(bb.y0-sp.groundY).toFixed(2):'?'}mm)`);
+  if(bb&&!(b.y0>bb.y0))bad(tag,'the clasp cover is not above its blades');
+  const want=sp.start+sp.pos(G.BRACELET_MM.bottom)[0]+G.BRACELET_MM.clasp;
+  if(Math.abs(b.z1-want)>8)bad(tag,`the clasp ends at ${b.z1.toFixed(1)}mm, the bracelet should end near ${want.toFixed(1)}mm`);
+  if(!(b.z0>0))bad(tag,'the clasp is not on the 6 o\'clock half')}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

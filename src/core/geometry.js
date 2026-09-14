@@ -295,6 +295,10 @@ export function strapLengthsOf(d){const w=strapMmOf(d);
  /* the strap pieces themselves, past the spring bar: the buckle piece's
     leather ends at the fold, the buckle frame carries on past it */
  return{top:short-buckle,bottom:long,short,long,buckle}}
+/* A bracelet laid open: links from each end link, the 6 o'clock half ending in
+   a folding clasp and the 12 o'clock half in the link whose bar the clasp locks
+   onto — about 175 mm round a wrist when closed. */
+export const BRACELET_MM={top:62,bottom:80,clasp:34};
 /* the sheet pixel, from the centre, where each piece ends */
 export const strapReachPx=(d,which)=>(springBarMm(d)+strapLengthsOf(d)[which])*PX;
 
