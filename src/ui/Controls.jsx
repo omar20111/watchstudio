@@ -16,6 +16,15 @@ function TransformCtl({t,onChange}){return<div className="grid grid-cols-1 gap-0
  <Slider label="Offset Y" min={-300} max={300} step={1} val={t.y} onChange={v=>onChange({y:v})}/>
  <Slider label="Opacity" min={0} max={1} step={0.01} val={t.o} fmt={v=>Math.round(v*100)+'%'} onChange={v=>onChange({o:v})}/></div>}
 
+/* A cyclops sits on a flat crystal over a date window: without one of those
+   the choice is shown but explains itself instead of doing nothing */
+function CyclopsToggle({d,p,up}){const L=dialLayoutOf(d),c=caseOf(d);
+ const why=!L.win?'Add a date window on the Dial panel first.':c.crystal==='dome'?'A cyclops needs a flat or box crystal.':null;
+ return<div>
+  <label className={`flex items-center gap-2 text-[11px] ${why?'text-neutral-600':'text-neutral-400'}`}>
+   <input type="checkbox" disabled={!!why} checked={!!p.cyclops&&!why} onChange={e=>up({cyclops:e.target.checked},'cyclops')}/>Cyclops date magnifier</label>
+  {why&&<p className="text-[10px] text-neutral-500">{why}</p>}</div>}
+
 export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p=d.parts[part];const customs=(s.customs[part]||{});
  const thumbD=useSettled(d);
  const up=(patch,tag)=>s.upd(n=>{Object.assign(n.parts[part],patch)},tag||('ctl:'+part));
@@ -169,5 +178,6 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    <ColorField label="Lume color" val={p.lume} onChange={v=>up({lume:v},'lume')}/>
    <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={p.glow} onChange={e=>up({glow:e.target.checked})}/>Glow (lights out)</label>
    {part==='hands'&&<ColorField label="Second hand" val={p.secColor} onChange={v=>up({secColor:v},'sec')}/>}</Section>}
-  {part==='crystal'&&<Section title="Crystal"><Slider label="Gloss" min={0} max={1} step={0.01} val={p.opacity} fmt={v=>Math.round(v*100)+'%'} onChange={v=>up({opacity:v},'cry')}/></Section>}
+  {part==='crystal'&&<Section title="Crystal"><Slider label="Gloss" min={0} max={1} step={0.01} val={p.opacity} fmt={v=>Math.round(v*100)+'%'} onChange={v=>up({opacity:v},'cry')}/>
+   <CyclopsToggle d={d} p={p} up={up}/></Section>}
  </div>}

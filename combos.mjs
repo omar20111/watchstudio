@@ -74,19 +74,65 @@ const rect=(set,x0,y0,w,h,v=255)=>{for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x
  if(!rel)bad('relief','nothing built from the dauphine');
  else{const g=rel.geometry,p=g.attributes.position,n=g.attributes.normal;
   /* sample the left facet's top surface away from the rim, the ridge, the tip and the base */
-  const nx=[];let ridge=0;
+  const nx=[],rim=[];let ridge=0;
   for(let i=0;i<p.count;i++){const x=p.getX(i)*PX+600,y=p.getZ(i)*PX+600;
    if(n.getY(i)<.5)continue;                                  /* walls */
    const t=(y-200)/300,hw=15*t;
    /* at least 2.5 px from the ridge and from the rim, clear of the smoothing */
    if(y>260&&y<460&&x<600-Math.max(2.5,hw*.3)&&x>600-hw+2.5)nx.push(n.getX(i));
+   /* ...and the rim itself, from the outline to 1.5 px in */
+   if(y>260&&y<460&&x<600-Math.max(2.5,hw*.3)&&x>=600-hw-1e-6&&x<600-hw+1.5)rim.push(n.getX(i));
    if(Math.abs(y-400)<.01&&Math.abs(x-600)<.01)ridge=p.getY(i)}
-  const mean=nx.reduce((a,b)=>a+b,0)/Math.max(1,nx.length),spread=Math.sqrt(nx.reduce((a,b)=>a+(b-mean)*(b-mean),0)/Math.max(1,nx.length));
+  const meanOf=v=>v.reduce((a,b)=>a+b,0)/Math.max(1,v.length),spreadOf=v=>{const m=meanOf(v);return Math.sqrt(v.reduce((a,b)=>a+(b-m)*(b-m),0)/Math.max(1,v.length))};
+  const mean=meanOf(nx),spread=spreadOf(nx);
   if(nx.length<40)bad('relief',`too few facet samples (${nx.length})`);
   if(spread>.01)bad('relief',`dauphine facet is not flat: normal x varies by ${spread.toFixed(4)} (ribs)`);
+  /* The smoothing once averaged the first pixels in with a flat edge height
+     outside, by however much of a pixel the slanted outline cut off: on a
+     polished facet a row of dark notches along the rim. The rim has to lean
+     like the facet it ends. */
+  if(rim.length<40)bad('relief',`too few rim samples (${rim.length})`);
+  if(Math.abs(meanOf(rim)-mean)>.01||spreadOf(rim)>.008)
+   bad('relief',`dauphine rim is notched: normal x ${meanOf(rim).toFixed(4)} ± ${spreadOf(rim).toFixed(4)} against the facet's ${mean.toFixed(4)}`);
   /* two-thirds of the way to the base the ridge stands two-thirds of the way up */
   const want=.05+(.34-.05)*(10/15);
   if(Math.abs(ridge-want)>.03)bad('relief',`dauphine ridge at y=400 is ${ridge.toFixed(3)}mm high, want ~${want.toFixed(3)}mm`)}}
+
+/* Every triangle of a ground hand or index faces the way its normals point:
+   the top up, the walls out. The walls were once wound inward under outward
+   normals, so the front-sided metal culled them from every side they are seen
+   from. Each form the watch grinds, on outlines slanted across the pixel grid. */
+{const poly=pts=>set=>{const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+  const inPoly=(x,y)=>{let c=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const[xi,yi]=pts[i],[xj,yj]=pts[j];
+   if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
+  for(let y=Math.floor(Math.min(...ys))-1;y<=Math.ceil(Math.max(...ys))+1;y++)for(let x=Math.floor(Math.min(...xs))-1;x<=Math.ceil(Math.max(...xs))+1;x++){
+   let cov=0;for(let sy=0;sy<4;sy++)for(let sx=0;sx<4;sx++)if(inPoly(x+(sx+.5)/4,y+(sy+.5)/4))cov++;
+   if(cov)set(x,y,Math.round(cov/16*255))}};
+ /* a shape along the dial's radius at `deg` clockwise from 12: [along, across] in px, along measured outward */
+ const radial=(deg,pts,r0)=>{const a=deg*Math.PI/180,ux=Math.sin(a),uy=-Math.cos(a);
+  return pts.map(([s,t])=>[600+(r0+s)*ux-t*uy,600+(r0+s)*uy+t*ux])};
+ const dauphineAt=deg=>radial(deg,[[0,-9],[260,0],[0,9],[-30,0]],20);
+ const wedgeAt=deg=>radial(deg,[[0,0],[60,-13],[60,13]],400);
+ const batonAt=deg=>radial(deg,[[0,-7],[60,-7],[60,7],[0,7]],400);
+ const facingAgainst=geo=>{const p=geo.attributes.position.array,N=geo.attributes.normal.array,ix=geo.index.array;let against=0,walls=0;
+  for(let t=0;t<ix.length;t+=3){const a=ix[t]*3,b=ix[t+1]*3,c=ix[t+2]*3;
+   const ux=p[b]-p[a],uy=p[b+1]-p[a+1],uz=p[b+2]-p[a+2],vx=p[c]-p[a],vy=p[c+1]-p[a+1],vz=p[c+2]-p[a+2];
+   const sy=N[a+1]+N[b+1]+N[c+1];if(Math.abs(sy)<1e-6)walls++;
+   if((uy*vz-uz*vy)*(N[a]+N[b]+N[c])+(uz*vx-ux*vz)*sy+(ux*vy-uy*vx)*(N[a+2]+N[b+2]+N[c+2])<0)against++}
+  return{against,walls}};
+ const CASES=[
+  ['dauphine hand at 1:50',poly(dauphineAt(55)),{profile:'roof',height:.36,edge:.05}],
+  ['wedge index at 2',poly(wedgeAt(60)),{profile:'roof',height:.34,edge:.06}],
+  ['wedge index at 11:30',poly(wedgeAt(-15)),{profile:'roof',height:.34,edge:.06}],
+  ['baton index at 1 with lume',poly(batonAt(30)),{profile:'bevel',height:.32,edge:.1,bevel:.42,pocket:.24},poly(radial(30,[[8,-3],[52,-3],[52,3],[8,3]],400))],
+  ['leaf hand with lume',poly(radial(200,[[0,0],[120,-12],[240,0],[120,12]],20)),{profile:'dome',height:.3,edge:.05,bevel:.85,pocket:.2},poly(radial(200,[[40,0],[120,-6],[200,0],[120,6]],20))],
+  ['dot index',set=>{for(let y=680;y<720;y++)for(let x=480;x<520;x++)set(x,y,Math.round(255*Math.max(0,Math.min(1,15.5-Math.hypot(x+.5-500,y+.5-700)))))},{profile:'dome',height:.3,edge:.08,bevel:.9}],
+ ];
+ for(const[name,paint,form,lume]of CASES){const cv=alphaCanvas(paint),rel=RL.reliefFromSilhouette(cv,{...form,lume:lume?alphaCanvas(lume):null});
+  if(!rel){bad('relief',`nothing built from the ${name}`);continue}
+  const{against,walls}=facingAgainst(rel.geometry);
+  if(!walls)bad('relief',`the ${name} has no walls`);
+  if(against)bad('relief',`${against} triangles of the ${name} face against their normals (${walls} wall triangles)`)}}
 
 /* The 3D head must be built from the mm model, not beside it: its apex has to
    land on the stated thickness, its rings on geoOf's radii, and every profile
@@ -339,6 +385,43 @@ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(cons
  const font=w.h*.72,halfTravel=tx*w.w/2+ty*w.h/2,glyphHalf=tx*font*.56+ty*font*.36;
  if(pitch-glyphHalf<=halfTravel)bad(tag,`neighbouring days would show (pitch ${pitch.toFixed(1)}px, window ${halfTravel.toFixed(1)}px)`);
 }
+
+/* the crystal is a closed solid of sapphire: its underside clears the hands
+   everywhere over the dial, it is never ground thinner than a crystal can be,
+   and its rim rests above the rehaut. A cyclops sits on a flat top over the
+   date, within the crystal, and magnifies it about 2.5x. */
+for(const crystal of['flat','dome','box'])for(const bezel of['smooth','diver'])for(const caseMm of[34,46])
+ for(const crystalMm of crystal==='flat'?[.6,1.1,2.5]:crystal==='box'?[2,5]:[.8,4]){
+ const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.bezel.variant=bezel;Object.assign(d.case,{crystal,crystalMm});
+ d.parts.dial.date='3';d.parts.crystal.cyclops=true;
+ const tag=`crystal ${crystal} ${crystalMm}mm/${bezel}/${caseMm}`;
+ const{heights:H,radii:R,crystal:CR}=L3.headProfiles(d);
+ const outerAt=x=>{const o=CR.outer;for(let i=1;i<o.length;i++){const p=o[i-1],q=o[i];
+  if((x-p.x)*(x-q.x)<=0&&p.x!==q.x)return p.y+(q.y-p.y)*(x-p.x)/(q.x-p.x)}return H.top};
+ for(let x=0;x<=CR.rStep;x+=CR.rStep/40){const u=CR.under(x),handTop=H.dial+G.handsTopAt(x);
+  if(u<handTop-1e-6)bad(tag,`the underside at ${x.toFixed(1)}mm is ${(handTop-u).toFixed(2)}mm into the hands`);
+  if(!(outerAt(x)-u>.3))bad(tag,`the crystal is ${(outerAt(x)-u).toFixed(2)}mm thick at ${x.toFixed(1)}mm`)}
+ if(!(CR.thickness>=.35&&CR.thickness<=1.2))bad(tag,`crystal ${CR.thickness.toFixed(2)}mm thick at its centre`);
+ const rehautAt=x=>H.dial+(x-R.dialR)/(R.rBezIn-R.dialR)*(CR.c0-H.dial);
+ if(!(CR.c0>rehautAt(CR.rStep)))bad(tag,'the crystal rim sinks into the rehaut');
+ let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+ /* the group and the mesh are both named crystal: take the mesh */
+ const meshNamed=n=>{let f=null;w.traverse(o=>{if(!f&&o.isMesh&&o.name===n)f=o});return f};
+ const cm=meshNamed('crystal'),cy=meshNamed('cyclops');
+ if(!(volumeOf(cm.geometry)>0))bad(tag,`the crystal is not a closed outward solid (volume ${volumeOf(cm.geometry).toFixed(2)})`);
+ const spec=G.cyclopsOf(d);
+ if(crystal==='dome'){if(cy||spec)bad(tag,'a domed crystal has no flat top for a cyclops');continue}
+ if(!cy||!spec){bad(tag,'no cyclops over the date');continue}
+ if(!(volumeOf(cy.geometry)>0))bad(tag,`the cyclops is not a closed outward solid (volume ${volumeOf(cy.geometry).toFixed(3)})`);
+ if(Math.hypot(spec.x,spec.z)+spec.rho>R.rBezIn-.5)bad(tag,'the cyclops runs off the crystal\'s flat top');
+ const L=G.dialLayoutOf(d);
+ if(!(spec.A*2>L.win.w/PX&&spec.B*2>L.win.h/PX))bad(tag,'the cyclops is smaller than the window it magnifies');
+ if(!(spec.mag>1.6&&spec.mag<=G.CYCLOPS_MAG+1e-9))bad(tag,`the cyclops magnifies ${spec.mag.toFixed(2)}x`);
+ if(!(spec.height>.5&&spec.height<2.6))bad(tag,`the cyclops stands ${spec.height.toFixed(2)}mm tall`);
+ if(Math.abs(cy.position.y-H.top)>1e-6)bad(tag,'the cyclops is not on the crystal')}
+/* no date window, no cyclops */
+{const d=M.clone(M.DEF);d.case.crystal='flat';d.parts.crystal.cyclops=true;d.parts.dial.date='none';
+ if(G.cyclopsOf(d)||M.buildHead(d,{}).getObjectByName('cyclops'))bad('cyclops','a cyclops without a date window')}
 
 /* hands point at what they read: the seconds hand to the outer end of the
    minute track, the minute hand into it, the hour hand to the inner end of the

@@ -17,11 +17,12 @@ import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeom
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
 import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
-        strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf} from '../geometry.js';
+        strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
+        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
-import {metalMaterial,crystalMaterial,paintedMaterial,softenKeyGlint} from './materials.js';
+import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
@@ -313,10 +314,44 @@ function braceletParts(d,dir){
    for(const sx of[-1,1]){const b2=bar.clone();b2.translate(sx*(cw/2+seam/2),-T*.12,0);pins.push(place(b2,mid))}bar.dispose()}}
  return{outer:mergeGeometries(outer),centre:mergeGeometries(centre),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p))}}
 
+/* ---------------------------------------------------------------- cyclops */
+
+/* The cyclops lens (geometry.js cyclopsOf) in its own frame: its base on y=0,
+   centred over the date, x toward 3 o'clock. A spherical top over a rounded
+   rectangle, meeting straight walls that are lowest at the corners, and a flat
+   base bonded to the crystal. Three shells with their own normals, so the
+   lens keeps its hard edge where the top meets the wall. */
+function cyclopsGeometry({A,B,rc,R,rho,wall}){const M=72,N=12;
+ const sd=(x,z)=>{const qx=Math.abs(x)-(A-rc),qz=Math.abs(z)-(B-rc);
+  return Math.hypot(Math.max(qx,0),Math.max(qz,0))+Math.min(Math.max(qx,qz),0)-rc};
+ /* the footprint's edge along each direction, found by bisection */
+ const rim=[];for(let j=0;j<M;j++){const th=2*Math.PI*j/M,c=Math.cos(th),s=Math.sin(th);let lo=0,hi=rho+.01;
+  for(let i=0;i<32;i++){const m=(lo+hi)/2;if(sd(m*c,m*s)<0)lo=m;else hi=m}rim.push([lo*c,lo*s])}
+ const base=Math.sqrt(R*R-rho*rho),top=(x,z)=>Math.sqrt(Math.max(0,R*R-x*x-z*z))-base+wall;
+ const pos=[],nrm=[],idx=[];
+ const vtx=(x,y,z,nx,ny,nz)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);return pos.length/3-1};
+ const sphere=(x,z)=>[x/R,Math.sqrt(Math.max(0,R*R-x*x-z*z))/R,z/R];
+ /* top: a fan at the centre, then rings out to the edge */
+ const c0=vtx(0,top(0,0),0,0,1,0),rings=[];
+ for(let i=1;i<=N;i++)rings.push(rim.map(([ex,ez])=>{const x=ex*i/N,z=ez*i/N;return vtx(x,top(x,z),z,...sphere(x,z))}));
+ for(let j=0;j<M;j++){const k=(j+1)%M;idx.push(c0,rings[0][k],rings[0][j]);
+  for(let i=0;i<N-1;i++){const a=rings[i][j],b=rings[i][k],c=rings[i+1][j],e=rings[i+1][k];idx.push(a,b,c,b,e,c)}}
+ /* walls: straight down from the top's edge, facing out of the footprint */
+ const h=1e-3,wt=[],wb=[];
+ for(const[x,z]of rim){let nx=sd(x+h,z)-sd(x-h,z),nz=sd(x,z+h)-sd(x,z-h);const l=Math.hypot(nx,nz)||1;nx/=l;nz/=l;
+  wt.push(vtx(x,top(x,z),z,nx,0,nz));wb.push(vtx(x,0,z,nx,0,nz))}
+ for(let j=0;j<M;j++){const k=(j+1)%M;idx.push(wb[j],wt[j],wb[k],wt[j],wt[k],wb[k])}
+ /* base, facing down onto the crystal */
+ const b0=vtx(0,0,0,0,-1,0),bs=rim.map(([x,z])=>vtx(x,0,z,0,-1,0));
+ for(let j=0;j<M;j++)idx.push(b0,bs[j],bs[(j+1)%M]);
+ const geo=new BufferGeometry();
+ geo.setAttribute('position',new Float32BufferAttribute(pos,3));geo.setAttribute('normal',new Float32BufferAttribute(nrm,3));
+ geo.setIndex(idx);return geo}
+
 /* ---------------------------------------------------------------- head */
 
 export function buildHead(d,customs={},{aniso=8}={}){
- const{profiles:P,heights:H,radii:Rr}=headProfiles(d);
+ const{profiles:P,heights:H,radii:Rr,crystal:CR}=headProfiles(d);
  const parts=d.parts,arch=caseOf(d),tex=cv=>canvasTexture(cv,aniso);
  const watch=new Group();watch.name='watch';
  const G={};for(const p of PARTS3D){G[p]=new Group();G[p].name=p;G[p].userData.part=p;watch.add(G[p])}
@@ -393,7 +428,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
   if(arch.caseback==='exhibition'){const rw=Rr.rCase*CASEBACK_WINDOW;
    const mv=add(G.case,'movement',faceDown(sheetUV(new CircleGeometry(rw,96))),paintedMaterial(backTex,{roughness:.35}),{cast:false});
    mv.position.y=H.back*.55-.01;
-   const glass=add(G.case,'backGlass',faceDown(new CircleGeometry(rw,96)),crystalMaterial('polished',.5,1),{cast:false,receive:false});
+   const glass=add(G.case,'backGlass',faceDown(new CircleGeometry(rw,96)),crystalMaterial('polished',.5),{cast:false,receive:false});
    glass.position.y=.02}
   else{const face=add(G.case,'backFace',faceDown(sheetUV(new CircleGeometry(Rr.rCase*.8,120))),
     Object.assign(metalMaterial(cm.metal,'brushed'),{map:backTex,color:new Color(0xffffff)}),{cast:false});
@@ -482,7 +517,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
     add(G.dial,'registerWall:'+sd.key,wall,wallMat(),{cast:false})}
    /* date: a polished frame lining the aperture, and the wheel turning below */
    if(DL.win){const w=DL.win,wx=mmX(w.x),wy=mmY(w.y),ww=w.w/PX,wh=w.h/PX,wr=w.rad/PX,b=w.frame/PX;
-    const wheelY=Hc-.45;
+    const wheelY=Hc-DATE_WHEEL_DROP_MM;
     const frameShape=roundRectPath(new Shape(),wx,wy,ww+2*b,wh+2*b,wr+b);
     frameShape.holes.push(roundRectPath(new Path(),wx,wy,ww,wh,wr));
     const top=Hc+.1,depth=top-wheelY-.05;
@@ -534,9 +569,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const hp=parts.hands;
  {const holder=new Group();holder.name='hand:upload';G.hands.add(holder);
   if(!uploaded('hands',holder,H.dial+.7)){G.hands.remove(holder);
-   /* the hour hand now reaches over the indices' inner ends, so it rides
-      above the tallest of them (wedges, .34 mm); each hand clears the one below */
-   const lift={hour:.36,min:.66,sec:.98};
+   const lift=HAND_LIFT_MM;
    for(const k of['hour','min','sec']){
     const hold=new Group();hold.name='hand:'+k;G.hands.add(hold);
     const arbor=new Group();arbor.name=k;arbor.position.y=H.dial+lift[k];arbor.userData.spin=k;hold.add(arbor);
@@ -557,9 +590,16 @@ export function buildHead(d,customs={},{aniso=8}={}){
 
  /* ---- crystal ---- */
  if(!uploaded('crystal',G.crystal,H.top+.02,{transparent:true,opacity:parts.crystal.opacity,alphaTest:0,depthWrite:false})){
-  const cr=add(G.crystal,'crystal',lathe(P.crystal,180),
-   crystalMaterial(parts.crystal.finish,parts.crystal.opacity,arch.crystalMm),{cast:false,receive:false});
-  cr.renderOrder=10}
+  const faces=CR.faces.filter(f=>f.some((p,i)=>i&&p.distanceTo(f[i-1])>1e-6)).map(f=>lathe(f,180));
+  const cr=add(G.crystal,'crystal',mergeGeometries(faces),
+   crystalMaterial(parts.crystal.finish,parts.crystal.opacity,{solid:CR.thickness}),{cast:false,receive:false});
+  faces.forEach(f=>f.dispose());
+  cr.renderOrder=10;
+  /* the cyclops over the date: its lens looks at the date wheel below it */
+  const cy=cyclopsOf(d);
+  if(cy){const lens=add(G.crystal,'cyclops',cyclopsGeometry(cy),
+    magnifier(crystalMaterial(parts.crystal.finish,parts.crystal.opacity,{solid:cy.height}),{depth:cy.depth,mag:cy.mag,top:cy.height,glass:CR.thickness}),{cast:false,receive:false});
+   lens.position.set(cy.x,H.top,cy.z);lens.renderOrder=11}}
 
  /* A brushed finish streaks along the UV tangent, and the smoothed extrusions
     (lugs, crown guards) carry no UVs: with no tangent the highlight broke into

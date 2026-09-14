@@ -4,7 +4,7 @@
    Finish drives how much anti-reflective coating is on it: none = bare
    sapphire with strong white reflections, matte = heavily coated and almost
    invisible apart from the tell-tale blue-violet cast. */
-import {C} from '../constants.js';
+import {C,PX} from '../constants.js';
 
 const AR={none:1,brushed:.85,polished:.6,matte:.28};
 
@@ -48,4 +48,14 @@ export function drCrystal(ctx,o){const{crystalR,crystalH}=o.g;const r=crystalR;c
   ctx.fillStyle=e;ctx.fillRect(0,0,W,H)}
  ctx.restore();
  ctx.beginPath();ctx.arc(C,C,r-1.5,0,7);ctx.strokeStyle=`rgba(255,255,255,${(0.22*k+0.05).toFixed(3)})`;ctx.lineWidth=2.5;ctx.stroke();
- ctx.beginPath();ctx.arc(C,C,r-5,0,7);ctx.strokeStyle='rgba(0,0,0,.1)';ctx.lineWidth=4;ctx.stroke();}
+ ctx.beginPath();ctx.arc(C,C,r-5,0,7);ctx.strokeStyle='rgba(0,0,0,.1)';ctx.lineWidth=4;ctx.stroke();
+ /* the cyclops, seen from above: a bright rim where its wall catches the light
+    and a glint on its crown. The 3D lens magnifies; the flat drawing cannot see
+    the dial beneath its own layer, so it only marks the lens. */
+ if(o.cyclops){const c=o.cyclops,x=C+c.x*PX,y=C+c.z*PX,w=c.A*2*PX,h=c.B*2*PX,rr=c.rc*PX;
+  ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,rr);
+  ctx.fillStyle=`rgba(255,255,255,${(.05+.06*k).toFixed(3)})`;ctx.fill();
+  ctx.strokeStyle=`rgba(255,255,255,${(.35*k+.15).toFixed(3)})`;ctx.lineWidth=2;ctx.stroke();
+  const gl=ctx.createRadialGradient(x-w*.18,y-h*.2,0,x-w*.18,y-h*.2,h*.45);
+  gl.addColorStop(0,`rgba(255,255,255,${(.5*k).toFixed(3)})`);gl.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=gl;ctx.fill()}}

@@ -22,6 +22,7 @@ import {Group,CanvasTexture} from 'three';
 import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter.js';
 import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {buildHead,applyPose,poseHead,disposeHead,PARTS3D} from '../core/three/watch.js';
+import {solidGlass} from '../core/three/materials.js';
 import {sceneClock,marketingClock} from '../core/time.js';
 import {store} from '../state/store.js';
 import {toast} from '../core/utils.js';
@@ -89,11 +90,12 @@ function portableTangents(root){
     x=ay*nz-az*ny;y=az*nx-ax*nz;z=ax*ny-ay*nx;const k=Math.hypot(x,y,z)||1;x/=k;y/=k;z/=k}
    t.setXYZW(i,x,y,z,t.getW(i)<0?-1:1)}})}
 
-/* The crystal is one lathed surface, not a closed solid — in glTF terms
-   thin-walled glass: transmission without KHR_materials_volume. Volume on a
-   double-sided shell is exactly what the validator warns about. */
+/* The crystal and the cyclops are closed solids and export with
+   KHR_materials_volume, so a glTF viewer refracts through them. A double-sided
+   pane (the caseback window) is thin-walled glass: volume on a double-sided
+   shell is exactly what the validator warns about. */
 function thinWalledGlass(root){
- root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0)m.thickness=0})}
+ root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0)m.thickness=solidGlass.get(m)||0})}
 
 /* glTF (JSON) or GLB (ArrayBuffer) of a design */
 export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary=true,maxTextureSize=2048}={}){

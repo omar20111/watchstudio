@@ -1,6 +1,6 @@
 /* Renderer registry + shared option builder. */
 import {clone} from '../utils.js';
-import {geoOf,crownAng,caseOf,dialLayoutOf,dialDayOf,handLengthsOf,strapReachPx} from '../geometry.js';
+import {geoOf,crownAng,caseOf,dialLayoutOf,dialDayOf,handLengthsOf,strapReachPx,cyclopsOf} from '../geometry.js';
 import {srcOf} from '../parts.js';
 import {drStrap} from './strap.js';
 import {drCase} from './case.js';
@@ -34,6 +34,7 @@ export function procOpts(part,d,sub,mode){const src=srcOf(part);const arch=caseO
   handLen:src==='hands'?handLengthsOf(d):null,
   /* where a 3D strap piece ends, px from the centre */
   strapReach:src==='strap'&&mode==='flat'&&sub?strapReachPx(d,sub):null,
+  cyclops:src==='crystal'?cyclopsOf(d):null,
   secColor:d.parts.hands.secColor,dialColor:d.parts.dial.color,
   frameMetal:d.parts.hands.metal,crownAng:crownAng(d),
   lume:d.parts[src].lume||d.parts.markers.lume}}

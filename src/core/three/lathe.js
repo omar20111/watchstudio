@@ -15,7 +15,7 @@
    normals out of the metal. */
 import {Vector2,LatheGeometry,Shape} from 'three';
 import {PX} from '../constants.js';
-import {geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm} from '../geometry.js';
+import {geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -75,15 +75,45 @@ export function headProfiles(d){
  /* rehaut: the flange falling from under the bezel's inner edge to the dial */
  P.rehaut=[V(rBezIn,H.bezelTop-innerDrop),V(dialR,H.dial)];
 
- /* crystal, seated just inside the bezel's inner edge */
- const c0=H.bezelTop-innerDrop*.7,h=H.top-c0,a=rBezIn;
- if(arch.crystal==='dome'){/* spherical cap through the rim and the apex */
-  const Rs=(a*a+h*h)/(2*h),n=24;P.crystal=[];
-  for(let i=0;i<=n;i++){const x=a*(1-i/n),y=H.top-Rs+Math.sqrt(Math.max(0,Rs*Rs-x*x));P.crystal.push(V(x,y))}
-  P.crystal[P.crystal.length-1]=V(0,H.top)}
- else{const k=arch.crystal==='box'?Math.min(.5,h*.25):Math.min(.2,h*.3);
-  P.crystal=[V(a,c0),V(a,H.top-k),...round(V(a,H.top-k),V(a,H.top),V(a-k,H.top)),V(a-k,H.top),V(0,H.top)]}
- return{profiles:P,heights:H,radii:Rr}}
+ const crystal=crystalSolid(H,Rr,arch,H.bezelTop-innerDrop*.7);
+ P.crystal=crystal.outer;
+ return{profiles:P,heights:H,radii:Rr,crystal}}
+
+/* The crystal as a solid of sapphire, seated on its gasket at c0 just inside
+   the bezel's inner edge. Its top is flat with a ground bevel, a domed cap, or
+   a box crystal's tall wall rounded over. Its underside clears the hands
+   (HAND_STACK_MM). Outside the dial's edge a rim steps down to the seat, the
+   rebate a crystal is cut with, so there is no gap under it at the bezel.
+   Every face is its own lathe, so the bevel and the rim keep hard edges; each
+   runs so its lathe's normals face out of the solid. `outer` runs from the
+   seat to the apex. */
+function crystalSolid(H,Rr,arch,c0){const a=Rr.rBezIn,h=H.top-c0,shape=arch.crystal;
+ const clear=H.dial+HAND_STACK_MM+HAND_CLEAR_MM,t=CRYSTAL_T_MM[shape]??1;
+ const clearAt=x=>H.dial+handsTopAt(x)+HAND_CLEAR_MM;
+ const rStep=Math.max(Rr.dialR*.985,a-1.1);
+ const faces=[];let outer,under;
+ if(shape==='dome'){
+  /* an edge standing a little proud of the bezel, then a spherical cap from
+     its top to the apex: a dome's rim is where the glass is thickest over the
+     hands' tips, so it is never sunk into the bezel */
+  const e=H.bezelTop-c0+Math.min(.3,(H.top-H.bezelTop)*.3),hh=H.top-(c0+e),Rs=(a*a+hh*hh)/(2*hh),yc=H.top-Rs,n=32;
+  const cap=[];for(let i=0;i<=n;i++){const x=a*(1-i/n);cap.push(V(x,yc+Math.sqrt(Math.max(0,Rs*Rs-x*x))))}
+  cap[n]=V(0,H.top);
+  faces.push([V(a,c0),V(a,c0+e)],[V(a,c0+e),...cap.slice(1)]);
+  outer=[V(a,c0),V(a,c0+e),...cap.slice(1)];
+  /* the inside is the same sphere, a shell's thickness smaller, never lower than the hands allow */
+  const Ri=Rs-t;under=x=>Math.max(clearAt(x),x<Ri?yc+Math.sqrt(Ri*Ri-x*x):-1e9)}
+ else{
+  /* a flat crystal's edge is ground to a 45 degree bevel; a box crystal's is rounded over */
+  const k=shape==='box'?Math.min(.5,h*.25):Math.min(.25,h*.3);
+  const edge=shape==='box'?[V(a,H.top-k),...round(V(a,H.top-k),V(a,H.top),V(a-k,H.top)),V(a-k,H.top)]:[V(a,H.top-k),V(a-k,H.top)];
+  faces.push([V(a,c0),V(a,H.top-k)],edge,[V(a-k,H.top),V(0,H.top)]);
+  outer=[V(a,c0),...edge,V(0,H.top)];
+  const yU=Math.max(H.top-t,clear);under=()=>yU}
+ /* the underside, from the axis out to the rebate; then down (or up) to the seat, and out to the rim */
+ const n=shape==='dome'?48:1,inner=[];for(let i=0;i<=n;i++){const x=rStep*i/n;inner.push(V(x,under(x)))}
+ faces.push(inner,[V(rStep,under(rStep)),V(rStep,c0)],[V(rStep,c0),V(a,c0)]);
+ return{outer,faces,c0,rim:a,rStep,under,thickness:H.top-under(0),clear}}
 
 export const lathe=(points,segments=160)=>new LatheGeometry(points,segments);
 

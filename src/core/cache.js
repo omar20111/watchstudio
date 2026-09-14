@@ -32,7 +32,9 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
   part==='hands'?d.parts.markers.variant:0,
   /* a 3D strap is cut to its length from the spring bar, which a sport case's
      broader lugs move */
-  part==='strap'&&mode==='flat'?d.parts.case.variant:0])};
+  part==='strap'&&mode==='flat'?d.parts.case.variant:0,
+  /* the cyclops sits over the date window, wherever the dial puts one */
+  part==='crystal'?[p.cyclops,d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0])};
 
 /* Most bakes are the 1200² sheet. A 3D strap runs far past the sheet edge as it
    curves away, so its flat bake is a tall canvas reaching from just past the

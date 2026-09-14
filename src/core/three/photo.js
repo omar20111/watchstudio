@@ -17,6 +17,7 @@ import {studioEquirect} from './studio.js';
 import {disposeHead,poseHead} from './watch.js';
 import {surfaceMesh} from './surfaces.js';
 import {wearRoughness} from './wear.js';
+import {solidGlass} from './materials.js';
 import {sceneClock} from '../time.js';
 import {exportWatch} from '../../export/glb.js';
 
@@ -28,8 +29,9 @@ export const PHOTO_SAMPLES=320;
 /* the parts a path tracer reads differently from a rasteriser */
 function forPathTracing(watch){
  watch.traverse(o=>{if(!o.isMesh)return;const m=o.material;
-  /* a lathed crystal is one surface, not a solid: thin glass, not a lens */
-  if(m.transmission>0)m.thickness=0;
+  /* the crystal and the cyclops are closed solids, traced as real volumes of
+     sapphire that bend light; a single-sided pane (the caseback window) is thin glass */
+  if(m.transmission>0)m.thickness=solidGlass.get(m)||0;
   /* the wear shader does not run here: carry its average (wear.js) */
   m.roughness=Math.min(1,m.roughness+wearRoughness(m))});
  return watch}

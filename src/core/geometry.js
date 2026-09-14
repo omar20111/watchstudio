@@ -206,6 +206,55 @@ export function handLengthsOf(d){const r=geoOf(d).dialR,v=(d.parts.markers||{}).
  const inner=INDEX_OUTER-(INDEX_DEPTH[v]??INDEX_DEPTH.batons);
  const hour=Math.min(Math.max(inner+.012,.6),min*.8);
  return{hour,min,sec}}
+/* how high each hand's arbor stands above the dial, mm: the hour hand rides
+   clear of the tallest applied index, each hand clears the one below, and the
+   seconds pinion tops the stack. The crystal's underside clears that. */
+export const HAND_LIFT_MM={hour:.36,min:.66,sec:.98};
+export const HAND_STACK_MM=HAND_LIFT_MM.sec+.44;
+/* Away from the centre only the seconds hand's own body (.16 mm) sweeps under
+   the crystal; the pinion cap on top of it is this wide. */
+export const HAND_SWEEP_MM=HAND_LIFT_MM.sec+.16, SEC_CAP_R_MM=13/PX;
+/* the hands' height above the dial at `x` mm from the centre */
+export const handsTopAt=x=>x<SEC_CAP_R_MM+.25?HAND_STACK_MM:HAND_SWEEP_MM;
+
+/* ==================== CRYSTAL ====================
+   A sapphire crystal is a solid: a flat one about 1.1 mm thick, a dome a shell
+   about 0.9 mm, a box crystal's top and walls about 1 mm. Its underside clears
+   the hands by HAND_CLEAR_MM; a crystal standing low in a thin bezel is ground
+   thinner there rather than touching them. */
+export const SAPPHIRE_IOR=1.77, CRYSTAL_T_MM={flat:1.1,dome:.9,box:1}, HAND_CLEAR_MM=.08;
+/* how far the date wheel turns below the dial plate */
+export const DATE_WHEEL_DROP_MM=.45;
+
+/* A cyclops: a plano-convex sapphire lens bonded to the crystal over the date.
+   Its footprint is a rounded rectangle over the window, its top a cut from a
+   sphere. The sphere is what magnifies, so its radius is chosen to magnify the
+   date about 2.5x from this height, but never flatter than the footprint allows.
+   It needs a flat top to sit on, so a domed crystal has none. */
+export const CYCLOPS_SCALE=1.6, CYCLOPS_MAG=2.5;
+export function cyclopsOf(d){const P=d.parts||{},c=caseOf(d),L=dialLayoutOf(d);
+ if(!(P.crystal&&P.crystal.cyclops)||!L.win||c.crystal==='dome')return null;
+ const g=geoOf(d),st=thicknessStack(d),w=L.win;
+ const x=(w.x-C)/PX,z=(w.y-C)/PX,cr=Math.hypot(x,z);
+ const reach=(A,B,rc)=>Math.hypot(A-rc,B-rc)+rc;  /* centre to the farthest corner */
+ let A=w.w/PX*CYCLOPS_SCALE/2,B=w.h/PX*CYCLOPS_SCALE/2;
+ /* it stays on the flat of the crystal, clear of the bevel at its edge */
+ const room=g.rBezIn/PX-.6-cr,s=Math.min(1,room/reach(A,B,Math.min(A,B)*.45));A*=s;B*=s;
+ const rc=Math.min(A,B)*.45,rho=reach(A,B,rc),wall=.2;
+ /* lens base to the date wheel, through the bezel and the crystal's height; of
+    that, `glass` is the crystal itself (lathe.js crystalSolid grinds a flat
+    underside to clear the hands) */
+ const depth=st.bezel+st.crystal+(P.dial&&P.dial.step==='stepped'?DIAL_STEP_MM:0)+DATE_WHEEL_DROP_MM;
+ const n=SAPPHIRE_IOR,glass=Math.min(CRYSTAL_T_MM[c.crystal]??1,st.bezel+st.crystal-HAND_STACK_MM-HAND_CLEAR_MM);
+ /* A plano-convex lens magnifies f/(f-u), u measured from its curved crown.
+    Sapphire looks shallower than it is by its index, so the crystal and the
+    lens's own height count 1/n of their thickness. The height depends on the
+    radius chosen, so settle the two together. */
+ let R=rho*1.15,height=wall,u=depth;
+ for(let i=0;i<4;i++){u=depth-glass+(glass+height)/n;
+  R=Math.max(u*CYCLOPS_MAG/(CYCLOPS_MAG-1)*(n-1),rho*1.15);height=R-Math.sqrt(R*R-rho*rho)+wall}
+ const f=R/(n-1);u=depth-glass+(glass+height)/n;
+ return{x,z,A,B,rc,rho,R,wall,height,depth,glass,mag:f/(f-u)}}
 
 /* ==================== STRAP ENDS ====================
    How a 3D strap ends, shared by its flat bake and its mesh so the painted

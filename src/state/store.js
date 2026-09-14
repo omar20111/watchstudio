@@ -38,7 +38,7 @@ export const DEF={caseMm:40,strapMm:'auto',
   hands:{variant:'dauphine',metal:'steel',finish:'polished',lume:'#dff3e4',glow:false,
    secColor:'#e8482c',tH:TT(),tM:TT(),tS:TT()},
   /* no `variant`: the crystal's shape is case.crystal (see migrateProject v6) */
-  crystal:{finish:'polished',opacity:0.65,t:TT()}}};
+  crystal:{finish:'polished',opacity:0.65,cyclops:false,t:TT()}}};
 
 /* Walk an older saved project forward. Runs BEFORE hydrate so hydrate only
    ever sees current-shape input.

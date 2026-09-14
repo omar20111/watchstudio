@@ -68,6 +68,34 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **A solid sapphire crystal** (`lathe.js crystalSolid`). The crystal was a
+  single glass skin with nothing under it. It is now a closed solid:
+  - a flat crystal has a ground 45° bevel, a dome is a shell, and a box crystal
+    has tall walls rounded over at the top;
+  - its underside clears the hands, measured at each distance from the centre
+    (only the seconds pinion stands tallest), and a crystal set low in a thin
+    bezel is ground thinner there rather than touching them;
+  - outside the dial a rim steps down to its seat, as a crystal is cut, so there
+    is no gap under it at the bezel.
+
+  The path-traced photo and the GLB (`KHR_materials_volume`) refract through
+  its real thickness. The live view bends by a fraction of it, because
+  screen-space refraction at a full millimetre smeared the date window and
+  kinked the indices.
+- **Cyclops date magnifier** (Crystal panel; `geometry.js cyclopsOf`). A
+  plano-convex sapphire lens bonded over the date window: a rounded-rectangle
+  footprint with a spherical top, its radius chosen to magnify the date 2.5x
+  from its height above the date wheel. That calculation allows for the
+  sapphire under and inside the lens. It needs a flat top, so it is offered on
+  flat and box crystals and explains itself on a dome or without a date.
+  - In the live view a shader magnifies what lies under the lens, along the line
+    of sight refracted into the sapphire. Seen from above it shows the date;
+    tilted far enough, the date slides out of it, as on a real watch.
+  - The path tracer magnifies through the lens itself.
+  - The flat 2D drawing marks the lens.
+
+  Checked across crystal shapes, heights, bezels and case sizes in
+  `combos.mjs`, and in the browser in `e2e/tests/crystal.mjs`.
 - **A welcome for first-time visitors** (`ui/Welcome.jsx`). A gallery of all
   15 designs, shown as real renders, to start from — or a blank watch — then
   three quick steps (case, dial, strap) over the live editor, with the full

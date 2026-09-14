@@ -71,8 +71,12 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
   (bucket[bj*BW+bi]||(bucket[bj*BW+bi]=[])).push(n)});
  const segDist=(px,py,s)=>{const[ax,ay]=s[0],[bx2,by2]=s[1],dx=bx2-ax,dy=by2-ay,l2=dx*dx+dy*dy;
   let t=l2?((px-ax)*dx+(py-ay)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(px-ax-t*dx,py-ay-t*dy)};
+ /* distances are also needed just outside the outline (see the smoothing below) */
+ const near=new Uint8Array(W*H);
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){if(!inside[j*W+i])continue;
+  for(let jj=Math.max(0,j-4);jj<=Math.min(H-1,j+4);jj++)for(let ii=Math.max(0,i-4);ii<=Math.min(W-1,i+4);ii++)near[jj*W+ii]=1}
  const dist=new Float32Array(W*H);let maxD=0;
- for(let j=0;j<H;j++)for(let i=0;i<W;i++){const k=j*W+i;if(!inside[k])continue;
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){const k=j*W+i;if(!near[k])continue;
   const bi=Math.floor(i/S),bj=Math.floor(j/S);let best=INF;
   for(let r=0;r<Math.max(BW,BH);r++){
    for(let jj=bj-r;jj<=bj+r;jj++)for(let ii=bi-r;ii<=bi+r;ii++){
@@ -81,28 +85,35 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
     for(const n of list){const dd=segDist(i,j,segs[n]);if(dd<best)best=dd}}
    /* every bucket beyond this ring is at least r*S away (plus a segment's half-length) */
    if(best<=(r-1)*S)break}
-  dist[k]=best;if(best>maxD)maxD=best}
+  dist[k]=best;if(inside[k]&&best>maxD)maxD=best}
  maxD=Math.max(1,maxD);
  const ease=profile==='dome'?t=>Math.sqrt(1-(1-t)*(1-t)):profile==='bevel'?t=>Math.sin(t*Math.PI/2):t=>t;
  const span=profile==='roof'?maxD:Math.max(1,maxD*bevel);
+ /* Just outside, the flank is continued downward as its mirror image about the
+    edge. The smoothing below would otherwise average the first pixels inside
+    with a flat `edge` outside — by an amount that depends on where a slanted
+    outline happens to cross the pixel grid, which on a polished facet shows as
+    a row of dark notches along the edge. Mirrored, a straight flank blurs into
+    itself and stays straight. */
  const hAt=new Float32Array(W*H);
- for(let k=0;k<W*H;k++){if(!inside[k]){hAt[k]=edge;continue}
-  const t=Math.min(1,dist[k]/span);
-  let h=edge+(height-edge)*ease(t);
+ for(let k=0;k<W*H;k++){
+  if(!inside[k]){hAt[k]=near[k]?edge-(height-edge)*ease(Math.min(1,dist[k]/span)):edge;continue}
+  let h=edge+(height-edge)*ease(Math.min(1,dist[k]/span));
   if(L&&L[k]>TH)h=Math.min(h,pocket);
   hAt[k]=h}
  /* A lume pocket is cut where the lume bake's pixels are, so its rim follows the
     pixel grid; and the grid samples the surface only once a pixel. A small
     gaussian (one pass of a 5-tap binomial, sigma ~1 px, about 0.05 mm) rounds
-    the pocket rim and the ridge just enough; points outside the part keep the
-    edge height, so the outline stays put. */
+    the pocket rim and the ridge just enough. Outside the part the smoothed
+    mirror is kept for the rim's gradients only — the rim itself is built at
+    the edge height, so the outline stays put. */
  {const tmp=new Float32Array(W*H),K=[1,4,6,4,1];
-  for(let pass=0;pass<1;pass++){
-   for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
-    for(let q=-2;q<=2;q++){const ii=i+q;if(ii<0||ii>=W)continue;s+=hAt[j*W+ii]*K[q+2];w+=K[q+2]}tmp[j*W+i]=s/w}
-   for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
-    for(let q=-2;q<=2;q++){const jj=j+q;if(jj<0||jj>=H)continue;s+=tmp[jj*W+i]*K[q+2];w+=K[q+2]}
-    const k=j*W+i;hAt[k]=inside[k]?s/w:edge}}}
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
+   for(let q=-2;q<=2;q++){const ii=i+q;if(ii<0||ii>=W)continue;s+=hAt[j*W+ii]*K[q+2];w+=K[q+2]}tmp[j*W+i]=s/w}
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
+   for(let q=-2;q<=2;q++){const jj=j+q;if(jj<0||jj>=H)continue;s+=tmp[jj*W+i]*K[q+2];w+=K[q+2]}
+   /* nothing inside sinks below the rim, or the rim grows a hairline moat */
+   const k=j*W+i;hAt[k]=inside[k]?Math.max(edge,s/w):s/w}}
 
  const pos=[],nrm=[],uv=[],idx=[];
  const mmX=i=>(i+bx-C)/PX,mmZ=j=>(j+by-C)/PX,step=1/PX;
@@ -157,7 +168,8 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
   let nx=dz/len,nz=-dx/len;
   if(bilinear((P.x+Q.x)/2+nx*step*.35,(P.z+Q.z)/2+nz*step*.35)>TH){[P,Q]=[Q,P];nx=-nx;nz=-nz}
   const pt=wv(P,1),qt=wv(Q,1),pb=wv(P,0),qb=wv(Q,0);
-  idx.push(pt,pb,qt,qt,pb,qb);
+  /* wound so the face looks along n, outward: (qt - pt) x (pb - pt) = n */
+  idx.push(pt,qt,pb,qt,qb,pb);
   for(const v of[pt,qt,pb,qb]){acc[v][0]+=nx*len;acc[v][1]+=nz*len}}
  for(const v of wallV.values()){const[ax,az]=acc[v],l=Math.hypot(ax,az)||1;nrm[v*3]=ax/l;nrm[v*3+1]=0;nrm[v*3+2]=az/l}
 
