@@ -78,6 +78,24 @@
   only as tall as that piece is long, so even the longest strap stays inside a
   phone GPU's 4096 px texture limit. Checked by measuring the built meshes
   (`combos.mjs`). Bracelets keep their length until they get a clasp.
+- **Clearances between the hands and what is on the dial** (`geometry.js`
+  CLEARANCES, `logo.js logoBoxOf`).
+  - **Height:** a raised part may stand no taller than the underside of the
+    lowest hand that sweeps over it: the hour hand out to its tip, then the
+    minute hand, then the seconds hand. A PartStudio set designed with tall
+    indices (up to 1.2 mm) is ground no taller than that at each index's inner
+    end. The built-in index styles are checked against it at every size and
+    chapter ring. An applied logo is checked in the browser to stand below the
+    hour hand.
+  - **Logo placement:** the logo keeps the place and size you set, but is drawn
+    smaller where it would run into the brand text, the model line, the date
+    window, a register or the hour indices, or cover the hands' centre. The
+    Logo panel says how much smaller and what for, or asks you to move it when
+    there is no room at all. It is never made larger and never moved.
+  - **Posed pictures:** the 10:09 pose that thumbnails, stills and the design
+    sheet use picks its second, from 36 outward, so the seconds hand (tail to
+    tip) crosses no printing, no date window and no logo.
+  - Checked in `combos.mjs` and `e2e/tests/logo.mjs`.
 - **Dial elements at their real sizes** (`geometry.js DIAL_MM`). Several dial
   elements grew and shrank with the case diameter, so a 46 mm watch had a date
   window a third larger than a 34 mm one. On a real watch the date aperture and

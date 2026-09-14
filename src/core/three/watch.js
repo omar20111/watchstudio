@@ -18,7 +18,7 @@ import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
 import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
-        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf} from '../geometry.js';
+        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
@@ -37,7 +37,7 @@ import {buildMovement} from './movement.js';
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
    the floor of the lume channel; numerals carry no lume. */
-const INDEX_FORM={
+export const INDEX_FORM={
  batons:{profile:'bevel',height:.32,edge:.1,bevel:.42,pocket:.24},
  minimal:{profile:'bevel',height:.3,edge:.1,bevel:.42,pocket:.23},
  dots:{profile:'dome',height:.3,edge:.08,bevel:.9,pocket:.22},
@@ -585,7 +585,9 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const mk=parts.markers,frame=parts.hands.metal,mset=markerSetOf(d);
  if(!uploaded('markers',G.markers,H.dial+.05,mk.glow?{emissive:new Color(mk.lume),emissiveIntensity:.5}:{})){
   /* a set designed in PartStudio, ground from its own millimetre outlines */
-  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hc,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,skipHours:DL.skipHours,glow:mk.glow});
+  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hc,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,skipHours:DL.skipHours,glow:mk.glow,
+   /* no taller than the hands passing over it allow, measured from where it stands */
+   heightLimitAt:(lim=>rho=>lim(rho)+(H.dial-Hc))(appliedHeightLimitOf(d))});
   else{
   const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
   const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;

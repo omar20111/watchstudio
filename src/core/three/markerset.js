@@ -46,13 +46,18 @@ function bodyMat(s,glow){const M=MATERIALS[s.material];
  return m}
 
 /* Put the set's indices into `group` through the head's add(): the dial face at
-   height y, its radius dialRmm; skipHour is the hour a date window replaces. */
-export function addMarkerSet(set,{group,add,y,dialRmm,skipHour=null,skipHours=[],glow=false}){
+   height y, its radius dialRmm; skipHour is the hour a date window replaces.
+   heightLimitAt(mm from the centre) is the tallest an index may stand there for
+   the hands to clear it (geometry.js appliedHeightLimitOf): an index is ground
+   no taller than the limit at its inner end, the nearest the hands reach. */
+export function addMarkerSet(set,{group,add,y,dialRmm,skipHour=null,skipHours=[],glow=false,heightLimitAt=()=>Infinity}){
  const ring=dialRmm*set.ringRatio,mats=new Map();
  const mat=(s,lume)=>{const k=s.id+(lume?':lume':'');
   if(!mats.has(k))mats.set(k,lume?lumeMat(s.lumeColor,glow):bodyMat(s,glow));return mats.get(k)};
  let n=0;
- for(let h=0;h<12;h++){if(h===skipHour||skipHours.includes(h))continue;const s=styleAt(set,h);if(!s)continue;
+ for(let h=0;h<12;h++){if(h===skipHour||skipHours.includes(h))continue;const s0=styleAt(set,h);if(!s0)continue;
+  const depth=s0.kind==='numeral'?s0.sizeMm:s0.outline==='dot'?s0.widthMm:s0.lengthMm;
+  const lim=heightLimitAt(Math.max(0,ring-depth)),s=s0.heightMm>lim?{...s0,heightMm:lim}:s0;
   const sol=solidOf(s,h);if(!sol)continue;
   const p=placementOf(s,h,ring);
   const put=(geo,name,m,o)=>{const mesh=add(group,name,geo.clone(),m,o);mesh.position.set(p.x,y,p.z);mesh.rotation.y=p.rotY;mesh.userData.hour=h;return mesh};

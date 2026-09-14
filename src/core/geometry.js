@@ -367,6 +367,49 @@ export function dialLayoutOf(d){
  if(chrono&&(dist+rs+.2)*PX>indexInnerOf(d)*r)for(const h of[3,6,9])if(!skipHours.includes(h))skipHours.push(h);
  return{r,chrono,stepped,stepR:r*.915,subdials,date,win,skipHours}}
 
+/* ==================== CLEARANCES ====================
+   The hands sweep over everything on the dial, so what stands on it must clear
+   them, and what is printed on it must not be hidden by them in a posed picture.
+
+   Height: an applied part (an index, a marker-set index, an applied logo) may
+   stand no taller than the underside of the lowest hand that passes over it:
+   the hour hand out to its tip, the minute hand beyond, the seconds hand beyond
+   that. Measured from the dial face the hands' lifts are measured from.
+
+   Place: the logo stays clear of the printing, the date window, the registers,
+   the hour indices and the hands' centre (logo.js logoBoxOf). */
+export const DIAL_CLEAR_MM=.02, HANDS_HUB_MM=1.4;
+export function appliedHeightLimitOf(d){const rMm=geoOf(d).dialR/PX,L=handLengthsOf(d);
+ const reach=[['hour',L.hour*rMm],['min',L.min*rMm],['sec',L.sec*rMm]];
+ return rhoMm=>{for(const[k,len]of reach)if(rhoMm<=len)return HAND_LIFT_MM[k]-DIAL_CLEAR_MM;return Infinity}}
+
+/* The printed and cut-out parts of the dial as boxes in sheet px, each with what
+   it is: the brand and model line (at an estimate of their printed width — the
+   renderer measures the real one, never wider), the date window with its frame.
+   A clearance `pad` px is added all round. */
+export function dialBoxesOf(d,pad=0){const L=dialLayoutOf(d),T=dialTextOf(d),t=(d.parts.dial||{}).text||{},out=[];
+ const est=(s,size,caps)=>s.length*(size*(caps?.66:.56)+(caps?4:1));
+ for(const[kind,str,b]of[['brand text',t.top,T.brand],['model line',t.bottom,T.line]]){if(!str)continue;
+  const w=Math.min(b.maxW,est(str,b.size,t.font==='caps'));
+  out.push({kind,x0:C-w/2-pad,x1:C+w/2+pad,y0:b.y-b.size*.6-pad,y1:b.y+b.size*.6+pad})}
+ if(L.win){const w=L.win,hx=w.w/2+w.frame+pad,hy=w.h/2+w.frame+pad;out.push({kind:'date window',x0:w.x-hx,x1:w.x+hx,y0:w.y-hy,y1:w.y+hy})}
+ return out}
+const segmentHitsBox=(ax,ay,bx,by,b)=>{let t0=0,t1=1;const dx=bx-ax,dy=by-ay;
+ for(const[p,q]of[[-dx,ax-b.x0],[dx,b.x1-ax],[-dy,ay-b.y0],[dy,b.y1-ay]]){
+  if(Math.abs(p)<1e-12){if(q<0)return false;continue}
+  const t=q/p;if(p<0){if(t>t1)return false;if(t>t0)t0=t}else{if(t<t0)return false;if(t<t1)t1=t}}
+ return true};
+/* A posed picture reads 10:09 with the seconds hand where it hides nothing
+   printed: the first second, from 36 outward, whose hand (tail to tip, and its
+   width) clears the printing, the date window and `extra` boxes (the logo). */
+export const MARKETING_SECONDS=[36,37,38,35,39,40,34,41,33,42,32,43,31,44,30,45];
+export function marketingSecondsOf(d,extra=[]){const r=geoOf(d).dialR,L=handLengthsOf(d),half=.2*PX;
+ const boxes=[...dialBoxesOf(d,half),...extra.map(b=>({...b,x0:b.x0-half,x1:b.x1+half,y0:b.y0-half,y1:b.y1+half}))];
+ for(const s of MARKETING_SECONDS){const a=s*6*Math.PI/180,ux=Math.sin(a),uy=-Math.cos(a);
+  const ax=C-ux*r*.22,ay=C-uy*r*.22,bx=C+ux*r*L.sec,by=C+uy*r*L.sec;
+  if(!boxes.some(b=>segmentHitsBox(ax,ay,bx,by,b)))return s}
+ return MARKETING_SECONDS[0]}
+
 /* The dial's printing, in sheet px: the brand below 12 and the model line above
    6, each at its printed size in mm, shrunk only where it is wider than the dial
    has room for (`maxW`). On a chronograph the 6 o'clock register takes the model

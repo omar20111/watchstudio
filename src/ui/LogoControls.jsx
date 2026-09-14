@@ -3,7 +3,7 @@
 import React from 'react';
 import {useApp} from '../state/store.js';
 import {Slider} from './primitives.jsx';
-import {LOGO_STYLES,LOGO_COLOURS,logoOf,activeLogo} from '../core/logo.js';
+import {LOGO_STYLES,LOGO_COLOURS,logoOf,activeLogo,logoFitOf} from '../core/logo.js';
 const {useRef,useState}=React;
 
 /* read a picked file as a data URL; with keyWhite, near-white pixels become
@@ -17,6 +17,8 @@ function readLogo(file,keyWhite,cb){const rd=new FileReader();
  rd.readAsDataURL(file)}
 
 export function LogoControls(){const s=useApp(),d=s.d,L=logoOf(d),logo=activeLogo(d,s.customs),id=d.active.logo;
+ /* how the logo fits the dial (logo.js logoBoxOf): smaller than asked where it would run into something */
+ const fit=logoFitOf(d,s.customs);
  const inp=useRef();const[keyWhite,setKeyWhite]=useState(false);
  const set=(patch,tag)=>s.upd(n=>{n.parts.dial.logo={...logoOf(n),...patch}},tag||'logo');
  const pick=f=>{if(!f)return;readLogo(f,keyWhite,url=>s.addUpload('logo',f.name,url))};
@@ -44,6 +46,9 @@ export function LogoControls(){const s=useApp(),d=s.d,L=logoOf(d),logo=activeLog
      {L.style==='print'&&<Chips label="Colour" opts={LOGO_COLOURS} val={L.color} onPick={v=>set({color:v})}/>}
      <Slider label="Size" min={0.1} max={1.1} step={0.01} val={L.size} fmt={v=>Math.round(v*100)+'%'} onChange={v=>set({size:v},'logoSize')}/>
      <Slider label="Position" min={-0.75} max={0.75} step={0.01} val={-L.y} fmt={v=>v>0.02?'toward 12':v<-0.02?'toward 6':'centre'} onChange={v=>set({y:-v},'logoY')}/>
+     {fit&&fit.limitedBy&&<p className="text-[10px] text-amber-300/80" role="status">
+      {fit.clear?`Shown at ${Math.round(fit.scale*100)}% of this size, to keep clear of the ${fit.limitedBy}.`
+       :`Too close to the ${fit.limitedBy} to fit here — move it toward 12 or 6.`}</p>}
      {d.parts.dial.text&&d.parts.dial.text.top&&
       <button className="btn w-full" onClick={()=>s.upd(n=>{n.parts.dial.text={...n.parts.dial.text,top:''};n.parts.dial.logo={...logoOf(n),y:-.42}},'logoBrand')}>
        Use the logo in place of the brand text</button>}

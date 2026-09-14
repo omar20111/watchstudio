@@ -566,5 +566,59 @@ for(const caseMm of[34,40,46])for(const variant of Object.keys(G.INDEX_DEPTH)){
    if(G.handLengthsOf(d).hour!==G.handLengthsOf(b).hour)bad('partstudio broken','a broken set is not measured as batons')}
   catch(e){bad('partstudio broken','a broken set threw: '+e.message)}}}
 
+/* clearances. Height: every applied index stands lower than the hands that
+   sweep over its inner end — built-in styles by their ground form, a PartStudio
+   set ground from a 1.2 mm design by the solid it becomes. Place: a logo is only
+   ever made smaller, and then clears the printing, the date window, the
+   registers, the hour indices and the hands' centre. Pose: the seconds hand in a
+   posed picture crosses no printing and no date window. */
+{const W=await import('./src/core/three/watch.js'),LG=await import('./src/core/logo.js'),TM=await import('./src/core/time.js');
+ for(const caseMm of[34,40,46])for(const step of['flat','stepped'])for(const variant of Object.keys(G.INDEX_DEPTH)){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.dial.step=step;d.parts.markers.variant=variant;
+  const lim=G.appliedHeightLimitOf(d),rMm=G.geoOf(d).dialR/PX,inner=G.indexInnerOf(d)*rMm;
+  /* indices stand on the sunk centre of a stepped dial, the hands' lifts are from its chapter ring */
+  const h=(W.INDEX_FORM[variant]||W.INDEX_FORM.batons).height-(step==='stepped'?G.DIAL_STEP_MM:0);
+  if(h>lim(inner)+1e-9)bad(`clearance ${caseMm}/${step}/${variant}`,`indices ${h.toFixed(2)}mm tall where the hands above allow ${lim(inner).toFixed(2)}mm`)}
+ {const MS=await import('./src/core/markerset/index.js');
+  const set=MS.setFromPartStudio({app:'PartStudio',kind:'watchstudio-markers',version:1,name:'Tall',set:{ringRatio:.885,
+   styles:[{id:'a',name:'Hours',outline:'baton',lengthMm:3,widthMm:1,heightMm:1.2,lume:'none'}],slots:Array(12).fill('a')}});
+  const d=M.clone(M.DEF);d.parts.markers.variant='partstudio';d.parts.markers.set=set;d.parts.dial.date='none';
+  const w=M.buildHead(d,{});w.updateMatrixWorld(true);const H=w.userData.heights,lim=G.appliedHeightLimitOf(d),rMm=G.geoOf(d).dialR/PX;
+  let n=0;w.traverse(o=>{if(!(o.isMesh&&/^index:/.test(o.name)))return;n++;
+   o.geometry.computeBoundingBox();const top=o.position.y+o.geometry.boundingBox.max.y-H.dial,allow=lim(rMm*.885-3);
+   if(top>allow+1e-3)bad('clearance partstudio',`${o.name} stands ${top.toFixed(2)}mm, the hands allow ${allow.toFixed(2)}mm`)});
+  if(n!==12)bad('clearance partstudio',`${n} indices ground from the tall set`)}
+ const boxesOf=(d,pad)=>{const L=G.dialLayoutOf(d),T=G.dialTextOf(d),t=d.parts.dial.text,o=[];
+  if(t.top)o.push({k:'brand',y0:T.brand.y-T.brand.size*.6-pad,y1:T.brand.y+T.brand.size*.6+pad,x0:-1e9,x1:1e9});
+  if(t.bottom)o.push({k:'line',y0:T.line.y-T.line.size*.6-pad,y1:T.line.y+T.line.size*.6+pad,x0:-1e9,x1:1e9});
+  if(L.win){const v=L.win;o.push({k:'window',x0:v.x-v.w/2-v.frame-pad,x1:v.x+v.w/2+v.frame+pad,y0:v.y-v.h/2-v.frame-pad,y1:v.y+v.h/2+v.frame+pad})}
+  return o};
+ for(const caseMm of[34,46])for(const variant of['sunburst','chrono'])for(const date of['none','3','6'])for(const text of[true,false])
+ for(const size of[.34,1.1])for(const y of[-.6,-.3,.45])for(const aspect of[1,.25]){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;Object.assign(d.parts.dial,{variant,date,logo:{style:'print',color:'ink',size,y}});
+  if(!text)d.parts.dial.text={...d.parts.dial.text,top:'',bottom:''};
+  const tag=`logo ${caseMm}/${variant}/date ${date}/${text?'text':'no text'}/size ${size}/y ${y}/aspect ${aspect}`;
+  const B=LG.logoBoxOf(d,aspect),r=G.geoOf(d).dialR,L=G.dialLayoutOf(d);
+  if(B.scale>1+1e-9)bad(tag,'the logo was made larger');
+  if(!B.limitedBy&&B.scale!==1)bad(tag,'the logo was made smaller with nothing in its way');
+  if(!B.clear)continue;
+  const b={x0:B.x-B.w/2,x1:B.x+B.w/2,y0:B.y-B.h/2,y1:B.y+B.h/2};
+  for(const o of boxesOf(d,.39*PX))if(b.x0<o.x1&&b.x1>o.x0&&b.y0<o.y1&&b.y1>o.y0)bad(tag,`the logo runs into the ${o.k}`);
+  for(const s of[...L.subdials,{x:C,y:C,r:G.HANDS_HUB_MM*PX-1e-6}]){const nx=Math.max(b.x0,Math.min(s.x,b.x1)),ny=Math.max(b.y0,Math.min(s.y,b.y1));
+   if(Math.hypot(nx-s.x,ny-s.y)<s.r)bad(tag,'the logo runs into a register or the hands\' centre')}
+  for(const[x,yy]of[[b.x0,b.y0],[b.x1,b.y0],[b.x0,b.y1],[b.x1,b.y1]])if(Math.hypot(x-C,yy-C)>G.indexInnerOf(d)*r)bad(tag,'the logo reaches under the hour indices')}
+ {const d=M.clone(M.DEF);d.parts.dial.date='none';d.parts.dial.text={...d.parts.dial.text,top:'',bottom:''};d.parts.dial.logo={size:.3,y:-.55};
+  if(LG.logoBoxOf(d,.5).scale!==1)bad('logo','a small logo with room around it was resized')}
+ for(const caseMm of[34,40,46])for(const variant of['sunburst','chrono'])for(const date of['none','3','430','6']){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;Object.assign(d.parts.dial,{variant,date});d.parts.dial.text={...d.parts.dial.text,bottom:'AUTOMATIC CHRONOMETER'};
+  const s=G.marketingSecondsOf(d),clock=TM.marketingClock(d);
+  if(variant!=='chrono'&&Math.abs(clock.ang.sec-s*6)>1e-9)bad(`pose ${caseMm}/${variant}/${date}`,'the posed picture does not use the clear second');
+  const r=G.geoOf(d).dialR,len=G.handLengthsOf(d).sec*r,a=s*6*Math.PI/180,ux=Math.sin(a),uy=-Math.cos(a);
+  /* the printing at its estimated width and the window, from dialBoxesOf; the hand sampled here on its own */
+  const boxes=G.dialBoxesOf(d,.19*PX).map(o=>({...o,k:o.kind}));
+  let hit=null;for(let t=-r*.22;t<=len;t+=.1*PX){const x=C+ux*t,yy=C+uy*t;for(const o of boxes)if(x>o.x0&&x<o.x1&&yy>o.y0&&yy<o.y1)hit=o.k}
+  /* a design can leave no clear second: then only the fallback is allowed */
+  if(hit&&s!==G.MARKETING_SECONDS[0])bad(`pose ${caseMm}/${variant}/${date}`,`the seconds hand at ${s}s crosses the ${hit}`)}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

@@ -9,7 +9,8 @@
    never computes angles itself. */
 import React from 'react';
 import {clamp} from './utils.js';
-import {detentOf,detentStep,bezelRotOf,bezelRotatable,bezelElapsedMin,gmtReadHours,caseOf,movementAngles} from './geometry.js';
+import {detentOf,detentStep,bezelRotOf,bezelRotatable,bezelElapsedMin,gmtReadHours,caseOf,movementAngles,marketingSecondsOf} from './geometry.js';
+import {logoBoxOf} from './logo.js';
 import {useApp} from '../state/store.js';
 const {useState,useEffect}=React;
 
@@ -78,7 +79,9 @@ export function sceneClock(d,nowMs,perfNow){
 
 /* A whole scene frozen at the marketing pose — hands AND date agree. Used by
    thumbnails, the spec card and the design sheet so they never tick. */
-export const marketingClock=d=>sceneClock({...d,time:{...(d.time||{}),mode:'set',...MARKETING_TIME}},Date.now());
+export const marketingClock=d=>sceneClock({...d,time:{...(d.time||{}),mode:'set',...MARKETING_TIME,s:marketingSecondsOf(d,
+ /* the logo, if there is one, at its fitted size (its image's shape is not known here: square is the tallest) */
+ d.active&&d.active.logo?[(({x,y,w,h})=>({x0:x-w/2,x1:x+w/2,y0:y-h/2,y1:y+h/2}))(logoBoxOf(d,1))]:[])}},Date.now());
 
 export const fmtChrono=ms=>{const t=Math.floor(ms/100);
  return `${pad2(Math.floor(t/600))}:${pad2(Math.floor(t/10)%60)}.${t%10}`};
