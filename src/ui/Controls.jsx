@@ -8,6 +8,7 @@ import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
 import {UploadZone} from './upload.jsx';
 import {LogoControls} from './LogoControls.jsx';
+import {PartStudioSection} from './MarkerSet.jsx';
 
 function TransformCtl({t,onChange}){return<div className="grid grid-cols-1 gap-0.5">
  <Slider label="Scale" min={0.3} max={2.5} step={0.01} val={t.s} fmt={v=>v.toFixed(2)} onChange={v=>onChange({s:v})}/>
@@ -38,6 +39,12 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      <span className={`block rounded-lg overflow-hidden border-2 ${!d.active[part]&&variantOf(part,d)===v?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
       <img src={getThumb(part,v,thumbD)} className="w-14 h-14 object-cover" alt={v}/></span>
      <span className="text-[9px] text-neutral-500">{VNAME[v]||v}</span></button>)}
+   {/* a marker set imported from PartStudio sits with the presets */}
+   {part==='markers'&&p.set&&<button title={`PartStudio: ${p.set.name||'marker set'}`} aria-label="Use the PartStudio marker set"
+    onClick={()=>s.upd(n=>{n.parts.markers.variant='partstudio';n.active.markers=null},'ctl:markers')} className="flex flex-col items-center gap-0.5">
+    <span className={`block rounded-lg overflow-hidden border-2 ${!d.active.markers&&p.variant==='partstudio'?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
+     <img src={getThumb('markers','partstudio',thumbD)} className="w-14 h-14 object-cover" alt=""/></span>
+    <span className="text-[9px] text-neutral-500">PartStudio</span></button>}
    {Object.entries(customs).map(([id,cu])=>
     <div key={id} className={`relative rounded-lg border-2 ${d.active[part]===id?'border-[#d4af37]':'border-white/10'}`}>
      <button onClick={()=>s.setSource(part,id)} title={cu.name} aria-label={`Use upload ${cu.name}`}>
@@ -49,6 +56,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
     </div>)}
   </div>
   {d.active[part]&&<button className="btn" onClick={()=>s.setSource(part,null)}>← Back to preset</button>}</Section>
+  {part==='markers'&&<PartStudioSection d={d}/>}
   <Section title="Upload"><UploadZone part={part}/></Section>
   <Section title="Transform / Alignment">
    {part==='hands'&&!d.active.hands? <div className="space-y-2">
@@ -176,7 +184,8 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
     <button className={`chip ${p.text.color==='auto'?'on':''}`} onClick={()=>up({text:{...p.text,color:'auto'}},'tcol')}>Auto ink</button>
     {p.text.color!=='auto'&&<input type="color" value={p.text.color} onChange={e=>up({text:{...p.text,color:e.target.value}},'tcol')}/>}</div></Section>}
   {['markers','hands'].includes(part)&&<Section title="Lume">
-   <ColorField label="Lume color" val={p.lume} onChange={v=>up({lume:v},'lume')}/>
+   {/* a PartStudio set brings each style's own compound colour */}
+   {!(part==='markers'&&p.variant==='partstudio')&&<ColorField label="Lume color" val={p.lume} onChange={v=>up({lume:v},'lume')}/>}
    <label className="flex items-center gap-2 text-[11px] text-neutral-400"><input type="checkbox" checked={p.glow} onChange={e=>up({glow:e.target.checked})}/>Glow (lights out)</label>
    {part==='hands'&&<ColorField label="Second hand" val={p.secColor} onChange={v=>up({secColor:v},'sec')}/>}</Section>}
   {part==='crystal'&&<Section title="Crystal"><Slider label="Gloss" min={0} max={1} step={0.01} val={p.opacity} fmt={v=>Math.round(v*100)+'%'} onChange={v=>up({opacity:v},'cry')}/>

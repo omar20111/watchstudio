@@ -26,6 +26,8 @@ import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,z
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
+import {markerSetOf} from '../markerset/index.js';
+import {addMarkerSet} from './markerset.js';
 import {logoSheet,logoOf,activeLogo} from '../logo.js';
 import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight} from './wear.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
@@ -578,8 +580,11 @@ export function buildHead(d,customs={},{aniso=8}={}){
     Each style's form (relief.js): batons bevelled to a flat top, dots domed,
     numerals with bevelled strokes. The lume decal sits at the channel floor, so
     it shows only inside the pocket the relief cut for it. */
- const mk=parts.markers,frame=parts.hands.metal;
+ const mk=parts.markers,frame=parts.hands.metal,mset=markerSetOf(d);
  if(!uploaded('markers',G.markers,H.dial+.05,mk.glow?{emissive:new Color(mk.lume),emissiveIntensity:.5}:{})){
+  /* a set designed in PartStudio, ground from its own millimetre outlines */
+  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hc,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,glow:mk.glow});
+  else{
   const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
   const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;
   const rel=reliefFromSilhouette(getProc('markers',d,undefined,'shape'),{...form,lume:lumeCv});
@@ -588,7 +593,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
    :metalMaterial(frame,'polished'));m.position.y=Hc}
   if(lumed){
    const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(lumeCv),mk.lume,mk.glow),{cast:false,noPick:true});
-   lm.position.y=Hc+form.pocket+.004}}
+   lm.position.y=Hc+form.pocket+.004}}}
 
  /* ---- the user's logo (logo.js): printed as a decal on the dial, or traced
     and raised in the hands' metal like an applied index ---- */

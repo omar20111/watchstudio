@@ -28,8 +28,10 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
      window replaces, which depends on the dial's variant too. */
   part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d)]:0,
   part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0,
+  /* a PartStudio set is drawn from its own data */
+  part==='markers'&&p.variant==='partstudio'?p.set:0,
   /* an hour hand is as long as the markers it reaches are deep */
-  part==='hands'?d.parts.markers.variant:0,
+  part==='hands'?[d.parts.markers.variant,d.parts.markers.variant==='partstudio'?d.parts.markers.set:0]:0,
   /* a 3D strap is cut to its length from the spring bar, which a sport case's
      broader lugs move */
   part==='strap'&&mode==='flat'?d.parts.case.variant:0,

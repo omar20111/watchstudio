@@ -5,6 +5,8 @@ import {clamp,normDeg} from './core/utils.js';
 import {store,useApp,patchPartT} from './state/store.js';
 import {bezelRotatable} from './core/geometry.js';
 import {readShareFromLocation} from './export/shareUrl.js';
+import {readMarkerSetLink} from './core/markerset/index.js';
+import {applyMarkerSet} from './ui/MarkerSet.jsx';
 import {TopBar} from './ui/TopBar.jsx';
 import {PartsList} from './ui/PartsList.jsx';
 import {Controls} from './ui/Controls.jsx';
@@ -72,6 +74,13 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
    setWelcome(false);
    if(store.get().hasWork())setShared(sh);
    else store.get().importState({d:sh.d,name:sh.name,customs:{}})});
+  return()=>{live=false}},[]);
+ /* A #m=... fragment is a marker set sent from PartStudio: it goes on the watch
+    that is already open (one undo step), rather than replacing the design. */
+ useEffect(()=>{let live=true;
+  readMarkerSetLink(location.hash).then(set=>{if(!set||!live)return;
+   history.replaceState(null,'',location.pathname+location.search);
+   setWelcome(false);applyMarkerSet(set);setDrawer('controls')});
   return()=>{live=false}},[]);
  useEffect(()=>{const h=e=>{const tg=(e.target&&e.target.tagName||'').toLowerCase();
   if(tg==='input'||tg==='select'||tg==='textarea')return;

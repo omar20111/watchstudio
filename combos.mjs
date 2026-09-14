@@ -499,5 +499,41 @@ for(const caseMm of[34,40,46])for(const variant of Object.keys(G.INDEX_DEPTH)){
  if(h.hour>G.INDEX_OUTER-.01)bad(tag,`hour hand reaches ${h.hour.toFixed(3)} r, across the indices`);
 }
 
+/* a marker set from PartStudio: read from its file, drawn in every bake mode,
+   ground on the 3D dial with each index's outer end on the hour ring, making
+   room for a date window, reaching the hour hand — and a design whose set is
+   missing or broken falls back to batons rather than an empty dial */
+{const MS=await import('./src/core/markerset/index.js'),{getProc}=await import('./src/core/cache.js');
+ const file={app:'PartStudio',kind:'watchstudio-markers',version:1,name:'Test set',set:{ringRatio:.885,
+  styles:[{id:'a',name:'Hours',outline:'baton',lengthMm:3,widthMm:1,lume:'channel'},{id:'b',name:'12',outline:'wedge',lengthMm:2.6,widthMm:2.4,lume:'none'}],
+  slots:['b','a','a','a','a','a','a','a','a','a','a','a']}};
+ const set=MS.setFromPartStudio(file);
+ if(!set||set.styles.length!==2||set.slots[0]!=='b')bad('partstudio','a PartStudio file is not read as its set');
+ const project=MS.setFromPartStudio({app:'PartStudio',part:'markers',d:{name:'P',dial:{diameterMm:30,ringMm:12},styles:file.set.styles,slots:file.set.slots}});
+ if(!project||Math.abs(project.ringRatio-.8)>1e-9)bad('partstudio','a PartStudio project does not keep its hour ring');
+ if(MS.setFromPartStudio({app:'WatchStudio',d:{}})||MS.setFromPartStudio({app:'PartStudio',set:{styles:[]}}))bad('partstudio','something that is not a set was accepted');
+ for(const date of['none','3']){const tag=`partstudio date ${date}`;
+  const d=M.clone(M.DEF);d.parts.markers.variant='partstudio';d.parts.markers.set=set;d.parts.dial.date=date;
+  try{M.buildLayers(d,{});for(const mode of[undefined,'flat','shape','lume'])getProc('markers',d,undefined,mode)}
+  catch(e){bad(tag,'2D bake threw: '+e.message)}
+  let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const idx=[],lume=[];w.traverse(o=>{if(o.isMesh&&/^index:/.test(o.name))idx.push(o);if(o.isMesh&&/^indexLume:/.test(o.name))lume.push(o)});
+  const want=date==='3'?11:12;
+  if(idx.length!==want)bad(tag,`${idx.length} indices ground, expected ${want}`);
+  if(lume.length!==want-1)bad(tag,`${lume.length} lume fills, expected ${want-1} (the 12 o'clock wedge has none)`);
+  const ring=G.geoOf(d).dialR/PX*.885,at12=idx.find(o=>o.name==='index:0');
+  if(!at12||Math.abs(-at12.position.z-ring)>1e-6||Math.abs(at12.position.x)>1e-6)bad(tag,'the 12 o\'clock index is not on the hour ring');
+  for(const o of idx){const b=o.geometry.boundingBox||(o.geometry.computeBoundingBox(),o.geometry.boundingBox);
+   if(!(b.max.y>.2&&b.min.y===0))bad(tag,`${o.name} is not a solid standing on the dial`)}
+  const h=G.handLengthsOf(d),inner=.885-3/(G.geoOf(d).dialR/PX);
+  if(h.hour>.885-.01||h.hour<Math.min(inner,h.min*.8)-.001)bad(tag,`hour hand ends at ${h.hour.toFixed(3)} r, not at the set's inner ends ${inner.toFixed(3)} r`)}
+ for(const broken of[null,{styles:'x'},{styles:[]}]){const d=M.clone(M.DEF);d.parts.markers.variant='partstudio';d.parts.markers.set=broken;
+  /* (the silhouette bake is blank under these canvas mocks, so the batons are
+     checked by what they set: the hour hand's length) */
+  try{M.buildHead(d,{});getProc('markers',d);
+   const b=M.clone(M.DEF);b.parts.markers.variant='batons';
+   if(G.handLengthsOf(d).hour!==G.handLengthsOf(b).hour)bad('partstudio broken','a broken set is not measured as batons')}
+  catch(e){bad('partstudio broken','a broken set threw: '+e.message)}}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

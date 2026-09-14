@@ -17,7 +17,7 @@ export const VARIANTS={
  crown:['standard','oversized'],
  crystal:['flat','dome','box']};
 
-export const VNAME={leather:'Leather',rubber:'Rubber',steel:'Bracelet',nato:'NATO',mesh:'Milanese',classic:'Classic',sport:'Sport / Guards',smooth:'Smooth',fluted:'Fluted',coin:'Coin edge',diver:'Diver',gmt:'GMT',tachy:'Tachymeter',sunburst:'Sunburst',matte:'Matte',chrono:'Chrono',guilloche:'Guilloché',fume:'Fumé',enamel:'Enamel',tapisserie:'Tapisserie',batons:'Batons',dots:'Dots',roman:'Roman',arabic:'Numerals',eastern:'Arabic ١٢',wedges:'Wedges',minimal:'Minimal',dauphine:'Dauphine',baton:'Baton',sword:'Sword',mercedes:'Mercedes',leaf:'Leaf',cathedral:'Cathedral',syringe:'Syringe',arrow:'Broad arrow',standard:'Standard',oversized:'Oversized',flat:'Flat',dome:'Domed',box:'Box'};
+export const VNAME={leather:'Leather',rubber:'Rubber',steel:'Bracelet',nato:'NATO',mesh:'Milanese',classic:'Classic',sport:'Sport / Guards',smooth:'Smooth',fluted:'Fluted',coin:'Coin edge',diver:'Diver',gmt:'GMT',tachy:'Tachymeter',sunburst:'Sunburst',matte:'Matte',chrono:'Chrono',guilloche:'Guilloché',fume:'Fumé',enamel:'Enamel',tapisserie:'Tapisserie',batons:'Batons',dots:'Dots',roman:'Roman',arabic:'Numerals',eastern:'Arabic ١٢',partstudio:'PartStudio set',wedges:'Wedges',minimal:'Minimal',dauphine:'Dauphine',baton:'Baton',sword:'Sword',mercedes:'Mercedes',leaf:'Leaf',cathedral:'Cathedral',syringe:'Syringe',arrow:'Broad arrow',standard:'Standard',oversized:'Oversized',flat:'Flat',dome:'Domed',box:'Box'};
 
 /* The value a preset row shows as selected, and what clicking a preset writes.
    A crystal's shape is case architecture — it sits in the thickness stack — so

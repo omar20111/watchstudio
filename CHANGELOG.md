@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**Added — markers from PartStudio**
+- **Import a marker set designed in PartStudio** (Markers panel → From
+  PartStudio, or a `#m=` link from PartStudio's Open in WatchStudio). A set is
+  several index styles placed hour by hour, in millimetres: outlines, numerals,
+  bevelled/faceted/domed relief, metals, printed ink and lume. It is ground on
+  the 3D dial with PartStudio's own code (`core/markerset/`, copied from
+  PartStudio's `src/core`), leaves out the index a date window replaces, sets
+  the hour hand's length, and appears among the marker presets. Checked in
+  `combos.mjs` and `e2e/tests/partstudio.mjs`.
+
 **Added — depth**
 - **Ambient occlusion** (`core/three/ao.js`). three's GTAO, multiplied onto the
   frame the renderer already draws, so tone mapping, antialiasing and the

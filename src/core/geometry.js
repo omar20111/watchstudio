@@ -13,6 +13,7 @@
 */
 import {C,CAN,PX} from './constants.js';
 import {clamp} from './utils.js';
+import {MARKERSET_VARIANT,markerSetOf,setDepthMm} from './markerset/index.js';
 
 const num=(v,fallback)=>v==null||v==='auto'||!isFinite(+v)?fallback:+v;
 
@@ -203,7 +204,9 @@ export const HAND_REF={hour:.55,min:.8,sec:.9};
 export function handLengthsOf(d){const r=geoOf(d).dialR,v=(d.parts.markers||{}).variant;
  const sec=MINUTE_TRACK_R-2/r;
  const min=MINUTE_TRACK_R-TRACK_TICK_PX.minor*.6/r;
- const inner=INDEX_OUTER-(INDEX_DEPTH[v]??INDEX_DEPTH.batons);
+ /* a PartStudio set carries its own ring and index lengths, in mm */
+ const set=v===MARKERSET_VARIANT?markerSetOf(d):null;
+ const inner=set?set.ringRatio-setDepthMm(set)/(r/PX):INDEX_OUTER-(INDEX_DEPTH[v]??INDEX_DEPTH.batons);
  const hour=Math.min(Math.max(inner+.012,.6),min*.8);
  return{hour,min,sec}}
 /* how high each hand's arbor stands above the dial, mm: the hour hand rides

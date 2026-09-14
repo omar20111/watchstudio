@@ -1,0 +1,142 @@
+{
+ "app": "PartStudio",
+ "kind": "watchstudio-markers",
+ "version": 1,
+ "name": "Explorer 3·6·9",
+ "set": {
+  "styles": [
+   {
+    "id": "hours",
+    "name": "Hours",
+    "kind": "shape",
+    "outline": "baton",
+    "lengthMm": 2.6,
+    "widthMm": 0.95,
+    "taper": 1,
+    "outerEnd": "flat",
+    "innerEnd": "flat",
+    "cornerMm": 0.04,
+    "flip": false,
+    "points": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      1
+     ]
+    ],
+    "count": 1,
+    "gapMm": 0.35,
+    "numerals": "arabic",
+    "font": "sans",
+    "sizeMm": 2.6,
+    "weight": 700,
+    "upright": true,
+    "top": "bevel",
+    "heightMm": 0.32,
+    "bevel": 0.4,
+    "material": "white",
+    "finish": "polished",
+    "paint": "#f2efe6",
+    "lume": "channel",
+    "lumeMarginMm": 0.06,
+    "lumeColor": "#e8f2df"
+   },
+   {
+    "id": "quarters",
+    "name": "3 · 6 · 9",
+    "kind": "numeral",
+    "outline": "baton",
+    "lengthMm": 2.8,
+    "widthMm": 0.9,
+    "taper": 1,
+    "outerEnd": "flat",
+    "innerEnd": "flat",
+    "cornerMm": 0.04,
+    "flip": false,
+    "points": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      1
+     ]
+    ],
+    "count": 1,
+    "gapMm": 0.35,
+    "numerals": "arabic",
+    "font": "sans",
+    "sizeMm": 3.2,
+    "weight": 700,
+    "upright": true,
+    "top": "bevel",
+    "heightMm": 0.24,
+    "bevel": 0.5,
+    "material": "white",
+    "finish": "polished",
+    "paint": "#f2efe6",
+    "lume": "none",
+    "lumeMarginMm": 0.06,
+    "lumeColor": "#e8f2df"
+   },
+   {
+    "id": "twelve",
+    "name": "12 o'clock",
+    "kind": "shape",
+    "outline": "wedge",
+    "lengthMm": 2.8,
+    "widthMm": 2.5,
+    "taper": 1,
+    "outerEnd": "flat",
+    "innerEnd": "flat",
+    "cornerMm": 0.1,
+    "flip": false,
+    "points": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      1
+     ]
+    ],
+    "count": 1,
+    "gapMm": 0.35,
+    "numerals": "arabic",
+    "font": "sans",
+    "sizeMm": 2.6,
+    "weight": 700,
+    "upright": true,
+    "top": "bevel",
+    "heightMm": 0.32,
+    "bevel": 0.25,
+    "material": "white",
+    "finish": "polished",
+    "paint": "#f2efe6",
+    "lume": "channel",
+    "lumeMarginMm": 0.1,
+    "lumeColor": "#e8f2df"
+   }
+  ],
+  "slots": [
+   "twelve",
+   "hours",
+   "hours",
+   "quarters",
+   "hours",
+   "hours",
+   "quarters",
+   "hours",
+   "hours",
+   "quarters",
+   "hours",
+   "hours"
+  ],
+  "ringRatio": 0.885
+ }
+}

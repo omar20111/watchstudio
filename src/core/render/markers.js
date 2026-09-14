@@ -13,6 +13,8 @@ import {METALS} from '../constants.js';
 import {lumOf,shade} from '../utils.js';
 import {posAt,INDEX_OUTER,INDEX_DEPTH} from '../geometry.js';
 import {tone,litFace,castShadow,SHADOW} from './material.js';
+import {MARKERSET_VARIANT,markerSetOf} from '../markerset/index.js';
+import {drMarkerSet} from './markerset.js';
 
 /* recessed lume: bright where the wall catches light, shadowed under the far lip */
 function lumeInset(ctx,w,h,lum){const g=ctx.createLinearGradient(0,-h/2,0,h/2);
@@ -75,7 +77,11 @@ function numeralAnchor(ctx,txt,deg,rOut,r){const a=deg*Math.PI/180,ux=Math.sin(a
  const hw=(mt.width||fs*.55*txt.length)/2,hh=fs*.36;
  return posAt(deg,rOut-(Math.abs(ux)*hw+Math.abs(uy)*hh))}
 
-export function drMarkers(ctx,o){const r=o.g.dialR;const lum=o.lume||'#dff3e4';
+export function drMarkers(ctx,o){
+ /* a set designed in PartStudio draws itself; without its data it stands in as batons */
+ if(o.variant===MARKERSET_VARIANT){const set=markerSetOf({parts:{markers:o}});
+  if(set)return drMarkerSet(ctx,o,set);o={...o,variant:'batons'}}
+ const r=o.g.dialR;const lum=o.lume||'#dff3e4';
  const rOut=r*INDEX_OUTER;
  const m=METALS[o.frameMetal]||METALS.steel;
  const ink=lumOf(o.dialColor||'#16324f')>0.55?'#26282c':'#e9e4d6';
