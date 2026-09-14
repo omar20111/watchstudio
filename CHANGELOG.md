@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+**Added — a tech pack for manufacturers**
+- **Tech pack** (⋯ menu, or the toolbar on a wide screen): one ZIP that a
+  case, dial or hands maker can quote from.
+  - **The PDF** (`export/techpack.js`): seven A4 sheets with a title block
+    (project, sheet, scale, units, date):
+    1. *Cover:* a ¾ rendering and the key figures.
+    2. *Case:* front and side drawings at 2:1, or 3:2 for a watch too large
+       for the sheet, dimensioned: diameter, width over the crown, lug to lug,
+       lug width, bezel, crystal opening, dial, date window, registers, total
+       thickness, crystal height, and crown diameter and height.
+    3. *Caseback:* back drawing, the thickness stack to scale, and the
+       construction (movement and beat, caseback, crystal, crown, bezel clicks,
+       water resistance, lugs).
+    4. *Parts list:* style, material, finish (brushed with polished bevels
+       where the finish zones apply), colour swatch and sizes for every part,
+       strap or bracelet included.
+    5. *Dial artwork:* enlarged, in its inks, with numbered balloons locating
+       every element from the centre: text height and position, index ring,
+       minute track, date window, registers, chapter step, logo.
+    6. *Bezel and hands:* the insert's engraving and pip, the hands with
+       their lengths from the pivot.
+    7. *Notes:* what the design fixes, blanks to agree with the manufacturer
+       (tolerances, material grades, calibre, lume grade), and revisions.
+  - **The drawings are the 3D watch** (`export/lineart.js`): drawn
+    orthographically as lines where the outline ends, the surface folds or one
+    part stands in front of another, so they cannot disagree with the model.
+  - **The artwork is vector** (`export/artwork.js`): the dial's text, minute
+    track and register scales, a printed logo, the applied indices, the bezel
+    engraving and the hands are each baked alone at 72 px per mm and traced
+    into outlines. The date window, registers, dial edge and chapter step are
+    exact cut lines. They are written as layered SVG at 1:1 in mm
+    (`artwork/dial.svg`, `bezel.svg`, `hands.svg`), with ink colours and metal
+    names in the layer labels.
+  - **No dependency:** the PDF writer (`export/pdf.js`) sets text in the
+    built-in Helvetica with its real character widths, falls back to a
+    picture for scripts that font lacks (Arabic, for example), and deflates
+    streams with the browser's CompressionStream.
+  - Checked in `combos.mjs` (PDF cross-references, escaping, text widths) and
+    `e2e/tests/techpack.mjs` (the download, seven sheets, drawings, figures
+    matching `spec.json`, 1:1 artwork whose indices reach the hour ring).
+- **Fixed: bezel numerals were struck through.** On diver and GMT inserts the
+  long tick at 10, 20 … 50 (and at every even hour on a GMT) ran through the
+  numeral printed there, and a tick sat under the pip. Those ticks are now
+  left out, as on a real insert.
+- The text spec sheet gives the hands' real lengths in mm; it still had the old
+  fixed percentages.
+
 **Added — markers from PartStudio**
 - **Import a marker set designed in PartStudio** (Markers panel → From
   PartStudio, or a `#m=` link from PartStudio's Open in WatchStudio). A set is

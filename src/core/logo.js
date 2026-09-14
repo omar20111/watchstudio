@@ -56,6 +56,10 @@ export function logoBoxOf(d,aspect=1){const L=logoOf(d),r=geoOf(d).dialR,lay=dia
   if(clash(lo))k=lo;else{for(let i=0;i<24;i++){const m=(lo+hi)/2;if(clash(m))hi=m;else lo=m}k=lo}}
  return{x:cx,y:cy,w:w0*k,h:h0*k,scale:k,limitedBy,clear:!clash(k)}}
 
+/* the logo's image once it has loaded, or null (no logo, or it failed to load) */
+export async function logoImageOf(d,customs){const u=activeLogo(d,customs);if(!u)return null;
+ const e=image(u.url);if(!e.ready&&!(await e.promise))return null;return e.img}
+
 /* the logo's fitted box for the panel, once its image has loaded (else null) */
 export function logoFitOf(d,customs){const u=activeLogo(d,customs);if(!u)return null;
  const e=image(u.url);if(!e.ready)return null;

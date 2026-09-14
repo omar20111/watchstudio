@@ -123,14 +123,16 @@ export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
   const pin=engr?'#fff':lumOf(ins)>0.5?'#15181c':'#e9ecef';
   const rMid=(rInsOut+rInsIn)/2;
   if(o.variant==='gmt'){
-   for(let h=0;h<24;h++){const a=h*15;const[x0,y0]=posAt(a,rInsOut-3),[x1,y1]=posAt(a,rInsOut-3-W*(h%2?0.14:0.22));
-    engrave(ctx,x0,y0,x1,y1,h%2?1.6:2.6,pin)}
+   /* a numeral stands where its long tick would: the tick is left out there, and at the pip */
+   for(let h=1;h<24;h+=2){const a=h*15;const[x0,y0]=posAt(a,rInsOut-3),[x1,y1]=posAt(a,rInsOut-3-W*0.14);
+    engrave(ctx,x0,y0,x1,y1,1.6,pin)}
    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`700 ${W*0.42}px system-ui`;
    for(let h=0;h<24;h+=2){const a=h*15;const[x,y]=posAt(a,rMid-W*0.06);
     ctx.save();ctx.translate(x,y);ctx.rotate(a*Math.PI/180);ctx.fillStyle=pin;
     ctx.fillText(h===0?'24':String(h),0,0);ctx.restore()}}
   else{
-   for(let i=0;i<60;i++){const a=i*6;const[x0,y0]=posAt(a,rInsOut-3),[x1,y1]=posAt(a,rInsOut-3-W*(i%5?0.16:0.30));
+   /* no tick under a numeral (10, 20 ... 50) or the pip at zero */
+   for(let i=1;i<60;i++){if(i%10===0)continue;const a=i*6;const[x0,y0]=posAt(a,rInsOut-3),[x1,y1]=posAt(a,rInsOut-3-W*(i%5?0.16:0.30));
     engrave(ctx,x0,y0,x1,y1,i%5?1.8:3.4,pin)}
    ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`700 ${W*0.54}px system-ui`;
    for(const v of[10,20,30,40,50]){const a=v*6;const[x,y]=posAt(a,rMid-W*0.02);

@@ -644,6 +644,21 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
  if(lume.get('indicesLume')!=='#9fd8ff')bad('night',`the indices glow ${lume.get('indicesLume')}, not their lume colour`);
  for(const n of lume.keys())if(!/Lume$/.test(n))bad('night',`${n} is marked as lume`)}
 
+/* the tech pack's PDF writer: every cross-reference offset lands on its object,
+   brackets and backslashes are escaped, WinAnsi characters are written as
+   their bytes, and text is measured with Helvetica's own widths (the centring
+   and right-aligning of every label depends on that) */
+{const PDF=await import('./src/export/pdf.js');
+ const doc=PDF.createPDF({title:'Check'}),pg=doc.page(297,210);
+ pg.text(10,10,'Ø40.0 — (a\\b)',{size:9});pg.rect(10,20,50,30,{stroke:'#000'});pg.shape([[[0,0],[5,0],[5,5]]],{fill:'#123456'});
+ doc.page(210,297).circle(50,50,10,{stroke:'#f00',dash:[1,1]});
+ const bytes=await doc.bytes(),x=PDF.pdfOffsets(bytes),raw=Buffer.from(bytes).toString('latin1');
+ if(!x.startOk||x.entries.length<8||!x.entries.every(e=>e.ok))bad('pdf',`cross-reference offsets are wrong: ${JSON.stringify(x.entries.filter(e=>!e.ok))}`);
+ if(!raw.startsWith('%PDF-1.4')||!/\/Count 2/.test(raw))bad('pdf','not a two-page PDF');
+ const w=PDF.textWidth('WatchStudio',10);
+ if(Math.abs(w-5669/1000*10/(72/25.4))>1e-9)bad('pdf',`Helvetica width of "WatchStudio" at 10 pt is ${w.toFixed(3)} mm, want ${(5669/100/(72/25.4)).toFixed(3)}`);
+ if(PDF.encodable('ساعة')||!PDF.encodable('Ø×°—’'))bad('pdf','WinAnsi coverage is misjudged: Arabic must go to the picture fallback, Ø×°—’ must not')}
+
 /* a bracelet: its end links close up to the case without entering it, the
    6 o'clock half ends in a folding clasp lying on the table at the stated
    length, the 12 o'clock half in the bar the clasp locks onto */

@@ -97,6 +97,16 @@ pixels; these images are the check that does.
   viewers. Posed at the set time (or 10:09), one node per part, the spec in the
   root node's extras.
 - **Layered ZIP** — every part's artwork, every view, `spec.json`, `geometry.json`.
+- **Tech pack** (ZIP) — for a manufacturer to quote from:
+  - a seven-sheet A4 PDF: cover, dimensioned front and side drawings, back
+    drawing with the thickness stack, a parts list, the dial artwork with every
+    element located, the bezel and the hands, and notes;
+  - the dial, bezel and hands artwork as layered SVG at 1:1 in mm;
+  - `spec.json`.
+
+  The drawings are the 3D model itself (`export/lineart.js`), the artwork is
+  the renderers' own drawing traced to outlines (`export/artwork.js`), and the
+  PDF is written without a dependency (`export/pdf.js`).
 - **Spec sheet** (.txt), **project file** (.watchstudio.json, images embedded),
   **share link** (design only, no images).
 

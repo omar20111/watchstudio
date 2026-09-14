@@ -29,9 +29,50 @@ const roundRect=(ctx,x,y,w,h,rr)=>{ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h
    watch. Shared with the 3D dial, whose normal map is laid on the same grid. */
 export const tapisserieCell=()=>DIAL_MM.tapisserie*PX;
 
+/* A register's hour scale: twelve ticks round its edge. */
+function registerScale(ctx,sd,ink){const{x,y,r:rs}=sd;
+ for(let i=0;i<12;i++){const a=i*30*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*rs*0.86,y-Math.cos(a)*rs*0.86);ctx.lineTo(x+Math.sin(a)*rs*0.72,y-Math.cos(a)*rs*0.72);ctx.strokeStyle=ink;ctx.lineWidth=1.5;ctx.stroke()}}
+
+/* The minute track: 60 ticks ending on the track ring, the fives longer. `ink`
+   overrides the printed tint (null keeps it). */
+function printTrack(ctx,r,trackIn,ink){
+ for(let i=0;i<60;i++){const a=i*6;const len=Math.min(i%5?TRACK_TICK_PX.minor:TRACK_TICK_PX.major,r*MINUTE_TRACK_R-trackIn);const[x0,y0]=posAt(a,r*MINUTE_TRACK_R),[x1,y1]=posAt(a,r*MINUTE_TRACK_R-len);
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.strokeStyle=ink||`rgba(235,236,240,${i%5?0.55:0.85})`;ctx.lineWidth=i%5?1.5:2.5;ctx.stroke()}}
+
+/* The brand and the model line. style: 'lit' pad printing with its hairline
+   shadow and lit edge, 'flat' the ink alone, 'ink' solid white for tracing. */
+export function printText(ctx,o,r,col,style){const t=o.text;if(!t||!(t.top||t.bottom))return;
+ const inkCol=style==='ink'?'#fff':t.color==='auto'?(lumOf(col)>0.55?'#26282c':'#e9e4d6'):t.color,lit=style==='lit';
+ ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+ const fnt=fs=>t.font==='serif'?`${fs}px Georgia, serif`:`600 ${fs}px system-ui`;
+ try{ctx.letterSpacing=t.font==='caps'?'4px':'1px'}catch(e){}
+ /* pad printing sits proud of the dial: a hairline shadow under it and a lit
+    top edge, so the branding reads as applied ink rather than a text layer */
+ const line=(s,{size,y:yy,maxW})=>{let fs=size;ctx.font=fnt(fs);
+  /* Arabic is a joined script: letter spacing pulls its letters apart */
+  if(/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(s))try{ctx.letterSpacing='0px'}catch(e){}
+  /* printed at its size in mm, smaller only if the dial has no room for it */
+  const wd=ctx.measureText(s).width;if(wd>maxW){fs*=maxW/wd;ctx.font=fnt(fs)}
+  if(lit){ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillText(s,C+SHADOW.dx*fs*0.07,yy+SHADOW.dy*fs*0.07)}
+  ctx.fillStyle=inkCol;ctx.fillText(s,C,yy);
+  if(lit){ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillText(s,C-SHADOW.dx*fs*0.03,yy-SHADOW.dy*fs*0.03)}};
+ /* sizes and places from geometry.js dialTextOf, handed in by procOpts */
+ const T=DIAL_MM.text,TX=o.printing||{brand:{size:T.brand*PX,y:C-r*.4,maxW:r*1.1},line:{size:T.line*PX,y:C+r*.46,maxW:r}};
+ if(t.top)line(t.font==='caps'?t.top.toUpperCase():t.top,TX.brand);
+ if(t.bottom)line(t.font==='caps'?t.bottom.toUpperCase():t.bottom,TX.line);
+ try{ctx.letterSpacing='0px'}catch(e){}
+ ctx.restore()}
+
 export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  const W=ctx.canvas.width,H=ctx.canvas.height,L=o.layout||{};
  if(o.which==='dateWheel')return drDateWheel(ctx,o);
+ /* ink: one printed layer alone, in solid white on nothing, to be traced into
+    vector artwork (export/artwork.js): o.ink is 'text' (the brand and the model
+    line) or 'track' (the minute track and the registers' scales) */
+ if(o.mode==='ink'){
+  if(o.ink==='text')printText(ctx,o,r,col,'ink');
+  else if(o.ink==='track'){printTrack(ctx,r,L.stepped?L.stepR+3:0,'#fff');for(const sd of L.subdials||[])registerScale(ctx,sd,'#fff')}
+  return}
  /* flat: pigment and printing only. The sunburst sweep, the highlight, the edge
     vignette and the text emboss are all light, and 3D lighting supplies them
     from the real surface — painting them too would light the dial twice. */
@@ -108,39 +149,19 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   if(!flat){const sg=ctx.createRadialGradient(x,y,0,x,y,rs);
    for(let i=0;i<=14;i++)sg.addColorStop(i/14,i%2?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)');
    ctx.beginPath();ctx.arc(x,y,rs,0,7);ctx.fillStyle=sg;ctx.fill()}
-  for(let i=0;i<12;i++){const a=i*30*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*rs*0.86,y-Math.cos(a)*rs*0.86);ctx.lineTo(x+Math.sin(a)*rs*0.72,y-Math.cos(a)*rs*0.72);ctx.strokeStyle='rgba(240,240,245,.7)';ctx.lineWidth=1.5;ctx.stroke()}
+  registerScale(ctx,sd,'rgba(240,240,245,.7)');
   /* the register hands: painted for the 2D drawing, real meshes in 3D */
   if(!flat){const ha=(deg+140)*Math.PI/180;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(ha)*rs*0.7,y-Math.cos(ha)*rs*0.7);ctx.strokeStyle='rgba(240,240,245,.85)';ctx.lineWidth=2;ctx.stroke();
    ctx.beginPath();ctx.arc(x,y,2.5,0,7);ctx.fillStyle='#e8e8ea';ctx.fill()}}}
 
- if(o.text&&(o.text.top||o.text.bottom)){const t=o.text;
-  const ink=t.color==='auto'?(lumOf(col)>0.55?'#26282c':'#e9e4d6'):t.color;
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  const fnt=fs=>t.font==='serif'?`${fs}px Georgia, serif`:`600 ${fs}px system-ui`;
-  try{ctx.letterSpacing=t.font==='caps'?'4px':'1px'}catch(e){}
-  /* pad printing sits proud of the dial: a hairline shadow under it and a lit
-     top edge, so the branding reads as applied ink rather than a text layer */
-  const line=(s,{size,y:yy,maxW})=>{let fs=size;ctx.font=fnt(fs);
-   /* Arabic is a joined script: letter spacing pulls its letters apart */
-   if(/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(s))try{ctx.letterSpacing='0px'}catch(e){}
-   /* printed at its size in mm, smaller only if the dial has no room for it */
-   const wd=ctx.measureText(s).width;if(wd>maxW){fs*=maxW/wd;ctx.font=fnt(fs)}
-   if(!flat){ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillText(s,C+SHADOW.dx*fs*0.07,yy+SHADOW.dy*fs*0.07)}
-   ctx.fillStyle=ink;ctx.fillText(s,C,yy);
-   if(!flat){ctx.fillStyle='rgba(255,255,255,.16)';ctx.fillText(s,C-SHADOW.dx*fs*0.03,yy-SHADOW.dy*fs*0.03)}};
-  /* sizes and places from geometry.js dialTextOf, handed in by procOpts */
-  const T=DIAL_MM.text,TX=o.printing||{brand:{size:T.brand*PX,y:C-r*.4,maxW:r*1.1},line:{size:T.line*PX,y:C+r*.46,maxW:r}};
-  if(t.top)line(t.font==='caps'?t.top.toUpperCase():t.top,TX.brand);
-  if(t.bottom)line(t.font==='caps'?t.bottom.toUpperCase():t.bottom,TX.line);
-  try{ctx.letterSpacing='0px'}catch(e){}}
+ printText(ctx,o,r,col,flat?'flat':'lit');
 
  /* on a stepped dial the minute track lives on the chapter ring, outside the step */
  const trackIn=L.stepped?L.stepR+3:0;
  if(L.stepped&&!flat){/* 2D: the step's shadowed wall and lit lip */
   ctx.beginPath();ctx.arc(C,C,L.stepR,0,7);ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=3;ctx.stroke();
   ctx.beginPath();ctx.arc(C,C,L.stepR+2,0,7);ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1.2;ctx.stroke()}
- for(let i=0;i<60;i++){const a=i*6;const len=Math.min(i%5?TRACK_TICK_PX.minor:TRACK_TICK_PX.major,r*MINUTE_TRACK_R-trackIn);const[x0,y0]=posAt(a,r*MINUTE_TRACK_R),[x1,y1]=posAt(a,r*MINUTE_TRACK_R-len);
-  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.strokeStyle=`rgba(235,236,240,${i%5?0.55:0.85})`;ctx.lineWidth=i%5?1.5:2.5;ctx.stroke()}
+ printTrack(ctx,r,trackIn,null);
  /* the date window, painted: in 3D it is an aperture onto a real wheel */
  if(L.win&&!flat){const w=L.win,dark=lumOf(col)<.5;
   roundRect(ctx,w.x,w.y,w.w+w.frame*2,w.h+w.frame*2,w.rad+w.frame);ctx.fillStyle='rgba(205,208,214,.95)';ctx.fill();

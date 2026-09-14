@@ -1,6 +1,6 @@
 /* Spec-sheet (txt) export. */
 import {PX,METALS} from '../core/constants.js';
-import {strapMmOf,caseOf,thicknessStack,lugToLugOf,crownMmOf,bezelMmOf,dialLayoutOf} from '../core/geometry.js';
+import {strapMmOf,caseOf,thicknessStack,lugToLugOf,crownMmOf,bezelMmOf,dialLayoutOf,handLengthsOf,geoOf} from '../core/geometry.js';
 import {store} from '../state/store.js';
 
 /* a hand-edited project or a future migration can carry a metal id this build
@@ -22,7 +22,7 @@ export function exportSpec(){const s=store.getState(),d=s.d,P=d.parts;
  `Markers: ${P.markers.variant} · lume ${P.markers.lume}${P.markers.glow?' (glow on)':''}`,
  `Hands: ${P.hands.variant} · ${metal(P.hands.metal)} · second ${P.hands.secColor} · lume ${P.hands.lume}`,'',
  `Crystal: ${c.crystal} sapphire · ${c.crystalMm} mm · gloss ${Math.round(P.crystal.opacity*100)}%`,'',
- `Hand lengths: hour 55% · minute 80% · second 90% + counterweight (of dial radius)`,`Presentation: bg=${d.bg}, shadow=${d.shadow?'on':'off'}, time=${d.time.mode==='live'?'live':'set '+d.time.h+':'+d.time.m}`,'',
+ `Hand lengths from the pivot: ${(({hour,min,sec},r)=>`hour ${(hour*r).toFixed(1)} · minute ${(min*r).toFixed(1)} · second ${(sec*r).toFixed(1)} mm`)(handLengthsOf(d),geoOf(d).dialR/PX)}`,`Presentation: bg=${d.bg}, shadow=${d.shadow?'on':'off'}, time=${d.time.mode==='live'?'live':'set '+d.time.h+':'+d.time.m}`,'',
  'Custom uploads:'];
  for(const[part,m]of Object.entries(s.customs))for(const[id,cu]of Object.entries(m))L.push(` · ${part}: ${cu.name}`);
  const b=new Blob([L.join('\n')],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(b);

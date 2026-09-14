@@ -23,6 +23,7 @@ import {studioEnvironment} from './studio.js';
 import {createAO} from './ao.js';
 import {webglState,markWebglFailed} from './support.js';
 import {surfaceMesh} from './surfaces.js';
+import {renderLines} from '../../export/lineart.js';
 
 export const SHEET=CAN/PX;
 export const CAMERAS=['front','three-quarter','back','profile'];
@@ -249,6 +250,12 @@ export async function renderStill(d,customs,{w=CAN,h=w,camera='front',clock}={})
  v.render(clock||sceneClock(d,Date.now()));
  const out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(v.renderer.domElement,0,0);
  return out}
+
+/* A technical line drawing of a design from the front, side or back
+   (export/lineart.js), on the still view's renderer. */
+export async function lineDrawing(d,customs,opts={}){
+ const v=stillView();await ready(v,d,customs);
+ return renderLines(v.renderer,v.watch,opts)}
 
 /* A frame of a design composed over its scene background, as a PNG Blob, at any
    size: large exports are rendered in GPU-sized tiles. */
