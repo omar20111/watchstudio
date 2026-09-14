@@ -43,6 +43,24 @@ numbers and nothing else:
   layout, so apertures and artwork agree.
 - **Contact shading is real** (`core/three/ao.js`): ambient occlusion darkens
   where parts meet — indices on the dial, hands over it, bracelet joints.
+- **Proportions follow watchmaking** (`core/geometry.js`):
+  - **Hands:** each reaches what it reads: the seconds hand the edge of the
+    minute track, the minute hand into it, the hour hand the inner end of the
+    indices.
+  - **Straps and bracelets:** cut to real lengths. A bracelet ends in fitted
+    end links and a folding clasp.
+  - **Dial parts:** date windows, registers and printing keep their sizes in mm
+    (`DIAL_MM`).
+  - **Clearances:** anything raised on the dial stands below the hands that pass
+    over it, and a logo is drawn smaller rather than run into the printing, the
+    date or the registers.
+- **Glass and finish** (`lathe.js crystalSolid`, `materials.js zoneFinish`): the
+  crystal is a solid of sapphire (flat, domed or box), with an optional cyclops
+  over the date. A brushed case keeps polished bevels. A diver insert's scale is
+  engraved, with a raised lume pip.
+- **The movement is built** (`core/three/movement.js`): behind an exhibition
+  caseback, bridges, jewels, a rotor and a balance swinging at the calibre's
+  beat, sized to the thickness stack.
 
 The same view (`core/three/view.js`) drives the editor, the product and sheet
 presentations and every export, so what you see and what you export cannot
@@ -134,7 +152,9 @@ src/
   to look round it, easing back level on release · Shift+scroll scales · arrow
   keys nudge (Shift = 5×) · `[` `]` rotate · `1–8` select part · `F` fit
 - **¾**: drag to orbit · click a part to select it · scroll to zoom
+- **Back**: the watch turned over, and the movement behind an exhibition caseback
 - **Side**: measured side elevation and caseback
+- **Night** (or `N`): lights out, the lume glows
 - **Product render**: drag to turn · pick a surface and a lens blur · **📷
   Photo** path traces a photo-quality still of the view, saved as a PNG
 - **Touch**: drag a part to move it · pinch to zoom · two fingers to tilt the
