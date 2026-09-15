@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Changed — brushed steel streaks along its grain**
+- Brushed metal gets its directional highlight back, now clean: a brushed
+  surface's mesh is given tangents from its uv (`materials.js withTangents`),
+  so the highlight streaks round a case band and its top, along a lug, and
+  along a bracelet's length, instead of the shader guessing a direction per
+  2×2 pixel block. A mesh with no uv to take a direction from stays satin, and
+  a tangent a degenerate triangle leaves undefined is repaired, so the GLB
+  still passes the Khronos validator.
+
 **Changed — edges that catch the light, lugs that look forged**
 - **No sharp machined edges on the case:** where the band turns into the
   chamfer, and the chamfer into the case top, the corner is broken with a small

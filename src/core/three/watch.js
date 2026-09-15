@@ -24,7 +24,7 @@ import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,crownParts,strapPath,smoothstep} from './lathe.js';
 import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
 import {crossingAt} from '../caseshape.js';
-import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish} from './materials.js';
+import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
@@ -456,6 +456,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const watch=new Group();watch.name='watch';
  const G={};for(const p of PARTS3D){G[p]=new Group();G[p].name=p;G[p].userData.part=p;watch.add(G[p])}
  const add=(to,name,geo,mat,{cast=true,receive=true,noPick=false}={})=>{
+  withTangents(geo,mat);
   const m=new Mesh(geo,mat);m.name=name;m.castShadow=cast;m.receiveShadow=receive;
   /* noPick sheets are painted decals (lume) floating on a solid: they must not
      be clicked, nor read as solid planes by the occlusion pass */

@@ -39,10 +39,11 @@ export function metalMaterial(metalId,finish='polished',o={}){
   /* black DLC is a hard carbon film: under the dark metal, its own glossy surface
      throws back the studio's lights in grey, and that is what shows its shape */
   if(metalId==='black'){mat.clearcoat=f==='matte'?.25:.7;mat.clearcoatRoughness=f==='matte'?.45:f==='brushed'?.22:.08}
-  /* brushed reads as satin: a rougher, softer reflection. (Anisotropy streaked it,
-     but with no tangents on the geometry the shader derives a direction per
-     2x2 pixel block, which against the studio's crisp lights showed as blotches.) */
-  }
+  /* brushed: the highlight streaks along the grain, which runs along the part's
+     uv u (round a lathe, along a lug). The mesh needs tangents for that
+     (withTangents); without them the shader guesses a direction per 2x2 pixel
+     block, which the studio's crisp lights turn into blotches. */
+  if(f==='brushed')mat.anisotropy=.55}
  /* white ceramic: a bright diffuse body under a thin gloss. Full environment
     strength on both flattens it to paper white seen from above. */
  else if(m.kind==='ceramic'){mat.metalness=0;mat.roughness=.42;mat.clearcoat=.8;mat.clearcoatRoughness=.05;mat.envMapIntensity=.55;
@@ -63,6 +64,22 @@ export function zoneFinish(finish,zone){const f=!finish||finish==='none'?'polish
  if(zone==='bevel')return f==='matte'?'matte':'polished';
  if(zone==='turned')return f==='matte'?'matte':'brushed';
  return f}
+
+/* Tangents for a brushed surface, from its uv. A mesh with no uv (or no index)
+   has no grain direction to give: its material falls back to satin. A tangent
+   left undefined by a degenerate triangle is repaired, since a shader (and a
+   glTF validator) needs a unit vector. */
+export function withTangents(geo,mat){
+ if(!(mat&&mat.anisotropy>0)||mat.anisotropyMap||geo.attributes.tangent)return;
+ if(!(geo.index&&geo.attributes.uv&&geo.attributes.normal)){mat.anisotropy=0;return}
+ try{geo.computeTangents()}catch(e){mat.anisotropy=0;return}
+ const t=geo.attributes.tangent,n=geo.attributes.normal;
+ for(let i=0;i<t.count;i++){const x=t.getX(i),y=t.getY(i),z=t.getZ(i),l=Math.hypot(x,y,z);
+  if(l>1e-6&&Number.isFinite(l)){t.setXYZW(i,x/l,y/l,z/l,t.getW(i)<0?-1:1);continue}
+  /* any unit vector across the normal */
+  const nx=n.getX(i),ny=n.getY(i),nz=n.getZ(i),a=Math.abs(nx)<.9?[1,0,0]:[0,1,0];
+  let cx=a[1]*nz-a[2]*ny,cy=a[2]*nx-a[0]*nz,cz=a[0]*ny-a[1]*nx;const cl=Math.hypot(cx,cy,cz)||1;
+  t.setXYZW(i,cx/cl,cy/cl,cz/cl,1)}}
 
 /* AR coating strength by finish */
 const AR={none:1,brushed:.85,polished:.6,matte:.28};
