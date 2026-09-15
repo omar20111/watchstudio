@@ -31,13 +31,15 @@ export async function run({page,ready,until,press,present,expect,url}){
    const click=HTMLAnchorElement.prototype.click;
    HTMLAnchorElement.prototype.click=function(){if(this.rel!=='ar')return click.call(this);
     window.__ql={hasImg:!!this.querySelector('img')};
-    fetch(this.href).then(r=>r.arrayBuffer()).then(b=>{window.__qlBytes=Array.from(new Uint8Array(b))})}}});
+    /* as base64: a byte-per-number array of a ~10 MB USDZ ran the runner out of memory */
+    fetch(this.href).then(r=>r.arrayBuffer()).then(b=>{const u=new Uint8Array(b);let s='';
+     for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode(...u.subarray(i,i+0x8000));window.__qlBytes=btoa(s)})}}});
   await p.goto(url);await ready(p);
   await press(p,AR);
   await present(p,'Open in AR');
   await press(p,'Open in AR');
   expect(await until(p,()=>!!window.__qlBytes,null,300000),'Open in AR builds a USDZ for Quick Look');
-  const ql=await p.evaluate(()=>window.__ql),bytes=Uint8Array.from(await p.evaluate(()=>window.__qlBytes||[]));
+  const ql=await p.evaluate(()=>window.__ql),bytes=new Uint8Array(Buffer.from(await p.evaluate(()=>window.__qlBytes||''),'base64'));
   expect(ql&&ql.hasImg,'opened from a rel=ar link wrapping an image, as Quick Look requires');
   if(bytes.length){const files=unzipSync(bytes),names=Object.keys(files),usda=strFromU8(files['model.usda']||new Uint8Array());
    expect(names[0]==='model.usda',"model.usda is the archive's first file");
