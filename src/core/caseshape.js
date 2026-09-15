@@ -29,11 +29,14 @@ export const TONNEAU_LENGTH=1.2;
 const TAU=Math.PI*2;
 const wrap=a=>((a%TAU)+TAU)%TAU;
 
-/* a spec from a unit core (vertices anticlockwise from +x toward +z) and rc */
-function spec(kind,v,cf){
+/* a spec from a unit core (vertices anticlockwise from +x toward +z) and rc.
+   `curved`: the core's edges only approximate a curve (a tonneau's bowed sides),
+   so they are not flats to keep sharp: sampled evenly, the surface shades as the
+   smooth curve it stands for instead of a hundred narrow facets. */
+function spec(kind,v,cf,{curved=false}={}){
  const edges=v.length<2?[]:v.map((a,i)=>{const b=v[(i+1)%v.length],ex=b[0]-a[0],ez=b[1]-a[1],l=Math.hypot(ex,ez);
   const nx=ez/l,nz=-ex/l;return{a,b,nx,nz,h:nx*a[0]+nz*a[1],phi:wrap(Math.atan2(nz,nx))}});
- return{kind,v,cf,edges,flats:edges.map(e=>e.phi),N:edges.length,
+ return{kind,v,cf,edges,flats:curved?[]:edges.map(e=>e.phi),curved,N:edges.length,
   maxR:Math.max(...v.map(p=>Math.hypot(p[0],p[1]))),shrunk:new Map()}}
 
 function regular(kind,N,cf){const d=(1-cf)/Math.cos(Math.PI/N);
@@ -50,7 +53,7 @@ function tonneau(){const cf=.18,w=1-cf,l=TONNEAU_LENGTH-cf,we=.62,lc=l-.06;
  for(let i=0;i<E;i++){const t=Math.PI/2-b+2*b*i/E;v.push([Re*Math.cos(t),yc+Re*Math.sin(t)])}
  for(let i=0;i<S;i++){const t=Math.PI-a+2*a*i/S;v.push([-xc+Rs*Math.cos(t),Rs*Math.sin(t)])}
  for(let i=0;i<E;i++){const t=1.5*Math.PI-b+2*b*i/E;v.push([Re*Math.cos(t),-yc+Re*Math.sin(t)])}
- return spec('tonneau',v,cf)}
+ return spec('tonneau',v,cf,{curved:true})}
 
 const SPECS={round:spec('round',[[0,0]],1),cushion:regular('cushion',4,.42),octagon:regular('octagon',8,.07),
  square:regular('square',4,.12),tonneau:tonneau()};

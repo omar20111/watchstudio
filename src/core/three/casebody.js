@@ -132,6 +132,34 @@ function hornSection(W,{bi,bo,facet=false,drop=0}){
  const D=[{dx:W,ref:'top',off:drop,zone:'surface'},{dx:W,ref:'bot',off:0}];
  return[A,F,D,[{dx:W,ref:'bot',off:0,zone:'surface'},{dx:W/2,ref:'bot',off:0,zone:'surface'},{dx:0,ref:'bot',off:0}]]}
 
+/* A sculpted horn section, as one strip all the way round so its faces shade
+   into one another the way a forged lug's do: a gently domed top between
+   rounded edges, an inner face standing straight beside the strap, an outer
+   flank that curves in under itself toward the wrist, and rounded bottom edges.
+   The top edges are polished bevels; everything else takes the case's finish.
+   W is the section's width and t its height at this station. */
+function sculptedSection(W,t,{bi,bo,tuck=.22}){
+ const pts=[],P=(dx,ref,off,zone='surface')=>pts.push({dx,ref,off,zone});
+ const c=Math.min(.09,W*.035,t*.08),rb=Math.min(.2,t*.16,W*.12);
+ const ins=Math.max(0,Math.min(W*tuck,W-bi-bo-rb-.05)),Q=Math.PI/2;
+ /* the underside, from its middle toward the inner face, round its edge */
+ P((W-ins)*.5,'bot',0);P(rb,'bot',0);
+ for(let i=1;i<4;i++){const a=i/4*Q;P(rb-rb*Math.sin(a),'bot',rb-rb*Math.cos(a))}
+ P(0,'bot',rb);
+ /* the inner face, then its top edge rounded over (polished) */
+ P(0,'top',c+bi,'bevel');
+ for(let i=1;i<4;i++){const a=Q-i/4*Q;P(bi-bi*Math.sin(a),'top',c+bi-bi*Math.cos(a),'bevel')}
+ /* the top, domed a little across */
+ const n=6;for(let m=0;m<=n;m++){const u=m/n*2-1;P(bi+(W-bi-bo)*m/n,'top',c*u*u,m===n?'bevel':'surface')}
+ for(let i=1;i<4;i++){const a=i/4*Q;P(W-bo+bo*Math.sin(a),'top',c+bo-bo*Math.cos(a),'bevel')}
+ /* the outer flank, tucking in toward the bottom */
+ const f0=c+bo,span=Math.max(.05,t-f0-rb);
+ for(let i=0;i<=6;i++){const tau=i/6;P(W-ins*tau*tau,'top',f0+span*tau)}
+ /* its bottom edge, rounded, and back along the underside */
+ for(let i=1;i<4;i++){const a=i/4*Q;P(W-ins-rb+rb*Math.cos(a),'bot',rb-rb*Math.sin(a))}
+ P(W-ins-rb,'bot',0);P((W-ins)*.5,'bot',0);
+ return[pts]}
+
 /* the height of the case's top surface at radius rho: the chamfer cone from the
    band up to the seat, and the seat within it (lugs and guards stay under it) */
 function chamferTop(x,z,H,Rr,B,O){
@@ -160,7 +188,9 @@ export function caseHorns(d){
   /* the underside leaves the band a quarter of the way up and lifts clear in a
      long concave sweep (an ease-out), not a tall flank running down to the caseback */
   const u=Math.min(1,Math.max(0,(s-sCase+.3)/Math.max(1,(sTip-sCase)*.7))),ease=1-(1-u)*(1-u);
-  const bot=lerp(Hh.bandBottom,Hh.bottom,ease)-drop*S;
+  /* and a lug thins toward its tip, as a forged one does */
+  const thin=integrated||hooded?0:(Hh.top-Hh.bottom)*.24*smoothstep(sCase+(sTip-sCase)*.25,sTip,s);
+  const bot=lerp(Hh.bandBottom,Hh.bottom,ease)-drop*S+thin;
   return{top,bot:Math.min(bot,top-.4)}};
  const parts=[],holes=[];
  const hole=(sx,sy,lat,hf)=>{const sp=lp.springZ,x=sx*lat,z=sy*sp,h=hf(x,z,sp);
@@ -195,15 +225,18 @@ export function caseHorns(d){
  const lean=s=>twisted?L.wt*.45*Math.pow(smoothstep(sCase,sTip,s),2):0;
  /* ...except round the tip, where the inner edge follows so the tip stays round */
  const tipFollow=s=>smoothstep(sTipStart,sTip,s);
- const stations=inner.map((p,k)=>({inner:[p[0]+lean(p[1])*tipFollow(p[1]),p[1]],outer:[outer[k][0]+lean(outer[k][1]),outer[k][1]]}));
+ /* a straight lug narrows toward its tip, its inner face staying beside the strap */
+ const narrow=s=>twisted?1:1-.18*smoothstep(sCase,sTip,s),toward=(lat,s)=>L.xi+(lat-L.xi)*narrow(s);
+ const stations=inner.map((p,k)=>({inner:[toward(p[0],p[1])+lean(p[1])*tipFollow(p[1]),p[1]],outer:[toward(outer[k][0],outer[k][1])+lean(outer[k][1]),outer[k][1]]}));
  const strips=(k,W,h)=>{const prog=k/(stations.length-1),t=Math.max(.2,h.top-h.bot);
   const bi=Math.min(twisted?.22:.42,W*.26,t*.3);
   if(twisted){const bo=Math.min(W*(.12+.34*prog),W-bi-.02,t*.9);return hornSection(W,{bi,bo:Math.max(0,bo),facet:true,drop:Math.max(0,Math.min(bo*.85,t*.6))})}
-  return hornSection(W,{bi,bo:Math.min(.42,W*.26,t*.3)})};
+  return sculptedSection(W,t,{bi,bo:Math.min(.42,W*.26,t*.3)})};
  if(!hooded){
   for(const sy of[-1,1])for(const sx of[-1,1]){
    parts.push(sweep(stations,{toWorld:(lat,s)=>[sx*lat,sy*s],heights,strips,tilt:k=>twisted?.05*k/(stations.length-1):0}));
-   if(arch.lugHoles)hole(sx,sy,L.xo+lean(lp.springZ),heights)}}
+   /* the bore is drilled square into the outer flank, which narrows and tucks in */
+   if(arch.lugHoles)hole(sx,sy,twisted?L.xo+lean(lp.springZ):toward(L.xo,lp.springZ)-(L.xo-L.xi)*narrow(lp.springZ)*.22*.25,heights)}}
  else{
   /* Hooded: each pair of lugs and the hood between them are one solid, its
      section a U turned over — the lugs' outer flanks, one top across, and a
@@ -252,7 +285,7 @@ export function crownGuards(d){
  for(const side of[-1,1]){
   /* local s runs along the crown's axis, lat across it; +lat toward 6 o'clock at 3 */
   const toWorld=(lat,s)=>{const X=s,Z=side*lat;return[X*cs-Z*sn,X*sn+Z*cs]};
-  out.push(sweep(stations,{toWorld,heights,strips:(k,W,h)=>hornSection(W,{bi:Math.min(.35,W*.25,(h.top-h.bot)*.3),bo:Math.min(.35,W*.25,(h.top-h.bot)*.3)})}))}
+  out.push(sweep(stations,{toWorld,heights,strips:(k,W,h)=>{const t=Math.max(.2,h.top-h.bot);return sculptedSection(W,t,{bi:Math.min(.35,W*.25,t*.3),bo:Math.min(.35,W*.25,t*.3),tuck:.12})}}))}
  return out}
 
 /* ---------------------------------------------------------------- shaped profiles */
@@ -265,7 +298,8 @@ export function crownGuards(d){
    normals face out of the metal as a lathe's do: profiles run bottom, outside,
    top, inward. */
 export function shapedProfile(points,shapeAt,O,n=180){
- const specs=[O.case.spec,O.bezel.spec],samples=outlineSamples(specs,n),cols=samples.length+1;
+ /* a curved outline has no flats to land samples on, so it takes more of them */
+ const specs=[O.case.spec,O.bezel.spec],samples=outlineSamples(specs,specs.some(s=>s.curved)?Math.max(n,400):n),cols=samples.length+1;
  const at=(kind,r,phi,side)=>{const o=kind==='case'?O.case:kind==='bezel'?O.bezel:null;
   if(!o)return[r*Math.cos(phi),r*Math.sin(phi)];
   return outlinePoint(o.spec,o.A0,o.A0-r*(o.scale||1),phi,side)};

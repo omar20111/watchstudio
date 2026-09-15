@@ -527,7 +527,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
   add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
   add(G.case,'casebackRim',lathe(P.casebackRim),caseMat('bevel'));
   add(G.case,'flank',prof(P.flank,i=>({from:i===0?'round':'case'})),caseMat('surface'));
+  /* the broken edges either side of the chamfer (lathe.js headProfiles), polished */
+  add(G.case,'flankEdge',prof(P.flankEdge,()=>({from:'case'})),caseMat('bevel'));
   add(G.case,'chamfer',prof(P.chamfer,()=>({from:'case'})),caseMat('bevel'));
+  add(G.case,'chamferEdge',prof(P.chamferEdge,()=>({from:'case'})),caseMat('bevel'));
   /* round a turned case the seat is a narrow polished step; on a shaped case it is
      the broad top between the outline and the bezel, and takes the case's finish */
   add(G.case,'seat',prof(P.seat,i=>({from:i===0?'case':'bezel'})),caseMat(OL.case.kind==='round'?'bevel':'surface'));

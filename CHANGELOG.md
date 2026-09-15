@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+**Changed — edges that catch the light, lugs that look forged**
+- **No sharp machined edges on the case:** where the band turns into the
+  chamfer, and the chamfer into the case top, the corner is broken with a small
+  radius (up to 0.18 mm), each its own polished face (`flankEdge`,
+  `chamferEdge`). They carry the thin bright lines a real case shows.
+- **Lugs are sculpted** (`casebody.js sculptedSection`): one continuous
+  section instead of two vertical walls and a flat top. A gently domed top
+  between rounded, polished edges; the inner face straight beside the strap;
+  the outer flank curving in under itself toward the wrist; rounded bottom
+  edges. Straight lugs narrow by 18% toward the tip and thin by a quarter, so
+  they taper like forged horns. Drilled holes follow the narrowing flank.
+  Crown guards take the same section.
+- **Fixed: brushed metal showed blotches.** The brushing grain is laid out by
+  a part's uv, and three's lathe spaces v by point count, so a case band whose
+  profile bunches points into its small rounded edge had its grain stretched
+  eight times along the long straight run. Lathes now space v by distance
+  along the profile; a brushed band shows fine brushing lines.
+- **Fixed: mirror-polished curves showed bands.** A drum or sloped side is
+  drawn with 36 steps instead of 12, and a tonneau's bowed sides, which its
+  outline approximates with short edges, are sampled evenly as a curve rather
+  than as a hundred narrow flats.
+- The studio's strip lights are wider and softer-edged: a thin, very bright
+  strip broke up into blotches when blurred for rougher metal.
+
 **Changed — a watch photographer's studio**
 - Polished metal looked like grey plastic: seen from above, a case's side
   reflects the table, and the studio's table was an even pale grey, so the

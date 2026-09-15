@@ -33,7 +33,9 @@ export const SET={
  /* overhead softbox, in the ceiling plane (x/y, z/y): -z is toward 12 */
  softbox:{u:[-1,1],v:[-1.35,.42],feather:.34,L:2.3},
  /* tall strips: azimuth clockwise from 12, half-width and elevation span */
- strips:[{az:60,hw:4.5,el:[-2,68],L:3.2},{az:300,hw:3.5,el:[-2,60],L:2.4}],
+ /* wide enough, and soft-edged enough, that blurring them for rougher metal
+    keeps them smooth: a thin, very bright strip broke up into blotches there */
+ strips:[{az:60,hw:7,el:[-2,68],L:2.2,feather:3.5},{az:300,hw:6,el:[-2,60],L:1.7,feather:3.5}],
  /* the backdrop's glow above the horizon, strongest toward 12, and its line */
  backdrop:{L:.9,side:.1,height:26},horizon:{L:.35,width:1.4},
  /* the table, dark, a little lighter toward the horizon; cards stood on it */
@@ -48,7 +50,7 @@ export function radianceAt(x,y,z,S=SET){
   for(const c of S.cards)L+=c.L*band(Math.abs(wrapPi(az-c.az*DEG))/DEG,-1e9,c.hw,7)*band(eld,c.el[0],c.el[1],5)}
  else{const B=S.backdrop,toward12=(1+Math.cos(az))/2;
   L+=(B.side+(B.L-B.side)*toward12*toward12)*(1-smooth(0,B.height,eld));
-  for(const s of S.strips)L+=s.L*band(Math.abs(wrapPi(az-s.az*DEG))/DEG,-1e9,s.hw,1.2)*band(eld,s.el[0],s.el[1],2.5);
+  for(const s of S.strips)L+=s.L*band(Math.abs(wrapPi(az-s.az*DEG))/DEG,-1e9,s.hw,s.feather)*band(eld,s.el[0],s.el[1],s.feather);
   if(y>.25){const b=S.softbox,u=x/y,v=z/y;
    const inside=band(u,b.u[0],b.u[1],b.feather)*band(v,b.v[0],b.v[1],b.feather);
    /* a real softbox is brightest in its middle */

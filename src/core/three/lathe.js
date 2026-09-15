@@ -49,7 +49,7 @@ export function headRadii(d){const g=geoOf(d),mm=px=>px/PX;
      sloped    widest under the bezel, drawn in toward the caseback, so the case
                looks slimmer on the wrist
      stepped   a narrower lower tier below a small ledge
-   points(from) gives the lathe points from height `from` to y1. */
+   points(from,to) gives the lathe points from height `from` up to `to` (y1). */
 export function bandOf(d,H=headHeights(d),Rr=headRadii(d)){
  const{rCase,rSeat}=Rr,side=caseOf(d).side;
  const y0=H.back,y1=H.seat-(rCase-rSeat),h=Math.max(.01,y1-y0);
@@ -59,12 +59,13 @@ export function bandOf(d,H=headHeights(d),Rr=headRadii(d)){
   if(side==='sloped')return rCase-sl*(1-t)*(1-t);
   if(side==='stepped')return y<yStep?rCase-st:rCase;
   return rCase};
- const points=from=>{const out=[];
+ const points=(from,to=y1)=>{const out=[];
   if(side==='stepped'){
    if(from<yStep){out.push(V(rCase-st,yStep-.1),V(rCase-st+.05,yStep),V(rCase-.1,yStep),V(rCase,yStep+.1))}
-   out.push(V(rCase,y1));return out}
-  const n=side==='straight'?1:12;
-  for(let i=1;i<=n;i++){const y=from+(y1-from)*i/n;out.push(V(radiusAt(y),y))}
+   out.push(V(rCase,to));return out}
+  /* fine enough that a mirror polish shows a smooth curve, not a stack of bands */
+  const n=side==='straight'?1:36;
+  for(let i=1;i<=n;i++){const y=from+(to-from)*i/n;out.push(V(radiusAt(y),y))}
   return out};
  return{side,y0,y1,rTop:radiusAt(y1),rMax:rCase,radiusAt,points,yStep:side==='stepped'?yStep:null}}
 
@@ -88,9 +89,19 @@ export function headProfiles(d){
  /* mid-case flank: tucks in under the caseback, rises to the chamfer along the
     case's side profile (bandOf) */
  const B=bandOf(d,H,Rr),rb=B.radiusAt(B.y0);
- P.flank=[V(rCase*.92,H.back),V(rb-e,H.back),...round(V(rb-e,H.back),V(rb,H.back),V(B.radiusAt(H.back+e),H.back+e)),...B.points(H.back+e)];
- P.chamfer=[V(B.rTop,B.y1),V(rSeat,H.seat)];
- P.seat=[V(rSeat,H.seat),V(rBezOut*.985,H.seat)];
+ /* No machined edge is left sharp: where the band turns into the chamfer, and
+    the chamfer into the case top, the corner is broken with a small radius,
+    its own polished face. A razor edge catches no light; a radius of a couple
+    of tenths of a millimetre carries the thin bright line a real case shows. */
+ const er=Math.min(.18,cham*.22),yF=B.y1-er;
+ P.flank=[V(rCase*.92,H.back),V(rb-e,H.back),...round(V(rb-e,H.back),V(rb,H.back),V(B.radiusAt(H.back+e),H.back+e)),...B.points(H.back+e,yF)];
+ const cx=rSeat-B.rTop,cy=H.seat-B.y1,cl=Math.hypot(cx,cy)||1,cu=[cx/cl,cy/cl];
+ const f0=V(B.radiusAt(yF),yF),f1=V(B.rTop+cu[0]*er,B.y1+cu[1]*er);
+ P.flankEdge=[f0,...round(f0,V(B.rTop,B.y1),f1,5),f1];
+ const c0=V(rSeat-cu[0]*er,H.seat-cu[1]*er),c1=V(rSeat-er,H.seat);
+ P.chamfer=[f1,c0];
+ P.chamferEdge=[c0,...round(c0,V(rSeat,H.seat),c1,5),c1];
+ P.seat=[c1,V(rBezOut*.985,H.seat)];
 
  /* bezel: flank, then a top face that is flat for an insert and crowned for a
     dress bezel, then the inner chamfer dropping to the crystal */
@@ -150,7 +161,14 @@ function crystalSolid(H,Rr,arch,c0){const a=Rr.rBezIn,h=H.top-c0,shape=arch.crys
  faces.push(inner,[V(rStep,under(rStep)),V(rStep,c0)],[V(rStep,c0),V(a,c0)]);
  return{outer,faces,c0,rim:a,rStep,under,thickness:H.top-under(0),clear}}
 
-export const lathe=(points,segments=160)=>new LatheGeometry(points,segments);
+/* LatheGeometry spaces v by point count. Laid out by distance along the profile
+   instead, anything mapped by uv (wear.js's brushing grain) keeps one scale over
+   a profile whose points bunch into a small rounded edge — by count, the long
+   straight run of a case band stretched the grain eight times into blotches. */
+export const lathe=(points,segments=160)=>{const g=new LatheGeometry(points,segments),n=points.length;
+ if(n>2){const len=[0];for(let i=1;i<n;i++)len.push(len[i-1]+points[i].distanceTo(points[i-1]));
+  const L=len[n-1]||1,uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setY(i,len[i%n]/L)}
+ return g};
 
 /* ---------------------------------------------------------------------------
    The parts that are not solids of revolution: lugs, crown and strap, in mm.

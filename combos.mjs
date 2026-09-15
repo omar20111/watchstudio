@@ -724,7 +724,7 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   const O=G.outlinesOf(d),H=w.userData.heights,Rr=w.userData.radii;
   const flank=pts(w,'flank');if(!flank.length){bad(tag,'no flank');continue}
   const yTop=Math.max(...flank.map(p=>p[1]));let off=0;
-  for(const p of flank)if(Math.abs(p[1]-yTop)<1e-4)off=Math.max(off,Math.abs(CS.insetOf(O.case.spec,O.case.A0,p[0],p[2])-(Rr.rCase-L3.bandOf(d).rTop)));
+  for(const p of flank)if(Math.abs(p[1]-yTop)<1e-4)off=Math.max(off,Math.abs(CS.insetOf(O.case.spec,O.case.A0,p[0],p[2])-(Rr.rCase-L3.bandOf(d).radiusAt(yTop))));
   if(off>.02)bad(tag,`the flank's top ring is ${off.toFixed(3)}mm off the case's outline`);
   const bez=pts(w,'bezelFlank'),gap=Rr.rCase-Rr.rBezOut;
   const bezIn=Math.min(...bez.map(p=>CS.insetOf(O.case.spec,O.case.A0,p[0],p[2])));
@@ -743,7 +743,7 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   const cp=L3.crownParts(d),reach=CS.extentAlong(O.case.spec,O.case.A0,(cp.bearing-90)*Math.PI/180);
   if(!(cp.barrelX>reach))bad(tag,`the crown's barrel at ${cp.barrelX.toFixed(2)}mm is inside the case's outline (${reach.toFixed(2)}mm) along its bearing`);
   /* (a round case's profiles are three's own lathes; the swept ones are checked) */
-  for(const n of[...(shape==='round'&&O.bezel.kind==='round'?[]:['flank','chamfer','seat','bezelFlank','bezelEdge','bezelTop']),'lugs','lugEdges']){let badN=0;
+  for(const n of[...(shape==='round'&&O.bezel.kind==='round'?[]:['flank','flankEdge','chamfer','chamferEdge','seat','bezelFlank','bezelEdge','bezelTop']),'lugs','lugEdges']){let badN=0;
    w.traverse(o=>{if(!o.isMesh||o.name!==n)return;const a=o.geometry.attributes.normal;for(let i=0;i<a.count;i++)if(!(Math.abs(Math.hypot(a.getX(i),a.getY(i),a.getZ(i))-1)<1e-3))badN++});
    if(badN)bad(tag,`${badN} ${n} normals are not unit length`)}
   if(lugs==='integrated'){const tip=(G.geoOf(d).R+G.geoOf(d).lugExt)/PX,near=(p,z0,z1)=>Math.abs(p[2])>z0&&Math.abs(p[2])<z1&&Math.abs(p[0])<3;
