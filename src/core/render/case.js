@@ -7,6 +7,7 @@
    polished bevel is most of what makes a steel case read as machined. */
 import {C,METALS,PX} from '../constants.js';
 import {LUG_CLEAR_MM} from '../geometry.js';
+import {shapeSpec,outlinePath} from '../caseshape.js';
 import {envGrad,axisGrad,bevelGrad,tone,ringPath,seam,circGrain,lineGrain,microScratch,
         fresnelRim,castShadow,applyFinish} from './material.js';
 
@@ -138,6 +139,16 @@ export function drCase(ctx,o){const{R,sw,lugExt,rCase,rSeat,rBezOut,crownR}=o.g;
  ctx.restore();
 
  fresnelRim(ctx,C,C,rCase,m,.045);
+ /* a shaped case (caseshape.js): its outline over the turned body, which it
+    contains, then its own chamfer and the broad top round to the bezel */
+ const shape=o.arch&&o.arch.shape!=='round'?shapeSpec(o.arch.shape):null;
+ if(shape){
+  ctx.beginPath();outlinePath(ctx,shape,rCase,0,C,C);ctx.fillStyle=bevelGrad(ctx,m,C,C,{facing:'out',lo:.16,hi:1,tight:1.25,bias:.06});ctx.fill();
+  ctx.save();ctx.beginPath();outlinePath(ctx,shape,rCase,rCase-rSeat,C,C);ctx.clip();
+  ctx.fillStyle=envGrad(ctx,m);ctx.fillRect(C-rCase*1.5,C-rCase*1.5,rCase*3,rCase*3);
+  if(brushed){ctx.globalCompositeOperation='overlay';ctx.fillStyle=circGrain(ctx,rBezOut*.9,rCase*1.4,.8);ctx.fillRect(C-rCase*1.5,C-rCase*1.5,rCase*3,rCase*3)}
+  ctx.restore();
+  ctx.beginPath();outlinePath(ctx,shape,rCase,0,C,C);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1.4;ctx.stroke()}
  /* joint where the bezel drops onto the seat */
  seam(ctx,C,C,rBezOut,{dark:.55,lite:.22,w:2.4,side:1});
- seam(ctx,C,C,rSeat,{dark:.30,lite:.30,w:1.8,side:1});}
+ if(!shape)seam(ctx,C,C,rSeat,{dark:.30,lite:.30,w:1.8,side:1});}

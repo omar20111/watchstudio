@@ -15,7 +15,7 @@
    normals out of the metal. */
 import {Vector2,LatheGeometry,Shape} from 'three';
 import {PX} from '../constants.js';
-import {LUG_CLEAR_MM,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
+import {LUG_CLEAR_MM,caseReachMm,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -184,12 +184,15 @@ export function lugParts(d){
   /* spring bar: near the tip, through the lug */
   springZ:springBarMm(d),
   plan:{xi,xo,xc,wt,rf,tip,lugW},
-  heights:{top,bottom,topCase:H.seat-cham*.45,bandBottom:H.back+(H.seat-H.back)*.24}}}
+  heights:{top,bottom,topCase:H.seat-cham*.45,bandBottom:H.back+(H.seat-H.back)*.24,
+   /* an integrated shoulder carries the case top on out, falling only a little */
+   shoulderTop:H.seat-cham*.45-Math.min(arch.lugDrop,.5)}}}
 
 /* Crown and pushers along their own axis (+x before the bearing is applied) */
 export function crownParts(d){
  const g=geoOf(d),H=headHeights(d),sc=d.parts.crown.variant==='oversized'?1.22:1;
- const R=g.R/PX,cr=g.crownR/PX,rb=cr*sc,L=cr*1.5*sc;
+ /* measured from where the case's outline reaches along the crown's bearing */
+ const R=g.R/PX+caseReachMm(d,crownAng(d)),cr=g.crownR/PX,rb=cr*sc,L=cr*1.5*sc;
  const x0=R-cr*.45,x1=R+cr*.30;                  /* tube: from inside the band to the barrel */
  const e=Math.min(.35,rb*.14);
  return{axisY:H.back+(H.seat-H.back)*.5,bearing:crownAng(d),
@@ -199,9 +202,9 @@ export function crownParts(d){
   side:[V(rb,e),V(rb,L-e*1.4)],
   end:[V(rb,L-e*1.4),V(rb-e*1.4,L),...round(V(rb-e*1.4,L),V(rb*.55,L+e*.5),V(0,L+e*.35),6),V(0,L+e*.35)],
   teeth:Math.max(18,Math.round(rb*2*Math.PI/.55)),
-  pushers:d.case&&caseOf(d).pushers?[-30,30].map(off=>({bearing:crownAng(d)+off,
-   shoulder:{r:cr*.86*.3,x0:R-cr*.18,x1:R+cr*.16},
-   head:{r:cr*.86*.5,x0:R+cr*.12,len:cr*.52}})):[]}}
+  pushers:d.case&&caseOf(d).pushers?[-30,30].map(off=>{const b=crownAng(d)+off,Rp=g.R/PX+caseReachMm(d,b);return{bearing:b,
+   shoulder:{r:cr*.86*.3,x0:Rp-cr*.18,x1:Rp+cr*.16},
+   head:{r:cr*.86*.5,x0:Rp+cr*.12,len:cr*.52}}}):[]}}
 
 /* The strap's centreline, from the spring bar outward: a first bend down and
    away, a second back to level, then lying flat on the table — a watch resting
@@ -211,16 +214,24 @@ export function strapPath(d){
  const lp=lugParts(d),v=d.parts.strap.variant;
  const T=v==='nato'?1.3:v==='steel'?3.4:v==='rubber'?3.6:v==='mesh'?2.2:3.1;
  const lugDropAtBar=lp.drop*smoothstep(lp.z0,lp.z1,lp.springZ);
- const y0=lp.bottom-lugDropAtBar+lp.thick*.42-T/2;   /* centreline at the spring bar */
+ /* centreline at the spring bar; an integrated case's strap or bracelet comes
+    out of the shoulder's end flush with its top */
+ const integrated=caseOf(d).lugs==='integrated';
+ /* how far a strap's top stands above its centreline where it leaves the case, as
+    a share of T (its crown and padding; measured off the built straps) */
+ const TOP={steel:.48,rubber:.69,leather:.86,nato:.5,mesh:.55}[v]??.6;
+ const y0=integrated?lp.heights.shoulderTop-.05-T*TOP:lp.bottom-lugDropAtBar+lp.thick*.42-T/2;
  const r1=16,r2=12,th=55*Math.PI/180;
+ /* an integrated bracelet leaves the case level, as its first link, before it bends */
+ const lead=integrated?7:0;
  const s1=r1*th,s2=s1+r2*th;
- const pos=s=>{
-  if(s<=0)return[s,y0,0];
-  if(s<=s1){const a=s/r1;return[r1*Math.sin(a),y0-r1*(1-Math.cos(a)),-a]}
+ const pos=s0=>{const s=s0-lead;
+  if(s<=0)return[s0,y0,0];
+  if(s<=s1){const a=s/r1;return[lead+r1*Math.sin(a),y0-r1*(1-Math.cos(a)),-a]}
   const zA=r1*Math.sin(th),yA=y0-r1*(1-Math.cos(th));
   if(s<=s2){const a=th-(s-s1)/r2;                   /* unwinding back to level */
-   return[zA+r2*(Math.sin(th)-Math.sin(a)),yA-r2*(Math.cos(a)-Math.cos(th)),-a]}
+   return[lead+zA+r2*(Math.sin(th)-Math.sin(a)),yA-r2*(Math.cos(a)-Math.cos(th)),-a]}
   const zB=zA+r2*Math.sin(th),yB=yA-r2*(1-Math.cos(th));
-  return[zB+(s-s2),yB,0]};
- const groundY=pos(s2+1)[1]-T/2;
+  return[lead+zB+(s-s2),yB,0]};
+ const groundY=pos(lead+s2+1)[1]-T/2;
  return{T,start:lp.springZ,pos,groundY,width:strapMmOf(d)}}

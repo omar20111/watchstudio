@@ -24,7 +24,7 @@ import {webglState} from '../core/three/support.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {headHeights,headRadii,crownParts} from '../core/three/lathe.js';
 import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,dialLayoutOf,handLengthsOf,
-        strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf} from '../core/geometry.js';
+        strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf,outlinesOf} from '../core/geometry.js';
 import {CASEBACK_WINDOW} from '../core/render/caseback.js';
 import {METALS,PX} from '../core/constants.js';
 import {VNAME} from '../core/parts.js';
@@ -124,7 +124,9 @@ function figures(d,name){const c=caseOf(d),st=thicknessStack(d),g=geoOf(d),P=d.p
  const rot=P.bezel.variant==='diver'||P.bezel.variant==='gmt',bracelet=P.strap.variant==='steel';
  const SL=strapLengthsOf(d),hw=P.strap.metal==='ceramic'?'steel':P.strap.metal==='carbon'?'black':(P.strap.metal||'steel');
  return{name,c,st,g,P,H,Rr,L,cp,rot,bracelet,
-  caseMm:+d.caseMm,l2l:lugToLugMm(d),lugW:strapMmOf(d),crownMm:crownMmOf(d),bezelMm:bezelMmOf(d),
+  caseMm:+d.caseMm,round:c.shape==='round',sizeLabel:c.shape==='round'?'Ø'+f1(+d.caseMm):f1(+d.caseMm)+' across flats',
+  bezelFlats:outlinesOf(d).bezel.A0*2,
+  l2l:lugToLugMm(d),lugW:strapMmOf(d),crownMm:crownMmOf(d),bezelMm:bezelMmOf(d),
   dialMm:rMm*2,openingMm:Rr.rBezIn*2,hands:{hour:HL.hour*rMm,min:HL.min*rMm,sec:HL.sec*rMm},
   cyclops:cy,vph:BEAT_HZ[c.movement]?BEAT_HZ[c.movement]*7200:null,
   windowMm:Rr.rCase*CASEBACK_WINDOW*2,
@@ -148,7 +150,7 @@ async function cover(doc,F,d,customs,clock,meta,has3D){
  pg.text(X,M+22,'TECH PACK',{size:9,bold:true,color:DIM});
  pg.text(X,M+33,F.name,{size:20,bold:true});
  pg.text(X,M+40,`${meta.date} · made with WatchStudio`,{size:8,color:MUTED});
- const rows=[['Case diameter',`${f1(F.caseMm)} mm`],['Thickness',`${f1(F.c.thickness)} mm`],['Lug to lug',`${f1(F.l2l)} mm`],
+ const rows=[[F.round?'Case diameter':'Case across flats',`${f1(F.caseMm)} mm${F.round?'':` (${F.c.shape})`}`],['Thickness',`${f1(F.c.thickness)} mm`],['Lug to lug',`${f1(F.l2l)} mm`],
   ['Lug width',`${f1(F.lugW)} mm`],['Crystal',`${F.crystalName} sapphire${F.cyclops?', cyclops':''}`],
   ['Movement',cap(F.c.movement)+(F.vph?` · ${F.vph.toLocaleString('en-US')} vph`:'')],
   ['Caseback',cap(F.c.caseback)],['Water resistance',`${F.c.wrM} m`],
@@ -168,7 +170,7 @@ async function caseSheet(doc,F,d,customs,clock,meta,has3D){
     drawings give the extents to plan with. */
  const probeF=has3D?await lineDrawing(d,customs,{view:'front',ppm:3,pen:.6,clock}):null;
  const probeS=has3D?await lineDrawing(d,customs,{view:'side',ppm:3,pen:.6,clock}):null;
- const ringLabels=[`Ø${f1(F.Rr.rBezOut*2)} bezel`,`Ø${f1(F.openingMm)} crystal opening`,`Ø${f1(F.dialMm)} dial`];
+ const ringLabels=[F.c.bezelShape==='round'?`Ø${f1(F.Rr.rBezOut*2)} bezel`:`${f1(F.bezelFlats)} bezel across flats`,`Ø${f1(F.openingMm)} crystal opening`,`Ø${f1(F.dialMm)} dial`];
  const labelW=Math.max(...ringLabels.map(t=>textWidth(t,7)));
  const plan=s=>{const sxC=PAGE_W-M-24-(probeS?probeS.box.u1:hl)*s,sideLeft=sxC+(probeS?probeS.box.u0:-hl)*s;
   const l2lX=sideLeft-9,fx=l2lX-8-(probeF?probeF.box.u1:R+8)*s;
@@ -190,11 +192,11 @@ async function caseSheet(doc,F,d,customs,clock,meta,has3D){
  /* lug width, above the top lugs */
  {const[xa,ya]=P(-F.lugW/2,-hl+1.2),[xb]=P(F.lugW/2,-hl+1.2);dimH(pg,xa,xb,fy-hl*s-6,ya,ya,f1(F.lugW))}
  /* case diameter and the width over the crown, below */
- {const[xa,ya]=P(-R,0),[xb]=P(R,0),yd=fy+hl*s+8;dimH(pg,xa,xb,yd,ya,ya,'Ø'+f1(F.caseMm));
+ {const[xa,ya]=P(-R,0),[xb]=P(R,0),yd=fy+hl*s+8;dimH(pg,xa,xb,yd,ya,ya,F.sizeLabel);
   const crown=FR.extents.crown;if(crown){const[xc,yc]=P(crown.u1,(crown.v0+crown.v1)/2);dimH(pg,xa,xc,yd+8,ya,yc,f1(crown.u1+R)+' over the crown')}}
  /* the rings, by leaders to the left */
  const ring=(r,deg,label,row)=>{const a=deg*Math.PI/180,[px,py]=P(r*Math.sin(a),-r*Math.cos(a));leader(pg,px,py,fx-R*s-3,fy-16+row*6,label,{align:'right'})};
- ring(F.Rr.rBezOut*.995,292,ringLabels[0],0);
+ ring(F.c.bezelShape==='round'?F.Rr.rBezOut*.995:F.bezelFlats/2*.99,292,ringLabels[0],0);
  ring(F.Rr.rBezIn,280,ringLabels[1],1);
  ring(F.dialMm/2*.99,266,ringLabels[2],2);
  if(F.L.subdials.length){const sd=F.L.subdials.find(x=>x.key==='chMin')||F.L.subdials[0],[px,py]=P((sd.x-600)/PX,(sd.y-600)/PX);
@@ -226,7 +228,7 @@ async function backSheet(doc,F,d,customs,clock,meta,has3D){
   const R=F.caseMm/2,hl=F.l2l/2,bx=M+40+R*s,by=M+30+hl*s;
   const P=placeDrawing(doc,pg,BK,bx,by,s);
   pg.text(bx,M+22,'C — BACK',{size:7.5,bold:true,color:MUTED,align:'center'});
-  {const[xa,ya]=P(-R,0),[xb]=P(R,0);dimH(pg,xa,xb,by+hl*s+8,ya,ya,'Ø'+f1(F.caseMm))}
+  {const[xa,ya]=P(-R,0),[xb]=P(R,0);dimH(pg,xa,xb,by+hl*s+8,ya,ya,F.sizeLabel)}
   if(F.c.caseback==='exhibition'){const r=F.windowMm/2,[px,py]=P(-r*Math.sin(.9),-r*Math.cos(.9));
    leader(pg,px,py,bx+R*s*.3,by-hl*s-2,`Ø${f1(F.windowMm)} sapphire window`)}
   else{const[px,py]=P(0,-F.caseMm*.2);leader(pg,px,py,bx+R*s*.3,by-hl*s-2,F.c.caseback==='engraved'?`Engraved: "${F.c.engraving}"`:`Solid, engraved "${F.c.engraving}"`)}}
@@ -253,8 +255,8 @@ function partsSheet(doc,F,d,meta){
  const pg=sheet(doc,{title:'Parts list',scale:'—',n:4,...meta});const P=F.P;
  const zones=f=>f==='brushed'?'Brushed; bevels polished':f==='matte'?'Bead-blasted':f==='polished'||f==='none'||!f?'Polished':cap(f);
  const rows=[
-  ['Case',`${VNAME[P.case.variant]||P.case.variant}; ${cap(F.c.side)} side; ${cap(F.c.lugs)} lugs${F.c.lugHoles?', drilled':''}`,metalName(P.case.metal),zones(P.case.finish),'—',`Ø${f1(F.caseMm)}, ${f1(F.c.thickness)} thick, lug to lug ${f1(F.l2l)}, lug width ${f1(F.lugW)}`],
-  ['Bezel',VNAME[P.bezel.variant]||P.bezel.variant,metalName(P.bezel.metal),zones(P.bezel.finish),F.rot?(P.bezel.insertColor||'#101318'):'—',
+  ['Case',`${cap(F.c.shape)} ${(VNAME[P.case.variant]||P.case.variant).toLowerCase()}; ${cap(F.c.side)} side; ${F.c.lugs==='integrated'?'integrated':cap(F.c.lugs)+' lugs'}${F.c.lugHoles&&F.c.lugs!=='integrated'?', drilled':''}`,metalName(P.case.metal),zones(P.case.finish),'—',`Ø${f1(F.caseMm)}, ${f1(F.c.thickness)} thick, lug to lug ${f1(F.l2l)}, lug width ${f1(F.lugW)}`],
+  ['Bezel',`${VNAME[P.bezel.variant]||P.bezel.variant}${F.c.bezelShape==='round'?'':', '+F.c.bezelShape}`,metalName(P.bezel.metal),zones(P.bezel.finish),F.rot?(P.bezel.insertColor||'#101318'):'—',
    `Outer Ø${f1(F.Rr.rBezOut*2)}, width ${f1(F.bezelMm)}, ${f1(F.st.bezel)} high${F.rot?`; insert, ${detentOf(d)} clicks`:''}`],
   ['Crystal',`${F.crystalName} sapphire`,'Sapphire','Polished','—',`Ø${f1(F.openingMm)} visible, ${f1(F.c.crystalMm)} above the bezel${F.cyclops?'; cyclops over the date':''}`],
   ['Dial',VNAME[P.dial.variant]||P.dial.variant,'—',!P.dial.finish||P.dial.finish==='none'?'—':cap(P.dial.finish),P.dial.color,

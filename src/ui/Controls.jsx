@@ -91,12 +91,16 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugLenMm:v},'lug')}/>
     <Slider label="Lug drop" min={0} max={6} step={0.1} val={c.lugDrop}
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugDropMm:v},'drop')}/>
+    <Pick label="Case shape" val={c.shape} opts={[['round','Round'],['cushion','Cushion'],['octagon','Octagon']]}
+     onPick={v=>setc({shape:v},'shape')}/>
+    <Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon']]}
+     onPick={v=>setc({bezelShape:v},'bshape')}/>
     <Pick label="Case side" val={c.side} opts={[['straight','Straight'],['drum','Drum'],['sloped','Sloped'],['stepped','Stepped']]}
      onPick={v=>setc({side:v},'side')}/>
-    <Pick label="Lugs" val={c.lugs} opts={[['straight','Straight'],['twisted','Twisted'],['hooded','Hooded']]}
+    <Pick label="Lugs" val={c.lugs} opts={[['straight','Straight'],['twisted','Twisted'],['hooded','Hooded'],['integrated','Integrated']]}
      onPick={v=>setc({lugs:v},'lugs')}/>
     <label className="flex items-center gap-2 text-[11px] text-neutral-400">
-     <input type="checkbox" checked={c.lugHoles} onChange={e=>setc({lugHoles:e.target.checked},'holes')}/>
+     <input type="checkbox" checked={c.lugHoles&&c.lugs!=='integrated'} disabled={c.lugs==='integrated'} onChange={e=>setc({lugHoles:e.target.checked},'holes')}/>
      Drilled lug holes</label>
     <Slider label="Crystal height" min={c.crystal==='flat'?0.6:c.crystal==='box'?2:0.8}
      max={c.crystal==='flat'?2.5:c.crystal==='box'?5:4} step={0.1} val={c.crystalMm}

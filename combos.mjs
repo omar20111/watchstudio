@@ -683,7 +683,7 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   for(let i=0;i<p.count;i++){const x=Math.abs(p.getX(i)),y=p.getY(i),z=Math.abs(p.getZ(i));
    if(z>Rr.rCase+.6&&z<lp.z1-.5){if(lugs==='hooded'&&x<xi-.2){hoodMin=Math.min(hoodMin,y);hoodMax=Math.max(hoodMax,y)}else minX=Math.min(minX,x)}
    maxZ=Math.max(maxZ,z);if(y>maxY){maxY=y;topN=nrm.getY(i)}}
-  if(lugs!=='hooded'&&Math.abs(minX-xi)>.06)bad(tag,`lug inner faces at ±${minX.toFixed(2)}mm, the strap needs ±${xi.toFixed(2)}mm`);
+  if(lugs!=='hooded'&&lugs!=='integrated'&&Math.abs(minX-xi)>.06)bad(tag,`lug inner faces at ±${minX.toFixed(2)}mm, the strap needs ±${xi.toFixed(2)}mm`);
   if(Math.abs(maxZ-G.lugToLugOf(d)/2)>.3)bad(tag,`lug tips at ${maxZ.toFixed(2)}mm, lug-to-lug says ${(G.lugToLugOf(d)/2).toFixed(2)}mm`);
   if(maxY>H.seat+1e-6)bad(tag,`a lug stands ${(maxY-H.seat).toFixed(2)}mm above the bezel seat`);
   if(!(topN>.3))bad(tag,`the lugs' highest point faces ${topN&&topN.toFixed(2)} (down or sideways): built inside out`);
@@ -692,7 +692,7 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   for(const m of[lugsMesh,edges,byName('guards'),byName('guardEdges')].filter(Boolean)){const a=m.geometry.attributes.normal;let badN=0;
    for(let i=0;i<a.count;i++){const l=Math.hypot(a.getX(i),a.getY(i),a.getZ(i));if(!(Math.abs(l-1)<1e-3))badN++}
    if(badN)bad(tag,`${badN} ${m.name} normals are not unit length`)}
-  if(!!byName('lugHoles')!==holes)bad(tag,holes?'no drilled holes':'holes nobody asked for');
+  if(!!byName('lugHoles')!==(holes&&lugs!=='integrated'))bad(tag,holes?'no drilled holes':'holes nobody asked for');
   if(lugs==='hooded'&&!(hoodMax-hoodMin<1.9&&hoodMax>-1e9))bad(tag,`the hood is ${(hoodMax-hoodMin).toFixed(2)}mm deep: no tunnel for the strap`);
   if(!!byName('guards')!==(variant==='sport'))bad(tag,'crown guards do not follow the sport case');
   const B=L3.bandOf(d);let rMax=0,rMin=1e9;for(let i=0;i<=20;i++){const r=B.radiusAt(B.y0+(B.y1-B.y0)*i/20);rMax=Math.max(rMax,r);rMin=Math.min(rMin,r)}
@@ -701,6 +701,50 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   if(side==='sloped'&&!(B.radiusAt(B.y0)<B.radiusAt(B.y1)-.2))bad(tag,'a sloped side is not drawn in toward the caseback');
   if(side==='drum'&&!(B.radiusAt((B.y0+B.y1)/2)>B.radiusAt(B.y1)+.1&&B.radiusAt((B.y0+B.y1)/2)>B.radiusAt(B.y0)+.1))bad(tag,'a drum side does not bow out');
   if(side!=='straight'&&rMin<Rr.rCase-1.01)bad(tag,`the side profile cuts ${(Rr.rCase-rMin).toFixed(2)}mm in`)}}
+
+/* Shaped cases and bezels, and integrated ones (caseshape.js, casebody.js):
+   - the flank's top ring lies on the case's outline, a flat facing 12
+   - an octagonal bezel keeps within the bezel's round size, and its top arrives
+     round at the insert or opening
+   - the crown stands outside the outline along its bearing, even at a
+     cushion's corner
+   - an integrated shoulder is solid across the strap plus a wall, and the strap
+     or bracelet leaves it flush with its top
+   - every normal of the swept parts is a unit vector */
+{const CS=await import('./src/core/caseshape.js');
+ const pts=(w,n)=>{const out=[];w.traverse(o=>{if(!o.isMesh||o.name!==n)return;w.updateMatrixWorld(true);const a=o.geometry.attributes.position,e=o.matrixWorld.elements;
+  for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i);out.push([e[0]*x+e[4]*y+e[8]*z+e[12],e[1]*x+e[5]*y+e[9]*z+e[13],e[2]*x+e[6]*y+e[10]*z+e[14]])}});return out};
+ for(const shape of G.CASE_SHAPES)for(const bezelShape of G.BEZEL_SHAPES)for(const lugs of G.LUG_STYLES)for(const [variant,crownPos,strap] of[['classic','3','leather'],['sport','430','steel']]){
+  const d=M.clone(M.DEF);Object.assign(d.case,{shape,bezelShape,lugs,crownPos});d.parts.case.variant=variant;d.parts.strap.variant=strap;
+  if(variant==='sport')d.parts.bezel.variant='diver';
+  const tag=`shape ${shape}/${bezelShape}/${lugs}/${variant}/${strap}`;
+  let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const O=G.outlinesOf(d),H=w.userData.heights,Rr=w.userData.radii;
+  const flank=pts(w,'flank');if(!flank.length){bad(tag,'no flank');continue}
+  const yTop=Math.max(...flank.map(p=>p[1]));let off=0;
+  for(const p of flank)if(Math.abs(p[1]-yTop)<1e-4)off=Math.max(off,Math.abs(CS.insetOf(O.case.spec,O.case.A0,p[0],p[2])-(Rr.rCase-L3.bandOf(d).rTop)));
+  if(off>.02)bad(tag,`the flank's top ring is ${off.toFixed(3)}mm off the case's outline`);
+  const bez=pts(w,'bezelFlank'),bezR=Math.max(...bez.map(p=>Math.hypot(p[0],p[2])));
+  if(bezR>Rr.rBezOut+1e-3)bad(tag,`the bezel reaches ${bezR.toFixed(2)}mm, past its round size ${Rr.rBezOut.toFixed(2)}mm`);
+  /* the innermost ring of the bezel's top: the vertices at the height of its closest point */
+  const top=pts(w,'bezelTop'),rOf=p=>Math.hypot(p[0],p[2]),pin=top.reduce((a,p)=>rOf(p)<rOf(a)?p:a),ring=top.filter(p=>Math.abs(p[1]-pin[1])<1e-4&&rOf(p)<rOf(pin)+1);
+  const inner=Math.min(...ring.map(rOf)),innerMax=Math.max(...ring.map(rOf));
+  if(innerMax-inner>.05)bad(tag,`the bezel's top is not round where it meets the insert (${inner.toFixed(2)}..${innerMax.toFixed(2)}mm)`);
+  const cp=L3.crownParts(d),reach=CS.extentAlong(O.case.spec,O.case.A0,(cp.bearing-90)*Math.PI/180);
+  if(!(cp.barrelX>reach))bad(tag,`the crown's barrel at ${cp.barrelX.toFixed(2)}mm is inside the case's outline (${reach.toFixed(2)}mm) along its bearing`);
+  /* (a round case's profiles are three's own lathes; the swept ones are checked) */
+  for(const n of[...(shape==='round'&&bezelShape==='round'?[]:['flank','chamfer','seat','bezelFlank','bezelEdge','bezelTop']),'lugs','lugEdges']){let badN=0;
+   w.traverse(o=>{if(!o.isMesh||o.name!==n)return;const a=o.geometry.attributes.normal;for(let i=0;i<a.count;i++)if(!(Math.abs(Math.hypot(a.getX(i),a.getY(i),a.getZ(i))-1)<1e-3))badN++});
+   if(badN)bad(tag,`${badN} ${n} normals are not unit length`)}
+  if(lugs==='integrated'){const tip=(G.geoOf(d).R+G.geoOf(d).lugExt)/PX,near=(p,z0,z1)=>Math.abs(p[2])>z0&&Math.abs(p[2])<z1&&Math.abs(p[0])<3;
+   const sh=[...pts(w,'lugs'),...pts(w,'lugEdges')];
+   const halfW=Math.max(...sh.filter(p=>Math.abs(p[2])>tip-.8).map(p=>Math.abs(p[0])));
+   if(!(halfW>G.strapMmOf(d)/2+.9))bad(tag,`the shoulder is ${(halfW*2).toFixed(1)}mm wide, no wider than the strap`);
+   /* at its end, where the strap meets it: the top falls toward the end, so measure the last .3mm */
+   const shTop=Math.max(...sh.filter(p=>near(p,tip-.3,tip)).map(p=>p[1]));
+   const straps=[];w.traverse(o=>{if(o.isMesh&&/^strap|^bracelet/.test(o.name))straps.push(...pts(w,o.name))});
+   const stTop=Math.max(...straps.filter(p=>near(p,tip+.2,tip+2)).map(p=>p[1]));
+   if(!(Math.abs(stTop-shTop)<.25))bad(tag,`the ${strap} leaves the shoulder ${(stTop-shTop).toFixed(2)}mm off flush`)}}}
 
 /* a bracelet: its end links close up to the case without entering it, the
    6 o'clock half ends in a folding clasp lying on the table at the stated

@@ -14,6 +14,7 @@
 import {C,CAN,PX} from './constants.js';
 import {clamp} from './utils.js';
 import {MARKERSET_VARIANT,markerSetOf,setDepthMm} from './markerset/index.js';
+import {CASE_SHAPES,BEZEL_SHAPES,shapeSpec,extentAlong,inscribedApothem} from './caseshape.js';
 
 const num=(v,fallback)=>v==null||v==='auto'||!isFinite(+v)?fallback:+v;
 
@@ -58,10 +59,17 @@ export const DEF_CASE=()=>({
  engraving:'WATCHSTUDIO',
  wear:'light',        /* new | light | worn — scratches and haze on the exposed metal */
  side:'straight',      /* straight | drum | sloped | stepped — the case band's profile */
- lugs:'straight',      /* straight | twisted | hooded */
- lugHoles:false});     /* spring-bar holes drilled through the lugs */
+ lugs:'straight',      /* straight | twisted | hooded | integrated */
+ lugHoles:false,       /* spring-bar holes drilled through the lugs */
+ shape:'round',        /* round | cushion | octagon — the case's outline (caseshape.js) */
+ bezelShape:'round'}); /* round | octagon */
 
-export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['straight','twisted','hooded'];
+export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['straight','twisted','hooded','integrated'];
+export {CASE_SHAPES,BEZEL_SHAPES};
+/* An integrated case has no lugs: a short shoulder at 12 and 6, the bracelet
+   (or strap) coming out from under it. Its exposed length, as a share of the
+   lug length a lugged case shows. */
+export const INTEGRATED_EXPOSED=.3;
 /* the gap between a strap's edge and the lug beside it, mm: a pair of lugs is
    as far apart as the lug width the watch is sold by, and no further */
 export const LUG_CLEAR_MM=.15;
@@ -116,7 +124,9 @@ export function caseOf(d){
   wear:['new','light','worn'].includes(c0.wear)?c0.wear:'light',
   side:CASE_SIDES.includes(c0.side)?c0.side:'straight',
   lugs:LUG_STYLES.includes(c0.lugs)?c0.lugs:'straight',
-  lugHoles:!!c0.lugHoles}}
+  lugHoles:!!c0.lugHoles,
+  shape:CASE_SHAPES.includes(c0.shape)?c0.shape:'round',
+  bezelShape:BEZEL_SHAPES.includes(c0.bezelShape)?c0.bezelShape:'round'}}
 
 /* The thickness stack in mm. Sums to caseOf(d).thickness exactly — the
    mid-band absorbs the remainder and can never fall below MIN_BAND_MM,
@@ -133,7 +143,7 @@ export function thicknessStack(d){
    inside the case silhouette, so 45% of the lug length is buried in the wall. */
 export function lugToLugMm(d){
  const c=caseOf(d);
- return Math.round((( +d.caseMm||40)+2*(c.lugLen*0.55))*10)/10}
+ return Math.round((( +d.caseMm||40)+2*(c.lugLen*(c.lugs==='integrated'?INTEGRATED_EXPOSED:.55)))*10)/10}
 
 export const lugWidthMm=d=>strapMmOf(d);
 /* crown bearing in degrees clockwise from 12 (3h = 90, 4:30 = 135) */
@@ -182,7 +192,8 @@ export function geoOf(d){
   return{R,sw,dialR,rCase,rSeat,rBezOut,rBezIn,rehautW,
   /* lug tips have to stay on the sheet too — the lug-to-lug slider's top end
      otherwise pushes them past the 1200 px edge on a large case */
-  lugExt:clamp(lugToLugOf(d)*PX/2-R,R*0.1,CAN-C-R-8),
+  /* an integrated case's shoulder may stand out far less than a lug */
+  lugExt:clamp(lugToLugOf(d)*PX/2-R,R*(d.case&&d.case.lugs==='integrated'?.03:0.1),CAN-C-R-8),
   /* the crown must stay on the sheet: an oversized barrel reaches
      C + R + crownR*(0.30 + 1.5*1.22), which overflows at the top of both the
      case-diameter and crown-diameter sliders */
@@ -295,7 +306,22 @@ export function strapEndFactor(which,toTip){
    spring bar sits in the lug near its tip. */
 export const strapTaperEnd=.86;                   /* the strap's width at its ends, of the lug width */
 export function springBarMm(d){const g=geoOf(d),lugW=g.R*(d.parts.case.variant==='sport'?.17:.135);
+ /* an integrated shoulder is short: the bar sits just inside its end */
+ if(caseOf(d).lugs==='integrated')return(g.R+g.lugExt)/PX-.9;
  return(g.R+g.lugExt-lugW*.85)/PX}
+
+/* The case's and the bezel's outlines in mm (caseshape.js): each a spec and the
+   apothem it is sized by (the case radius, the bezel's outer radius). */
+export function outlinesOf(d){const g=geoOf(d),c=caseOf(d),bs=shapeSpec(c.bezelShape);
+ /* a shaped bezel keeps within the bezel's round size: its corners, not its
+    flats, reach rBezOut, so it never overhangs the case. `scale` maps a
+    profile's radius onto the outline's apothem. */
+ const k=inscribedApothem(bs,1);
+ return{case:{kind:c.shape,spec:shapeSpec(c.shape),A0:g.rCase/PX,scale:1},bezel:{kind:c.bezelShape,spec:bs,A0:g.rBezOut/PX*k,scale:k}}}
+/* how much further out the case's outline reaches than its radius, along a
+   bearing in degrees clockwise from 12 (a cushion's corner stands proud) */
+export function caseReachMm(d,bearing){const O=outlinesOf(d).case;
+ return extentAlong(O.spec,O.A0,(bearing-90)*Math.PI/180)-O.A0}
 /* a tongue buckle's frame around a strap end of half-width `a` mm: its wire,
    its length along the strap, and how far it reaches past the strap's fold */
 export function buckleOf(a){const wire=Math.min(2.2,Math.max(1.5,a*.19)),L=Math.max(13,a*1.5);

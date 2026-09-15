@@ -7,6 +7,7 @@
 import {C,METALS} from '../constants.js';
 import {clamp,lumOf,shade} from '../utils.js';
 import {posAt} from '../geometry.js';
+import {shapeSpec,outlinePath,inscribedApothem} from '../caseshape.js';
 import {envGrad,envLevel,tone,bevelGrad,ringPath,seam,circGrain,microScratch,
         fresnelRim,applyFinish} from './material.js';
 
@@ -61,7 +62,14 @@ function tachyScale(ctx,m,rTopOut,rInCham,W){
   const deg=(360*60/v)%360;const[x,y]=posAt(deg,rm-W*0.04);
   ctx.save();ctx.translate(x,y);ctx.rotate(deg*Math.PI/180);ctx.fillText(String(v),0,0);ctx.restore()}}
 
-export function drBezel(ctx,o){const{rBezOut,rBezIn}=o.g;
+export function drBezel(ctx,o){
+ /* an octagonal bezel is the round one cut to its octagon, corners on rBezOut */
+ const bs=o.arch&&o.arch.bezelShape!=='round'?shapeSpec(o.arch.bezelShape):null;
+ if(bs&&o.mode!=='shape'&&o.mode!=='print'){ctx.save();ctx.beginPath();outlinePath(ctx,bs,inscribedApothem(bs,o.g.rBezOut),0,C,C);ctx.clip();
+  try{return drBezelRound(ctx,o)}finally{ctx.restore()}}
+ return drBezelRound(ctx,o)}
+
+function drBezelRound(ctx,o){const{rBezOut,rBezIn}=o.g;
  const m=METALS[o.metal]||METALS.steel;
  const{W,rot,rGripIn,rTopOut,rInCham}=bezelRings(o.g,o.variant);
  const flat=o.mode==='flat';

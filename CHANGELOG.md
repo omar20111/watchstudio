@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+**Added — shaped cases and integrated bracelets**
+- **Case shape** (Case panel): *Round*, *Cushion* (a square with big rounded
+  corners) or *Octagon*. The case band, chamfer and case top are lofted around
+  the outline instead of lathed (`core/caseshape.js`, `shapedProfile` in
+  `three/casebody.js`):
+  - The outline is a rounded regular polygon. Each step in from the edge is an
+    exact offset of it, so the chamfer stays an even width all the way round,
+    corners included.
+  - Every side profile (straight, drum, sloped, stepped) follows the outline.
+  - The case size is measured across the flats, so a 40 mm cushion is 40 mm at
+    3 and 9 and reaches further at its corners.
+  - Lugs, crown guards, the crown and pushers all meet the shaped wall where it
+    really is: the fillets, the crown's standoff and each pusher's reach are
+    found on the outline along their own bearing.
+- **Bezel shape**: *Round* or *Octagon*. An octagonal bezel keeps its corners
+  inside the bezel diameter, so it sits on a round case without overhanging. Its
+  top blends from the octagon at the outer edge to round at the crystal, and the
+  insert and crystal opening stay round.
+- **Integrated lugs** (Lugs: *Integrated*): instead of two horns, the case grows
+  a single shoulder as wide as the strap plus its walls. Its top carries on
+  from the case's flat top, rising over the chamfer and falling only a little,
+  so the bracelet reads as part of the case; its underside flows down to meet
+  the strap, and the strap or bracelet leaves it level with its top (within
+  0.05 mm for every strap type). The bracelet's end
+  link starts where the shoulder ends. Lug-to-lug shortens to match, and drilled
+  holes are off for this style.
+- The flat 2D drawing paints the cushion or octagon outline and clips the bezel
+  to an octagon.
+- The tech pack labels a shaped case "across flats" instead of Ø, names the
+  shape in the cover figures and parts list, and dimensions an octagonal bezel
+  across its flats. The spec sheet and `spec.json` carry `caseShape` and
+  `bezelShape`.
+- Checked in `combos.mjs` for every case shape × bezel shape × lug style on a
+  classic leather and a sport steel watch: the case top lies on the outline, the
+  bezel stays inside its diameter, the crown clears the wall, swept normals are
+  unit length, and an integrated shoulder is wider than the strap with the strap
+  flush. The editor e2e picks cushion, octagon and integrated and checks the
+  rebuilt case and the saved design.
+
 **Changed — the case is one piece**
 - **Lugs grow out of the case** (`three/casebody.js`). Each lug used to be a flat
   extruded slab pushed into the side of the case band, with a hard seam where

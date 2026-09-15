@@ -16,13 +16,14 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
+import {caseOf,geoOf,outlinesOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,crownParts,strapPath,smoothstep} from './lathe.js';
-import {caseHorns,crownGuards,holeGeometry} from './casebody.js';
+import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
+import {crossingAt} from '../caseshape.js';
 import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
@@ -345,8 +346,12 @@ function braceletParts(d,dir){
  const outer=[],centre=[],pins=[];
  /* end link: full width, from the case to the first joint, its inner edge cut to
     the case's curve so it closes the gap between the lugs as a fitted end link does */
- const e1=pitch*.8,R=geoOf(d).R/PX+.25;
- {const smid=e1/2,x=w0*.98/2,n=20,edge=xx=>Math.sqrt(Math.max(0,R*R-xx*xx))-sp.start,sy=u=>-dir*(u-smid);
+ const e1=pitch*.8,O=outlinesOf(d).case,integrated=caseOf(d).lugs==='integrated';
+ /* against the case's outline, a quarter millimetre clear; on an integrated case
+    it starts under the shoulder's end instead */
+ const tipMm=(geoOf(d).R+geoOf(d).lugExt)/PX;
+ {const smid=e1/2,x=w0*.98/2,n=20,sy=u=>-dir*(u-smid);
+  const edge=xx=>integrated?tipMm+.12-sp.start:crossingAt(O.spec,O.A0,-Math.PI/2,Math.abs(xx),.25).s-sp.start;
   const sh=new Shape();sh.moveTo(-x,sy(edge(-x)));
   for(let i=1;i<=n;i++){const xx=-x+2*x*i/n;sh.lineTo(xx,sy(edge(xx)))}
   sh.lineTo(x,sy(e1-gap/2));sh.lineTo(-x,sy(e1-gap/2));sh.closePath();
@@ -513,12 +518,19 @@ export function buildHead(d,customs={},{aniso=8}={}){
     Each face takes its zone's finish (materials.js zoneFinish): the case's own
     finish on its surfaces, a polish on its bevels. */
  const cm=parts.case,caseMat=zone=>metalMaterial(cm.metal,zoneFinish(cm.finish,zone));
+ /* A shaped case or bezel (caseshape.js) sweeps its profiles round its outline;
+    a round one turns them. The caseback, the rehaut and the crystal stay round,
+    and the seat and the bezel's top morph from the outline to the round opening. */
+ const OL=outlinesOf(d),shaped=OL.case.kind!=='round'||OL.bezel.kind!=='round';
+ const prof=(pts,shapeAt)=>shaped?shapedProfile(pts,shapeAt,OL):lathe(pts);
  if(!uploaded('case',G.case,H.seat)){
   add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
   add(G.case,'casebackRim',lathe(P.casebackRim),caseMat('bevel'));
-  add(G.case,'flank',lathe(P.flank),caseMat('surface'));
-  add(G.case,'chamfer',lathe(P.chamfer),caseMat('bevel'));
-  add(G.case,'seat',lathe(P.seat),caseMat('bevel'));
+  add(G.case,'flank',prof(P.flank,i=>({from:i===0?'round':'case'})),caseMat('surface'));
+  add(G.case,'chamfer',prof(P.chamfer,()=>({from:'case'})),caseMat('bevel'));
+  /* round a turned case the seat is a narrow polished step; on a shaped case it is
+     the broad top between the outline and the bezel, and takes the case's finish */
+  add(G.case,'seat',prof(P.seat,i=>({from:i===0?'case':'bezel'})),caseMat(OL.case.kind==='round'?'bevel':'surface'));
   add(G.case,'rehaut',lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
   /* the lugs and crown guards grow out of the case (casebody.js): each is one
      solid with its bevels as their own faces, merged into one mesh per zone */
@@ -572,11 +584,12 @@ export function buildHead(d,customs={},{aniso=8}={}){
   const flankMat=bezelMat('surface');
   if(Rr.rotating){flankMat.normalMap=stripeNormalMap(110,'knurl');flankMat.normalScale=new Vector2(.9,.9)}
   else if(bz.variant==='coin'){flankMat.normalMap=stripeNormalMap(220,'knurl');flankMat.normalScale=new Vector2(.8,.8)}
-  add(G.bezel,'bezelFlank',lathe(P.bezelFlank),flankMat);
-  add(G.bezel,'bezelEdge',lathe(P.bezelEdge),bezelMat('bevel'));
+  add(G.bezel,'bezelFlank',prof(P.bezelFlank,()=>({from:'bezel'})),flankMat);
+  add(G.bezel,'bezelEdge',prof(P.bezelEdge,()=>({from:'bezel'})),bezelMat('bevel'));
   const topMat=bezelMat('surface');
   if(bz.variant==='fluted'){topMat.normalMap=stripeNormalMap(84,'flute');topMat.normalScale=new Vector2(1.4,1.4)}
-  add(G.bezel,'bezelTop',lathe(P.bezelTop),topMat);
+  /* an octagonal bezel's top runs from its octagon at the grip to the round insert or opening */
+  add(G.bezel,'bezelTop',prof(P.bezelTop,(i,p)=>({from:'bezel',to:'round',t:Math.min(1,Math.max(0,(Rr.rGripIn-p.x)/Math.max(1e-6,Rr.rGripIn-Rr.rInCham)))})),topMat);
   add(G.bezel,'bezelInner',lathe(P.bezelInner),bezelMat('bevel'));
   const ring=(r0,r1)=>faceUp(sheetUV(new RingGeometry(r0,r1,180,1)));
   if(bezelRotatable(d)){

@@ -39,7 +39,7 @@ export function specData(d,name){
   construction:{
    crystal:c.crystal,caseback:c.caseback,movement:c.movement,
    waterResistanceM:c.wrM,crownPosition:c.crownPos,pushers:c.pushers,
-   caseSide:c.side,lugStyle:c.lugs,lugHoles:c.lugHoles,
+   caseShape:c.shape,bezelShape:c.bezelShape,caseSide:c.side,lugStyle:c.lugs,lugHoles:c.lugHoles,
    caseType:VNAME[P.case.variant]||P.case.variant,
    bezelType:VNAME[P.bezel.variant]||P.bezel.variant,
    bezelDetents:P.bezel.detents,bezelAction:P.bezel.dir==='bi'?'bidirectional':'unidirectional',

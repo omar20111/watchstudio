@@ -44,6 +44,16 @@ export async function run({page,ready,until,press,expect,url}){
  await p.evaluate(()=>{const l=[...document.querySelectorAll('label')].find(e=>/Drilled lug holes/.test(e.textContent));l&&l.querySelector('input').click()});
  expect(await until(p,u=>window.__watchView.watch.uuid!==u&&!!window.__watchView.watch.getObjectByName('lugHoles'),u1,120000),'Drilled lug holes puts bores through the lugs');
  expect(await until(p,()=>/"side":"drum"/.test(localStorage.getItem('ws:auto')||'')&&/"lugs":"twisted"/.test(localStorage.getItem('ws:auto')||'')&&/"lugHoles":true/.test(localStorage.getItem('ws:auto')||''),null,20000),'the case construction is saved');
+ /* shaped cases: a cushion band is farther out at its corners than at its flats; an integrated case has no drilled holes */
+ const round=await p.evaluate(()=>{const a=window.__watchView.watch.getObjectByName('chamfer').geometry.attributes.position;let lo=1e9,hi=0;
+  for(let i=0;i<a.count;i++){const r=Math.hypot(a.getX(i),a.getZ(i));lo=Math.min(lo,r);hi=Math.max(hi,r)}return{lo,hi}});
+ for(const label of['Case shape: Cushion','Bezel shape: Octagon','Lugs: Integrated']){const u0=await p.evaluate(()=>window.__watchView.watch.uuid);
+  await press(p,label);expect(await until(p,u=>window.__watchView.watch.uuid!==u,u0,120000),`${label} rebuilds the watch`)}
+ const corner=await p.evaluate(()=>{const a=window.__watchView.watch.getObjectByName('chamfer').geometry.attributes.position;let hi=0;
+  for(let i=0;i<a.count;i++)hi=Math.max(hi,Math.hypot(a.getX(i),a.getZ(i)));return hi});
+ expect(corner>round.hi*1.03,`a cushion case reaches out at its corners (${corner.toFixed(2)} vs round ${round.hi.toFixed(2)})`);
+ expect(!(await p.evaluate(()=>!!window.__watchView.watch.getObjectByName('lugHoles'))),'an integrated case drops the drilled holes');
+ expect(await until(p,()=>/"shape":"cushion"/.test(localStorage.getItem('ws:auto')||'')&&/"bezelShape":"octagon"/.test(localStorage.getItem('ws:auto')||'')&&/"lugs":"integrated"/.test(localStorage.getItem('ws:auto')||''),null,20000),'the case shape is saved');
  expect(await until(p,()=>/"wear":"worn"/.test(localStorage.getItem('ws:auto')||''),null,20000),'the Wear choice is saved');
  await p.reload();await ready(p);
  expect(await until(p,()=>/\bon\b/.test((document.querySelector('button[aria-label="Wear: Worn"]')||{}).className||''),null,60000),'and survives a reload');
