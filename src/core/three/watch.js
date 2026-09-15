@@ -327,6 +327,45 @@ function linkBlock(pw,pl,t){const r=Math.min(.7,pw*.22,pl*.22),x=pw/2,z=pl/2;
  const g=new ExtrudeGeometry(sh,{depth:Math.max(.05,t-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b*.8,bevelOffset:-b*.8,bevelSegments:3,curveSegments:4});
  g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);return g}
 
+/* One bracelet link as a pillow: a rounded-rectangle block pw wide (x), pl long
+   (z) and t thick (y), centred on the origin, every edge rounded, its top
+   crowned across and a little along. A flat link top mirrors one patch of the
+   studio and reads as a black or a white tile; crowned, it carries a gradient
+   from light to dark the way a real link does. `slope` lowers the top toward
+   +x (or -x if negative): an outer link falling away to the bracelet's edge.
+   uv in mm, u across and v along, so the brushing grain runs along the bracelet. */
+function pillowLink(pw,pl,t,{crown=.1,slope=0}={}){
+ const r=Math.min(.32,t*.12,pw*.14,pl*.14),rb=r*.6,rc=Math.max(r+.05,Math.min(pw,pl)*.09),Q=7,S=6,E=4,I=9;
+ const hx=pw/2-rc,hz=pl/2-rc,ol=[],corners=[[hx,hz,0],[-hx,hz,Math.PI/2],[-hx,-hz,Math.PI],[hx,-hz,Math.PI*1.5]];
+ /* round each corner, then along the straight side to the next: points all the way
+    round, so the crowned top is not spanned by long thin triangles that crease it */
+ corners.forEach(([cx,cz,a0],ci)=>{
+  for(let i=0;i<Q;i++){const a=a0+Math.PI/2*i/(Q-1),nx=Math.cos(a),nz=Math.sin(a);ol.push({x:cx+rc*nx,z:cz+rc*nz,nx,nz})}
+  const[cx2,cz2]=corners[(ci+1)%4],a=a0+Math.PI/2,nx=Math.cos(a),nz=Math.sin(a),p0=[cx+rc*nx,cz+rc*nz],p1=[cx2+rc*nx,cz2+rc*nz];
+  for(let i=1;i<S;i++){const k=i/S;ol.push({x:p0[0]+(p1[0]-p0[0])*k,z:p0[1]+(p1[1]-p0[1])*k,nx,nz})}})
+ const top=(x,z)=>{const u=2*x/pw,v=2*z/pl;
+  return t/2+crown*(1-u*u)*(1-.3*v*v)-(slope>0?slope*(u+1)/2:slope<0?-slope*(1-u)/2:0)};
+ const inset=(p,dl)=>[p.x-dl*p.nx,p.z-dl*p.nz];
+ const rings=[];
+ /* underside: flat from the middle out to its rounded edge, round the edge, up the wall */
+ for(let i=1;i<=I;i++){const k=i/I;rings.push(ol.map(p=>{const[x,z]=inset(p,rb);return[x*k,-t/2,z*k]}))}
+ for(let i=1;i<=E;i++){const dl=rb*(1-i/E);rings.push(ol.map(p=>{const[x,z]=inset(p,dl);return[x,-t/2+rb-Math.sqrt(Math.max(0,rb*rb-(rb-dl)**2)),z]}))}
+ /* over the top edge, then the crowned top in to its middle */
+ for(let i=0;i<=E;i++){const dl=r*i/E;rings.push(ol.map(p=>{const[x,z]=inset(p,dl);return[x,top(x,z)-r+Math.sqrt(Math.max(0,r*r-(r-dl)**2)),z]}))}
+ for(let i=1;i<I;i++){const k=1-i/I;rings.push(ol.map(p=>{const[x0,z0]=inset(p,r),x=x0*k,z=z0*k;return[x,top(x,z),z]}))}
+ const pos=[],uv=[],idx=[],M=ol.length,V=(x,y,z)=>{pos.push(x,y,z);uv.push(x,z);return pos.length/3-1};
+ const b0=V(0,-t/2,0),rid=rings.map(ring=>ring.map(p=>V(...p))),t0=V(0,top(0,0),0);
+ for(let j=0;j<M;j++)idx.push(b0,rid[0][(j+1)%M],rid[0][j]);
+ for(let i=0;i<rid.length-1;i++)for(let j=0;j<M;j++){const k=(j+1)%M,a=rid[i][j],b=rid[i][k],c=rid[i+1][j],e=rid[i+1][k];idx.push(a,b,c,b,e,c)}
+ const last=rid[rid.length-1];for(let j=0;j<M;j++)idx.push(t0,last[j],last[(j+1)%M]);
+ /* face it out of the metal: the top's middle fan must point up */
+ const P=i=>[pos[i*3],pos[i*3+1],pos[i*3+2]],A=P(t0),B=P(last[0]),C=P(last[1]);
+ const ny=(B[2]-A[2])*(C[0]-A[0])-(B[0]-A[0])*(C[2]-A[2]);
+ if(ny<0)for(let i=0;i<idx.length;i+=3){const s=idx[i+1];idx[i+1]=idx[i+2];idx[i+2]=s}
+ const g=new BufferGeometry();
+ g.setAttribute('position',new Float32BufferAttribute(pos,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));
+ g.setIndex(idx);g.computeVertexNormals();return g}
+
 /* A steel bracelet as solid links. Rows of three — two outer links and a centre
    link — follow the same path the strap does, each row a rigid block placed at
    its point along the curve, so the rows open up round the bend the way real
@@ -361,10 +400,11 @@ function braceletParts(d,dir){
  let s=e1;
  for(;s+pitch<sEnd;s+=pitch){
   const mid=s+pitch/2,w=widthAt(mid),pl=pitch-gap;
-  const ow=w*.29,cw=w*.36,seam=(w-2*ow-cw)/2;
-  outer.push(place(linkBlock(ow,pl,T*.9),mid,-(w/2-ow/2)));
-  outer.push(place(linkBlock(ow,pl,T*.9),mid,w/2-ow/2));
-  centre.push(place(linkBlock(cw,pl,T),mid,0));
+  /* the centre link stands a little proud and crowned; the outer links fall away to the edges */
+  const ow=w*.31,cw=w*.36,seam=(w-2*ow-cw)/2;
+  outer.push(place(pillowLink(ow,pl,T*.9,{crown:T*.05,slope:-T*.09}),mid,-(w/2-ow/2)));
+  outer.push(place(pillowLink(ow,pl,T*.9,{crown:T*.05,slope:T*.09}),mid,w/2-ow/2));
+  centre.push(place(pillowLink(cw,pl,T,{crown:T*.14}),mid,0));
   /* the pin at the joint behind this row, and the shadowed seams inside it */
   const pin=new CylinderGeometry(T*.3,T*.3,w*.96,10);pin.rotateZ(Math.PI/2);pin.translate(0,-T*.12,0);
   pins.push(place(pin,s));
@@ -372,7 +412,9 @@ function braceletParts(d,dir){
    for(const sx of[-1,1]){const b2=bar.clone();b2.translate(sx*(cw/2+seam/2),-T*.12,0);pins.push(place(b2,mid))}bar.dispose()}}
  /* the pin at the last joint */
  {const w=widthAt(s),pin=new CylinderGeometry(T*.3,T*.3,w*.96,10);pin.rotateZ(Math.PI/2);pin.translate(0,-T*.12,0);pins.push(place(pin,s))}
- const out={outer:mergeGeometries(outer),centre:mergeGeometries(centre),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p)),end:s};
+ /* the pillow links are indexed and the fitted end link an extrusion, which is not: index it so they merge */
+ const indexed=g=>{if(!g.index)g.setIndex([...Array(g.attributes.position.count).keys()]);return g};
+ const out={outer:mergeGeometries(outer.map(indexed)),centre:mergeGeometries(centre.map(indexed)),pins:mergeGeometries(pins.map(p=>p.index?p.toNonIndexed():p)),end:s};
  /* The 12 o'clock half ends in the bar the clasp locks onto, carried by a short
     end piece; the 6 o'clock half in a folding clasp lying closed: a cover plate
     over two blades, hinged to the last link. Both built along +z, then placed. */

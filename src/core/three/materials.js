@@ -95,7 +95,8 @@ export function crystalMaterial(finish='polished',gloss=.65,{solid=0}={}){
  /* bare sapphire reflects ~7.7% head-on (ior 1.77), which is exactly why real
     crystals are AR coated; the coating takes it to ~1%, leaving the Fresnel
     rise at the rim as the visible glass */
- const k=.22*(AR[finish]??.75)*(.4+gloss);
+ /* strong enough that the glass shows as glass where it turns away from the eye */
+ const k=.4*(AR[finish]??.75)*(.4+gloss);
  /* A solid crystal (lathe.js crystalSolid) is a closed volume: its front faces
     are the glass, and `thickness` is its real thickness, which bends what is
     seen through it. The rasteriser only bends by an offset in screen space, and

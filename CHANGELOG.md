@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+**Changed — a bracelet that looks like a bracelet**
+- Each link was a flat-topped block, which mirrors one patch of the studio and
+  read as a black or white tile, in rows of three separate boxes. Links are
+  now pillows (`watch.js pillowLink`): every edge rounded, the top crowned
+  across and a little along, so each carries a gradient from light to dark.
+  The centre link stands proud with more crown; the outer links fall away
+  toward the bracelet's edges; the seams between them are fine lines instead
+  of gaps. Brushing runs along the bracelet's length.
+- **Crystal:** the sapphire's reflection is stronger (still AR coated), so the
+  glass reads as glass where it turns away from the eye instead of the dial
+  looking uncovered.
+
 **Changed — the crown's end**
 - The crown's end was a nearly flat disc, which reflects one patch of the
   studio and reads as a grey plate. It is now a polished chamfer, a shallow
