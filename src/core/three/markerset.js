@@ -16,7 +16,7 @@ import {metalMaterial} from './materials.js';
 
 const geometryKey=s=>JSON.stringify([s.kind,
  s.kind==='shape'?[s.outline,s.lengthMm,s.widthMm,s.taper,s.outerEnd,s.innerEnd,s.cornerMm,s.flip,s.outline==='custom'?s.points:0,s.count,s.gapMm]
-  :[s.numerals,s.font,s.weight,s.sizeMm],
+  :[s.numerals,s.font,s.arabicFont,s.weight,s.sizeMm,s.romanFour,s.numerals==='text'?s.texts:0],
  s.top,s.heightMm,s.bevel,s.material==='paint'?'paint':s.material==='lume'?'lume':'metal',s.lume,s.lumeMarginMm]);
 
 const cache=new Map();

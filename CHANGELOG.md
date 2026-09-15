@@ -99,6 +99,9 @@
   PartStudio's `src/core`), leaves out the index a date window replaces, sets
   the hour hand's length, and appears among the marker presets. Checked in
   `combos.mjs` and `e2e/tests/partstudio.mjs`.
+- PartStudio's numeral faces come with the sets (`core/markerset/fonts/`, OFL):
+  Eastern Arabic, Persian, Roman IIII, words at the hours and readable radial
+  numerals are ground in the faces they were designed in, on every device.
 
 **Added — depth**
 - **Ambient occlusion** (`core/three/ao.js`). three's GTAO, multiplied onto the

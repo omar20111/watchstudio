@@ -28,6 +28,18 @@ export async function run({page,ready,until,present,press,expect,url,fixtures}){
  const at12=a.list.find(i=>i.h===0);
  expect(at12&&Math.abs(at12.reach-.885)<.002,`the 12 o'clock index's outer end is on the hour ring (${at12&&at12.reach.toFixed(4)} r)`);
  expect(await until(p,()=>!!document.querySelector('[aria-label="Use the PartStudio marker set"]')),'the set is offered among the marker presets');
+ /* numerals come from PartStudio's bundled faces, not the device's */
+ expect(await p.evaluate(()=>document.fonts.check('700 20px "PS Amiri"','٤')&&document.fonts.check('700 20px "PS Inter"','4')),'the bundled numeral faces are loaded');
+
+ /* a Persian set, read the right way up: every hour a ground glyph, the
+    lower half turned round */
+ await p.locator('input[aria-label="PartStudio marker set file"]').setInputFiles(path.join(fixtures,'persian.watchstudio-markers.json'));
+ expect(await until(p,()=>{const w=window.__watchView.watch,m=w.getObjectByName('index:0');return !!m&&m.geometry.attributes.position.count>300&&!w.getObjectByName('indexLume:1')},null,180000),'a Persian set replaces it');
+ const turned=await p.evaluate(()=>{const w=window.__watchView.watch,at=h=>w.getObjectByName('index:'+h);
+  return{six:at(6)&&Math.abs(Math.sin(at(6).rotation.y))<1e-6&&Math.cos(at(6).rotation.y)>0,two:at(2)&&Math.abs(at(2).rotation.y+Math.PI/3)<1e-6}});
+ expect(turned.six&&turned.two,`readable: the 6 reads level, the 2 stays radial (${JSON.stringify(turned)})`);
+ await p.keyboard.press('Control+z');
+ await until(p,()=>!!window.__watchView.watch.getObjectByName('indexLume:1'),null,120000);
 
  /* one undo takes it back off */
  await p.keyboard.press('Control+z');

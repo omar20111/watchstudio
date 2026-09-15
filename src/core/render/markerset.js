@@ -26,13 +26,13 @@ export function lumeInsetMm(s){const f=formOf(s);if(f.pocket==null)return null;
 /* a numeral's inked points, for placing it by its ink; none where nothing can
    be drawn and read back */
 const inks=new Map();
-export function inkOf(s,h){const key=[s.numerals,s.font,s.weight,s.sizeMm,h].join('|');
+export function inkOf(s,h){const key=JSON.stringify([s.numerals,s.font,s.arabicFont,s.weight,s.sizeMm,s.romanFour,s.numerals==='text'?s.texts[h]:0,h]);
  if(!inks.has(key)){let pts=null;try{pts=inkPoints(glyphField(s,h,28))}catch(e){pts=null}
   inks.set(key,pts);if(inks.size>96)inks.delete(inks.keys().next().value)}
  return inks.get(key)}
 
 export function placementOf(s,h,ringMm){
- return s.kind==='numeral'?placeNumeral(h,ringMm,inkOf(s,h),s.upright):placeShape(h,ringMm)}
+ return s.kind==='numeral'?placeNumeral(h,ringMm,inkOf(s,h),s.orient):placeShape(h,ringMm)}
 
 export function drMarkerSet(ctx,o,set){
  const ringMm=o.g.dialR/PX*set.ringRatio,mode=o.mode;

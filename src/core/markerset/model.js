@@ -29,8 +29,16 @@ export const FINISHES=['polished','brushed','frosted'];
 export const OUTLINES=['baton','wedge','dagger','arrow','lozenge','dot','custom'];
 export const ENDS=['flat','round','point'];
 export const TOPS=['flat','bevel','facet','dome'];
-export const NUMERAL_SYSTEMS=['arabic','roman','eastern'];
+/* eastern: Arabic-Indic digits (the Gulf, Egypt, the Levant); persian: the
+   extended forms Iran and Afghanistan write, whose 4, 5 and 6 differ; text: any
+   word or letters per hour */
+export const NUMERAL_SYSTEMS=['arabic','roman','eastern','persian','text'];
 export const FONTS=['serif','sans','condensed','didone'];
+export const ARABIC_FONTS=['naskh','kufi','modern'];
+/* upright: every numeral reads level; radial: turns with its hour, its top to
+   the rim; readable: radial, but the lower half turned round to read the right
+   way up */
+export const ORIENTS=['upright','radial','readable'];
 export const DIAL_FINISHES=['sunburst','matte','gloss','grained'];
 export const TRACKS=['railway','dots','none'];
 
@@ -54,7 +62,8 @@ export function defaultStyle(o={}){
  return normalizeStyle({id:newId(),name:'Hours',kind:'shape',outline:'baton',
   lengthMm:2.8,widthMm:.9,taper:1,outerEnd:'flat',innerEnd:'flat',cornerMm:.04,flip:false,
   points:[[0,1],[1,1]],count:1,gapMm:.35,
-  numerals:'arabic',font:'sans',sizeMm:2.6,weight:700,upright:true,
+  numerals:'arabic',font:'sans',arabicFont:'naskh',sizeMm:2.6,weight:700,orient:'upright',romanFour:'IIII',
+  texts:['12','1','2','3','4','5','6','7','8','9','10','11'],
   top:'bevel',heightMm:.32,bevel:.4,
   material:'steel',finish:'polished',paint:'#f2efe6',
   lume:'channel',lumeMarginMm:.06,lumeColor:'#e8f2df',...o})}
@@ -79,9 +88,14 @@ export function normalizeStyle(s={}){
   gapMm:num(s.gapMm,.05,2,.35),
   numerals:pick(s.numerals,NUMERAL_SYSTEMS,'arabic'),
   font:pick(s.font,FONTS,'sans'),
+  arabicFont:pick(s.arabicFont,ARABIC_FONTS,'naskh'),
   sizeMm:num(s.sizeMm,.8,6,2.6),
   weight:+s.weight===400?400:700,
-  upright:s.upright!==false,
+  /* designs from before `orient` said only whether numerals stood upright */
+  orient:pick(s.orient,ORIENTS,s.upright===false?'radial':'upright'),
+  /* watchmakers mostly write four as IIII, balancing the VIII opposite */
+  romanFour:s.romanFour==='IV'?'IV':'IIII',
+  texts:Array.from({length:12},(_,h)=>Array.isArray(s.texts)&&typeof s.texts[h]==='string'?s.texts[h].slice(0,16):String(h===0?12:h)),
   top:pick(s.top,TOPS,'bevel'),
   heightMm:num(s.heightMm,.02,1.2,.32),
   bevel:num(s.bevel,.05,1,.4),
@@ -130,20 +144,33 @@ export const styleAt=(d,h)=>d.styles.find(s=>s.id===d.slots[h])||null;
 
 /* ---------------------------------------------------------------- numerals */
 
-const EASTERN='٠١٢٣٤٥٦٧٨٩';
+const EASTERN='٠١٢٣٤٥٦٧٨٩',PERSIAN='۰۱۲۳۴۵۶۷۸۹';
 export const easternDigits=n=>String(n).replace(/\d/g,c=>EASTERN[+c]);
+export const persianDigits=n=>String(n).replace(/\d/g,c=>PERSIAN[+c]);
 const ROMAN=['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
 export function numeralText(style,h){const n=h===0?12:h;
- return style.numerals==='roman'?ROMAN[h]:style.numerals==='eastern'?easternDigits(n):String(n)}
+ switch(style.numerals){
+  case'roman':return h===4?style.romanFour:ROMAN[h];
+  case'eastern':return easternDigits(n);
+  case'persian':return persianDigits(n);
+  case'text':return style.texts[h]||'';
+  default:return String(n)}}
 
-/* Each family is stacked with fallbacks that exist on Windows, macOS, iOS and
-   Android, so a numeral is never drawn in a default face. Eastern Arabic digits
-   need an Arabic face: Geeza Pro on Apple, Noto Naskh on Android, Segoe UI on
-   Windows. */
+const ARABIC_SCRIPT=/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+
+/* The faces are bundled (core/fonts.js), so a numeral is the same shape on every
+   phone and computer, in WatchStudio and in an STL — a system font would change
+   with the device. System faces follow only for a browser that cannot load them. */
 export const FONT_STACKS={
- serif:'Georgia,"Times New Roman",Times,serif',
- sans:'"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif',
- condensed:'"Arial Narrow","Roboto Condensed","Helvetica Neue Condensed",sans-serif-condensed,Arial,sans-serif',
- didone:'Didot,"Bodoni 72","Bodoni MT","Playfair Display",Georgia,serif'};
-export const EASTERN_STACK='"Geeza Pro","Noto Naskh Arabic","Segoe UI",Tahoma,Arial,sans-serif';
-export const fontStackOf=style=>style.numerals==='eastern'?EASTERN_STACK:FONT_STACKS[style.font];
+ serif:'"PS Garamond",Georgia,"Times New Roman",serif',
+ sans:'"PS Inter","Helvetica Neue",Arial,sans-serif',
+ condensed:'"PS Condensed","Arial Narrow",Arial,sans-serif',
+ didone:'"PS Playfair",Didot,"Bodoni MT",Georgia,serif'};
+export const ARABIC_STACKS={
+ naskh:'"PS Amiri","Geeza Pro","Segoe UI",Tahoma,serif',
+ kufi:'"PS Kufi","Geeza Pro","Segoe UI",Tahoma,sans-serif',
+ modern:'"PS Vazirmatn","Geeza Pro","Segoe UI",Tahoma,sans-serif'};
+/* Arabic-script numerals and words take the Arabic face; Latin ones the Latin */
+export function fontStackOf(style,txt){
+ const arabic=style.numerals==='eastern'||style.numerals==='persian'||(style.numerals==='text'&&ARABIC_SCRIPT.test(txt??style.texts.join('')));
+ return arabic?ARABIC_STACKS[style.arabicFont]:FONT_STACKS[style.font]}
