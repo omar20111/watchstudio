@@ -56,7 +56,15 @@ export const DEF_CASE=()=>({
  pushers:false,       /* chrono pushers at 2h and 4h */
  crownPos:'3',        /* 3 | 430 */
  engraving:'WATCHSTUDIO',
- wear:'light'});       /* new | light | worn — scratches and haze on the exposed metal */
+ wear:'light',        /* new | light | worn — scratches and haze on the exposed metal */
+ side:'straight',      /* straight | drum | sloped | stepped — the case band's profile */
+ lugs:'straight',      /* straight | twisted | hooded */
+ lugHoles:false});     /* spring-bar holes drilled through the lugs */
+
+export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['straight','twisted','hooded'];
+/* the gap between a strap's edge and the lug beside it, mm: a pair of lugs is
+   as far apart as the lug width the watch is sold by, and no further */
+export const LUG_CLEAR_MM=.15;
 
 const mmOf=(v,lo,hi,fb)=>{const n=+v;return Number.isFinite(n)?clamp(n,lo,hi):fb};
 
@@ -105,7 +113,10 @@ export function caseOf(d){
   pushers:!!c0.pushers,
   crownPos:c0.crownPos==='430'?'430':'3',
   engraving:c0.engraving==null?'WATCHSTUDIO':String(c0.engraving).slice(0,24),
-  wear:['new','light','worn'].includes(c0.wear)?c0.wear:'light'}}
+  wear:['new','light','worn'].includes(c0.wear)?c0.wear:'light',
+  side:CASE_SIDES.includes(c0.side)?c0.side:'straight',
+  lugs:LUG_STYLES.includes(c0.lugs)?c0.lugs:'straight',
+  lugHoles:!!c0.lugHoles}}
 
 /* The thickness stack in mm. Sums to caseOf(d).thickness exactly — the
    mid-band absorbs the remainder and can never fall below MIN_BAND_MM,

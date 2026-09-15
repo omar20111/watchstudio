@@ -13,7 +13,7 @@ export function exportSpec(){const s=store.getState(),d=s.d,P=d.parts;
  const L=['WatchStudio — Spec Sheet',`Project: ${s.projName}`,`Date: ${new Date().toLocaleString()}`,`Canvas: 1200×1200 px, dial center (600,600) · Scale 1 mm = ${PX} px`,'',
  `Case: ${d.caseMm} mm · ${metal(P.case.metal)} · ${P.case.finish} · ${P.case.variant}`,
  `Case architecture: ${c.thickness} mm thick (caseback ${st.caseback} · band ${st.band} · movement ${st.movement} · dial ${st.dial} · bezel ${st.bezel} · crystal ${st.crystal})${c.feasible?'':` — raised from ${c.requested} mm`}`,
- `Lugs: ${c.lugLen} mm long · ${c.lugDrop} mm drop · lug-to-lug ${lugToLugOf(d)} mm · lug width ${strapMmOf(d)} mm`,
+ `Lugs: ${c.lugs}${c.lugHoles?', drilled':''} · ${c.lugLen} mm long · ${c.lugDrop} mm drop · lug-to-lug ${lugToLugOf(d)} mm · lug width ${strapMmOf(d)} mm · case side ${c.side}`,
  `Movement: ${c.movement} · caseback ${c.caseback}${c.caseback==='engraved'?` "${c.engraving}"`:''} · water resistance ${c.wrM} m`,
  `Crown: ${P.crown.variant} · ${crownMmOf(d)} mm · ${metal(P.crown.metal)} · at ${c.crownPos==='430'?'4:30':'3 o’clock'}${c.pushers?' · chronograph pushers at 2 and 4':''}`,
  `Strap: ${P.strap.variant} · ${strapMmOf(d)} mm · color ${P.strap.color} · stitch ${P.strap.stitch} · ${metal(P.strap.metal)}`,

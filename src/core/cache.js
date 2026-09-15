@@ -11,7 +11,7 @@ import {DR,procOpts} from './render/index.js';
    assertions.js walks each field to prove none was forgotten. */
 const dimsKey=d=>{const c=d.case||{};
  return[d.caseMm,d.strapMm,d.bezelMm,d.crownMm,
-  c.thicknessMm,c.lugLenMm,c.lugDropMm,c.crystalMm,c.crystal,c.caseback,c.movement,c.crownPos,c.pushers,
+  c.thicknessMm,c.lugLenMm,c.lugDropMm,c.crystalMm,c.crystal,c.caseback,c.movement,c.crownPos,c.pushers,c.lugs,
   /* geoOf widens the bezel for rotating types, which moves rBezIn — so every
      part that meets the bezel keys on the variant, not just the bezel does */
   d.parts.bezel.variant].join('|')};

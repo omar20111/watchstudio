@@ -5,7 +5,8 @@
    above, and a polished chamfer steps up from the band to the bezel seat.
    Each of those surfaces carries its own finish — alternating brushed top and
    polished bevel is most of what makes a steel case read as machined. */
-import {C,METALS} from '../constants.js';
+import {C,METALS,PX} from '../constants.js';
+import {LUG_CLEAR_MM} from '../geometry.js';
 import {envGrad,axisGrad,bevelGrad,tone,ringPath,seam,circGrain,lineGrain,microScratch,
         fresnelRim,castShadow,applyFinish} from './material.js';
 
@@ -28,11 +29,12 @@ export function drCase(ctx,o){const{R,sw,lugExt,rCase,rSeat,rBezOut,crownR}=o.g;
     leaning outward to a rounded tip. Built in a local frame where +y runs
     toward the tip and +x points away from the strap. */
  const lugPath=(sx,sy,inset)=>{
-  ctx.save();ctx.translate(C+sx*(sw*0.5+lugW*0.95),C);ctx.scale(sx,sy);
+  /* its inner face just clear of the strap (geometry.js LUG_CLEAR_MM), as in 3D */
+  ctx.save();ctx.translate(C+sx*(sw*0.5+LUG_CLEAR_MM*PX+lugW*0.55),C);ctx.scale(sx,sy);
   /* the tip is a quadratic whose peak falls 0.14·wt short of its end points;
      without this offset every drawn horn stopped ~0.4 mm short of the
      lug-to-lug the spec sheet prints */
-  const wb=lugW*2.0-inset*2,wt=lugW*1.10-inset*2,lean=lugW*0.12,yb=inner,yt=outer-inset+lugW*1.10*0.14;
+  const wb=lugW*2.0-inset*2,wt=lugW*1.10-inset*2,lean=o.arch&&o.arch.lugs==='twisted'?lugW*.22:0,yb=inner,yt=outer-inset+lugW*1.10*0.14;
   ctx.beginPath();
   ctx.moveTo(-wb/2,yb);
   ctx.quadraticCurveTo(-wt/2-lugW*0.10,(yb+yt)*0.55,lean-wt/2,yt-wt*0.44);
@@ -64,11 +66,11 @@ export function drCase(ctx,o){const{R,sw,lugExt,rCase,rSeat,rBezOut,crownR}=o.g;
   cg.addColorStop(.72,'rgba(255,255,255,0)');cg.addColorStop(.94,`rgba(255,255,255,${sx<0?.42:.20})`);
   cg.addColorStop(1,'rgba(0,0,0,.30)');
   ctx.fillStyle=cg;ctx.fillRect(C-R*2,C-R*2,R*4,R*4);ctx.restore();
-  /* drilled lug hole, near the tip where the spring bar actually sits */
-  const hx=C+sx*(sw*0.5+lugW*0.95),hy=C+sy*(outer-lugW*0.85);
-  ctx.beginPath();ctx.arc(hx,hy,lugW*0.15,0,7);ctx.fillStyle='rgba(0,0,0,.62)';ctx.fill();
-  ctx.beginPath();ctx.arc(hx,hy-1.2,lugW*0.15,Math.PI*0.15,Math.PI*0.85);
-  ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=1.4;ctx.stroke()}
+  /* (a drilled spring-bar hole goes through the lug's side: from above it is not seen) */}
+ /* hooded lugs: a hood joins each pair across the strap's end */
+ if(o.arch&&o.arch.lugs==='hooded')for(const sy of[-1,1]){const x0=C-(sw*.5+LUG_CLEAR_MM*PX+lugW*.2),w=2*(C-x0),y=sy<0?C-outer:C+outer-lugW*1.4;
+  const hg=ctx.createLinearGradient(0,y,0,y+lugW*1.4);hg.addColorStop(0,tone(m,sy<0?.78:.35));hg.addColorStop(1,tone(m,sy<0?.35:.78));
+  ctx.fillStyle=hg;ctx.fillRect(x0,y,w,lugW*1.4)}
 
  /* ---- case body ---- */
  ctx.beginPath();ctx.arc(C,C,rCase,0,7);ctx.fillStyle=envGrad(ctx,m);ctx.fill();

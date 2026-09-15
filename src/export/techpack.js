@@ -253,7 +253,7 @@ function partsSheet(doc,F,d,meta){
  const pg=sheet(doc,{title:'Parts list',scale:'—',n:4,...meta});const P=F.P;
  const zones=f=>f==='brushed'?'Brushed; bevels polished':f==='matte'?'Bead-blasted':f==='polished'||f==='none'||!f?'Polished':cap(f);
  const rows=[
-  ['Case',VNAME[P.case.variant]||P.case.variant,metalName(P.case.metal),zones(P.case.finish),'—',`Ø${f1(F.caseMm)}, ${f1(F.c.thickness)} thick, lug to lug ${f1(F.l2l)}, lug width ${f1(F.lugW)}`],
+  ['Case',`${VNAME[P.case.variant]||P.case.variant}; ${cap(F.c.side)} side; ${cap(F.c.lugs)} lugs${F.c.lugHoles?', drilled':''}`,metalName(P.case.metal),zones(P.case.finish),'—',`Ø${f1(F.caseMm)}, ${f1(F.c.thickness)} thick, lug to lug ${f1(F.l2l)}, lug width ${f1(F.lugW)}`],
   ['Bezel',VNAME[P.bezel.variant]||P.bezel.variant,metalName(P.bezel.metal),zones(P.bezel.finish),F.rot?(P.bezel.insertColor||'#101318'):'—',
    `Outer Ø${f1(F.Rr.rBezOut*2)}, width ${f1(F.bezelMm)}, ${f1(F.st.bezel)} high${F.rot?`; insert, ${detentOf(d)} clicks`:''}`],
   ['Crystal',`${F.crystalName} sapphire`,'Sapphire','Polished','—',`Ø${f1(F.openingMm)} visible, ${f1(F.c.crystalMm)} above the bezel${F.cyclops?'; cyclops over the date':''}`],

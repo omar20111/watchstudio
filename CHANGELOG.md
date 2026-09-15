@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+**Changed — the case is one piece**
+- **Lugs grow out of the case** (`three/casebody.js`). Each lug used to be a flat
+  extruded slab pushed into the side of the case band, with a hard seam where
+  they met and a flat top joining halfway up the band. Now each lug is one solid
+  swept from inside the case to its tip:
+  - **Plan:** its sides run into the case wall through a fillet (a concave radius
+    on both sides), then straight to a rounded tip on the lug-to-lug.
+  - **Top:** it rises out of the case chamfer, just under the bezel, and sweeps
+    down toward the wrist by the lug drop.
+  - **Underside:** it leaves the band a quarter of the way up and lifts clear in
+    a long concave curve.
+  - **Section:** a flat top with rounded bevels onto the flanks, as separate faces,
+    so a brushed case keeps polished lug edges.
+- **Fixed: the lugs stood wider apart than the strap.** The gap between a pair of
+  lugs was about 2.5 mm wider than the lug width the watch states (22.5 mm for a
+  "20 mm" watch), so the strap floated between them. The lugs now stand 0.15 mm
+  off the strap on each side. The tech pack's lug-width dimension now lands on
+  the lug faces.
+- **Case side profile** (Case panel): *Straight*, *Drum* (bowed out, widest at
+  mid-height), *Sloped* (drawn in toward the caseback, slimmer on the wrist) or
+  *Stepped* (a narrower lower tier below a small ledge). The widest point stays
+  the case diameter, so every figure holds.
+- **Lug styles** (Case panel):
+  - *Straight*.
+  - *Twisted*, a lyre lug: the outer flank sweeps outward toward the tip and is
+    cut to a flat polished facet that widens as it goes, while the inner face
+    runs straight beside the strap.
+  - *Hooded*: each pair of lugs and a hood across the strap end are one solid,
+    with a tunnel for the strap underneath.
+- **Drilled lug holes** (Case panel): spring-bar bores through the lugs' outer
+  flanks. The flat 2D drawing no longer paints a hole on the lug's top face,
+  where no real hole shows.
+- **Crown guards** on the sport case are swept the same way: they grow out of the
+  case through fillets, and their tops fall away toward the tip.
+- The tech pack, spec sheet and `spec.json` name the case side and lug style.
+- Checked in `combos.mjs` for every side, lug style, holes or not, classic and
+  sport, 34 and 46 mm: the lug gap against the strap, the tips on the
+  lug-to-lug, nothing above the bezel seat, faces pointing outward, holes and
+  hood tunnel present when chosen, the band's profile. Also in
+  `e2e/tests/editor.mjs` (the controls rebuild the case and are saved).
+
 **Added — a tech pack for manufacturers**
 - **Tech pack** (⋯ menu, or the toolbar on a wide screen): one ZIP that a
   case, dial or hands maker can quote from.

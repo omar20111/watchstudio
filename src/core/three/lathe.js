@@ -15,7 +15,7 @@
    normals out of the metal. */
 import {Vector2,LatheGeometry,Shape} from 'three';
 import {PX} from '../constants.js';
-import {geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
+import {LUG_CLEAR_MM,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -40,6 +40,34 @@ export function headRadii(d){const g=geoOf(d),mm=px=>px/PX;
  return{rCase:mm(g.rCase),rSeat:mm(g.rSeat),rBezOut:mm(g.rBezOut),rBezIn:mm(g.rBezIn),dialR:mm(g.dialR),
   rGripIn:mm(b.rGripIn),rInsOut:mm(b.rInsOut),rInCham:mm(b.rInCham),rotating:b.rot}}
 
+/* The case band's side, from the caseback (y0) up to where the chamfer starts
+   (y1), as its radius at each height. The widest point is always rCase, so the
+   case diameter, the lug-to-lug and everything placed round the case keep their
+   figures; the profile only takes metal away.
+     straight  a plain vertical wall
+     drum      bowed out: widest at mid-height, drawn in toward top and bottom
+     sloped    widest under the bezel, drawn in toward the caseback, so the case
+               looks slimmer on the wrist
+     stepped   a narrower lower tier below a small ledge
+   points(from) gives the lathe points from height `from` to y1. */
+export function bandOf(d,H=headHeights(d),Rr=headRadii(d)){
+ const{rCase,rSeat}=Rr,side=caseOf(d).side;
+ const y0=H.back,y1=H.seat-(rCase-rSeat),h=Math.max(.01,y1-y0);
+ const dr=Math.min(.55,h*.09),sl=Math.min(.9,h*.13),st=Math.min(.5,h*.08),yStep=y0+h*.42;
+ const radiusAt=y=>{const t=Math.min(1,Math.max(0,(y-y0)/h));
+  if(side==='drum')return rCase-dr*Math.pow((t-.5)*2,2);
+  if(side==='sloped')return rCase-sl*(1-t)*(1-t);
+  if(side==='stepped')return y<yStep?rCase-st:rCase;
+  return rCase};
+ const points=from=>{const out=[];
+  if(side==='stepped'){
+   if(from<yStep){out.push(V(rCase-st,yStep-.1),V(rCase-st+.05,yStep),V(rCase-.1,yStep),V(rCase,yStep+.1))}
+   out.push(V(rCase,y1));return out}
+  const n=side==='straight'?1:12;
+  for(let i=1;i<=n;i++){const y=from+(y1-from)*i/n;out.push(V(radiusAt(y),y))}
+  return out};
+ return{side,y0,y1,rTop:radiusAt(y1),rMax:rCase,radiusAt,points,yStep:side==='stepped'?yStep:null}}
+
 /* Profiles, each a separate lathe so a hard machined edge stays hard: a single
    lathe averages normals across every joint and would round them all off. */
 export function headProfiles(d){
@@ -57,10 +85,11 @@ export function headProfiles(d){
  P.casebackRim=[V(rCase*.80,0),...round(V(rCase*.80,0),V(rCase*.88,0),V(rCase*.88,H.back*.6),4),
   V(rCase*.88,H.back*.6),V(rCase*.92,H.back)];
 
- /* mid-case flank: tucks in under the caseback, rises vertically to the chamfer */
- P.flank=[V(rCase*.92,H.back),V(rCase-e,H.back),...round(V(rCase-e,H.back),V(rCase,H.back),V(rCase,H.back+e)),
-  V(rCase,H.back+e),V(rCase,H.seat-cham)];
- P.chamfer=[V(rCase,H.seat-cham),V(rSeat,H.seat)];
+ /* mid-case flank: tucks in under the caseback, rises to the chamfer along the
+    case's side profile (bandOf) */
+ const B=bandOf(d,H,Rr),rb=B.radiusAt(B.y0);
+ P.flank=[V(rCase*.92,H.back),V(rb-e,H.back),...round(V(rb-e,H.back),V(rb,H.back),V(B.radiusAt(H.back+e),H.back+e)),...B.points(H.back+e)];
+ P.chamfer=[V(B.rTop,B.y1),V(rSeat,H.seat)];
  P.seat=[V(rSeat,H.seat),V(rBezOut*.985,H.seat)];
 
  /* bezel: flank, then a top face that is flat for an insert and crowned for a
@@ -129,42 +158,33 @@ export const lathe=(points,segments=160)=>new LatheGeometry(points,segments);
    2D drawing share their proportions.
 --------------------------------------------------------------------------- */
 
-const quad=(a,c,b,n=10)=>{const o=[];for(let i=1;i<=n;i++){const t=i/n,u=1-t;
- o.push([u*u*a[0]+2*u*t*c[0]+t*t*b[0],u*u*a[1]+2*u*t*c[1]+t*t*b[1]])}return o};
 const shapeOf=pts=>{const s=new Shape();pts.forEach(([x,y],i)=>i?s.lineTo(x,y):s.moveTo(x,y));return s};
 export const smoothstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
 
-/* Lug horns: broad where they leave the band, tapering and leaning outward to a
-   rounded tip (case.js lugPath). Shape coordinates are (x, -z) so that laying
-   the extrusion face-up puts it at world z. They drop toward the tip by the
-   case's lug drop. */
+/* The lugs' plan and heights, in mm (built as solids by casebody.js). A lug's
+   inner face stands LUG_CLEAR_MM off the strap's edge, so the gap between a
+   pair of lugs is the lug width the watch is sold by; its tip lands on the
+   lug-to-lug. `shapes` are the plan outlines as (x, -z) Shapes. `top` and
+   `bottom` are the lug's heights clear of the case, before the drop toward
+   the tip; `topCase` is where its top leaves the chamfer. */
 export function lugParts(d){
  const g=geoOf(d),H=headHeights(d),arch=caseOf(d),sport=d.parts.case.variant==='sport';
- const R=g.R,sw=g.sw,lugW=R*(sport?.17:.135),outer=R+g.lugExt,inner=R*.42;
- /* the rounded tip is a quadratic whose peak sits 0.14·wt inside its end
-    points, so the end points go that far out for the tip to land on lug-to-lug */
- const wb=lugW*2,wt=lugW*1.1,lean=lugW*.12,yb=inner,yt=outer+wt*.14;
- const local=[[-wb/2,yb],...quad([-wb/2,yb],[-wt/2-lugW*.10,(yb+yt)*.55],[lean-wt/2,yt-wt*.44]),
-  ...quad([lean-wt/2,yt-wt*.44],[lean,yt+wt*.16],[lean+wt/2,yt-wt*.44]),
-  ...quad([lean+wt/2,yt-wt*.44],[wb/2+lugW*.06,(yb+yt)*.55],[wb/2,yb])];
- const shapes=[];
- for(const sy of[-1,1])for(const sx of[-1,1])
-  shapes.push(shapeOf(local.map(([lx,ly])=>[sx*(sw*.5+lugW*.95+lx)/PX,-(sy*ly)/PX])));
+ const R=g.R/PX,sw=g.sw/PX,lugW=R*(sport?.17:.135),tip=(g.R+g.lugExt)/PX;
+ const wt=lugW*1.1,xi=sw/2+LUG_CLEAR_MM,xo=xi+wt,xc=(xi+xo)/2,rf=Math.min(1.6,R*.07);
  const cham=(g.rCase-g.rSeat)/PX;
  const top=H.seat-cham-.15,bottom=H.back+(H.seat-H.back)*.38;
+ const tipR=wt/2,sIn=R*.42,shapes=[];
+ const outline=[[xi,sIn],[xi,tip-tipR]];
+ for(let i=1;i<=12;i++){const a=Math.PI-i/12*Math.PI;outline.push([xc+tipR*Math.cos(a),tip-tipR+tipR*Math.sin(a)])}
+ outline.push([xo,sIn]);
+ for(const sy of[-1,1])for(const sx of[-1,1])shapes.push(shapeOf(outline.map(([x,s])=>[sx*x,-sy*s])));
  return{shapes,top,bottom,thick:top-bottom,drop:arch.lugDrop,
   /* where the drop starts and where it is complete, in mm from the centre */
-  z0:R*.9/PX,z1:outer/PX,
-  /* spring bar: near the tip, where case.js drills the lug hole */
-  springZ:springBarMm(d)}}
-
-/* Crown guards on the sport case, swung to the crown's bearing */
-export function guardShapes(d){
- if(d.parts.case.variant!=='sport')return[];
- const g=geoOf(d),R=g.R,cr=g.crownR,gi=cr*.86,go=cr*1.95,gx=R+cr;
- const b=(crownAng(d)-90)*Math.PI/180,cs=Math.cos(b),sn=Math.sin(b);
- const w=([x,y])=>[(x*cs-y*sn)/PX,-(x*sn+y*cs)/PX];
- return[-1,1].map(sy=>shapeOf([[R*.88,sy*go],...quad([R*.88,sy*go],[gx*.99,sy*go*.92],[gx,sy*gi]),[R*.94,sy*gi*.86]].map(w)))}
+  z0:R*.9,z1:tip,
+  /* spring bar: near the tip, through the lug */
+  springZ:springBarMm(d),
+  plan:{xi,xo,xc,wt,rf,tip,lugW},
+  heights:{top,bottom,topCase:H.seat-cham*.45,bandBottom:H.back+(H.seat-H.back)*.24}}}
 
 /* Crown and pushers along their own axis (+x before the bearing is applied) */
 export function crownParts(d){

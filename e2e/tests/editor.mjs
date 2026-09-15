@@ -32,6 +32,18 @@ export async function run({page,ready,until,press,expect,url}){
  expect(await until(p,u=>window.__watchView.watch.uuid!==u,uuid),'Wear: Worn rebuilds the watch');
  const worn=await p.evaluate(()=>{let n=0;window.__watchView.watch.traverse(o=>{if(o.isMesh&&o.material.customProgramCacheKey&&o.material.customProgramCacheKey().includes('ws-wear'))n++});return n});
  expect(worn>=5,`exposed metal wears (${worn} meshes)`);
+
+ /* the case's construction: side profile, lug style and drilled holes rebuild the one-piece case */
+ const flank=()=>p.evaluate(()=>{const f=window.__watchView.watch.getObjectByName('flank'),a=f.geometry.attributes.position;let lo=1e9,hi=0;
+  for(let i=0;i<a.count;i++){const r=Math.hypot(a.getX(i),a.getZ(i)),y=a.getY(i);if(y>1.4)lo=Math.min(lo,r),hi=Math.max(hi,r)}return hi-lo});
+ const flat=await flank();
+ for(const label of['Case side: Drum','Lugs: Twisted']){const u0=await p.evaluate(()=>window.__watchView.watch.uuid);
+  await press(p,label);expect(await until(p,u=>window.__watchView.watch.uuid!==u,u0,120000),`${label} rebuilds the watch`)}
+ expect((await flank())>flat+.2,'a drum side bows the case band out and in');
+ const u1=await p.evaluate(()=>window.__watchView.watch.uuid);
+ await p.evaluate(()=>{const l=[...document.querySelectorAll('label')].find(e=>/Drilled lug holes/.test(e.textContent));l&&l.querySelector('input').click()});
+ expect(await until(p,u=>window.__watchView.watch.uuid!==u&&!!window.__watchView.watch.getObjectByName('lugHoles'),u1,120000),'Drilled lug holes puts bores through the lugs');
+ expect(await until(p,()=>/"side":"drum"/.test(localStorage.getItem('ws:auto')||'')&&/"lugs":"twisted"/.test(localStorage.getItem('ws:auto')||'')&&/"lugHoles":true/.test(localStorage.getItem('ws:auto')||''),null,20000),'the case construction is saved');
  expect(await until(p,()=>/"wear":"worn"/.test(localStorage.getItem('ws:auto')||''),null,20000),'the Wear choice is saved');
  await p.reload();await ready(p);
  expect(await until(p,()=>/\bon\b/.test((document.querySelector('button[aria-label="Wear: Worn"]')||{}).className||''),null,60000),'and survives a reload');

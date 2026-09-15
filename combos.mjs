@@ -659,6 +659,44 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
  if(Math.abs(w-5669/1000*10/(72/25.4))>1e-9)bad('pdf',`Helvetica width of "WatchStudio" at 10 pt is ${w.toFixed(3)} mm, want ${(5669/100/(72/25.4)).toFixed(3)}`);
  if(PDF.encodable('ساعة')||!PDF.encodable('Ø×°—’'))bad('pdf','WinAnsi coverage is misjudged: Arabic must go to the picture fallback, Ø×°—’ must not')}
 
+/* The case in one piece (casebody.js): for every side profile, lug style,
+   drilled or not, classic or sport, small or large —
+   - the lugs stand off the strap by LUG_CLEAR_MM, so the pair is as far apart
+     as the lug width, and their tips reach the lug-to-lug
+   - they rise out of the chamfer but never above the bezel seat
+   - their top faces point up (the solids are not built inside out)
+   - holes exist only when drilled, a hooded pair leaves a tunnel for the strap
+   - the band keeps rCase as its widest radius, and a sloped or drum side is
+     drawn in where it should be */
+{const CB=await import('./src/core/three/casebody.js');
+ for(const side of G.CASE_SIDES)for(const lugs of G.LUG_STYLES)for(const holes of[false,true])for(const variant of['classic','sport'])for(const caseMm of[34,46]){
+  if(holes&&(variant==='sport'||caseMm===34)&&side!=='straight')continue;   /* keep the sweep to a few seconds */
+  const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.case.variant=variant;Object.assign(d.case,{side,lugs,lugHoles:holes});
+  const tag=`case ${side}/${lugs}${holes?'/drilled':''}/${variant}/${caseMm}`;
+  let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const H=w.userData.heights,Rr=w.userData.radii,lp=L3.lugParts(d),byName=n=>{let f=null;w.traverse(o=>{if(!f&&o.isMesh&&o.name===n)f=o});return f};
+  const lugsMesh=byName('lugs'),edges=byName('lugEdges');
+  if(!lugsMesh||!edges){bad(tag,'no lug meshes');continue}
+  const p=lugsMesh.geometry.attributes.position,nrm=lugsMesh.geometry.attributes.normal;
+  let minX=1e9,maxZ=0,maxY=-1e9,topN=null,hoodMin=1e9,hoodMax=-1e9;
+  const xi=G.strapMmOf(d)/2+G.LUG_CLEAR_MM;
+  for(let i=0;i<p.count;i++){const x=Math.abs(p.getX(i)),y=p.getY(i),z=Math.abs(p.getZ(i));
+   if(z>Rr.rCase+.6&&z<lp.z1-.5){if(lugs==='hooded'&&x<xi-.2){hoodMin=Math.min(hoodMin,y);hoodMax=Math.max(hoodMax,y)}else minX=Math.min(minX,x)}
+   maxZ=Math.max(maxZ,z);if(y>maxY){maxY=y;topN=nrm.getY(i)}}
+  if(lugs!=='hooded'&&Math.abs(minX-xi)>.06)bad(tag,`lug inner faces at ±${minX.toFixed(2)}mm, the strap needs ±${xi.toFixed(2)}mm`);
+  if(Math.abs(maxZ-G.lugToLugOf(d)/2)>.3)bad(tag,`lug tips at ${maxZ.toFixed(2)}mm, lug-to-lug says ${(G.lugToLugOf(d)/2).toFixed(2)}mm`);
+  if(maxY>H.seat+1e-6)bad(tag,`a lug stands ${(maxY-H.seat).toFixed(2)}mm above the bezel seat`);
+  if(!(topN>.3))bad(tag,`the lugs' highest point faces ${topN&&topN.toFixed(2)} (down or sideways): built inside out`);
+  if(!!byName('lugHoles')!==holes)bad(tag,holes?'no drilled holes':'holes nobody asked for');
+  if(lugs==='hooded'&&!(hoodMax-hoodMin<1.9&&hoodMax>-1e9))bad(tag,`the hood is ${(hoodMax-hoodMin).toFixed(2)}mm deep: no tunnel for the strap`);
+  if(!!byName('guards')!==(variant==='sport'))bad(tag,'crown guards do not follow the sport case');
+  const B=L3.bandOf(d);let rMax=0,rMin=1e9;for(let i=0;i<=20;i++){const r=B.radiusAt(B.y0+(B.y1-B.y0)*i/20);rMax=Math.max(rMax,r);rMin=Math.min(rMin,r)}
+  if(Math.abs(rMax-Rr.rCase)>1e-6)bad(tag,`the band's widest radius is ${rMax.toFixed(3)}, not the case's ${Rr.rCase.toFixed(3)}`);
+  if(side==='straight'&&rMin<Rr.rCase-1e-6)bad(tag,'a straight side is not straight');
+  if(side==='sloped'&&!(B.radiusAt(B.y0)<B.radiusAt(B.y1)-.2))bad(tag,'a sloped side is not drawn in toward the caseback');
+  if(side==='drum'&&!(B.radiusAt((B.y0+B.y1)/2)>B.radiusAt(B.y1)+.1&&B.radiusAt((B.y0+B.y1)/2)>B.radiusAt(B.y0)+.1))bad(tag,'a drum side does not bow out');
+  if(side!=='straight'&&rMin<Rr.rCase-1.01)bad(tag,`the side profile cuts ${(Rr.rCase-rMin).toFixed(2)}mm in`)}}
+
 /* a bracelet: its end links close up to the case without entering it, the
    6 o'clock half ends in a folding clasp lying on the table at the stated
    length, the 12 o'clock half in the bar the clasp locks onto */

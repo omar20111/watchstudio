@@ -21,7 +21,8 @@ import {caseOf,geoOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPT
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
-import {headProfiles,lathe,lugParts,guardShapes,crownParts,strapPath,smoothstep} from './lathe.js';
+import {headProfiles,lathe,crownParts,strapPath,smoothstep} from './lathe.js';
+import {caseHorns,crownGuards,holeGeometry} from './casebody.js';
 import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
 import {tapisserieCell} from '../render/dial.js';
@@ -519,21 +520,18 @@ export function buildHead(d,customs={},{aniso=8}={}){
   add(G.case,'chamfer',lathe(P.chamfer),caseMat('bevel'));
   add(G.case,'seat',lathe(P.seat),caseMat('bevel'));
   add(G.case,'rehaut',lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
-  const lp=lugParts(d);
-  const lugGeo=smooth(extrudeShapes(lp.shapes,{bottom:lp.bottom,thick:lp.thick,bevel:.45,segments:4}));
-  /* which faces are the lugs' rounded edges is read before the lugs are bent down */
-  const lugZones=bevelZones(lugGeo);
-  {const p=lugGeo.attributes.position;
-   for(let i=0;i<p.count;i++)p.setY(i,p.getY(i)-lp.drop*smoothstep(lp.z0,lp.z1,Math.abs(p.getZ(i))));
-   lugGeo.computeVertexNormals()}
-  add(G.case,'lugs',zonePart(lugGeo,lugZones.surface),caseMat('surface'));
-  add(G.case,'lugEdges',zonePart(lugGeo,lugZones.bevel),caseMat('bevel'));
-  lugGeo.dispose();
-  const guards=guardShapes(d);
-  if(guards.length){const gh=Math.min(H.seat-H.back-.6,Rr.rCase*.34);
-   const gg=smooth(extrudeShapes(guards,{bottom:cp.axisY-gh/2,thick:gh,bevel:.35})),gz=bevelZones(gg);
-   add(G.case,'guards',zonePart(gg,gz.surface),caseMat('surface'));
-   add(G.case,'guardEdges',zonePart(gg,gz.bevel),caseMat('bevel'));gg.dispose()}
+  /* the lugs and crown guards grow out of the case (casebody.js): each is one
+     solid with its bevels as their own faces, merged into one mesh per zone */
+  const zoneMesh=(parts,zone)=>mergeGeometries(parts.map(p=>zonePart(p.geometry,p[zone])).filter(g=>g.index.count));
+  const horns=caseHorns(d);
+  add(G.case,'lugs',zoneMesh(horns.parts,'surface'),caseMat('surface'));
+  add(G.case,'lugEdges',zoneMesh(horns.parts,'bevel'),caseMat('bevel'));
+  for(const p of horns.parts)p.geometry.dispose();
+  if(horns.holes.length)add(G.case,'lugHoles',mergeGeometries(horns.holes.map(holeGeometry)),
+   new MeshPhysicalMaterial({color:0x111215,metalness:.2,roughness:.7}),{cast:false});
+  const guards=crownGuards(d);
+  if(guards.length){add(G.case,'guards',zoneMesh(guards,'surface'),caseMat('surface'));
+   add(G.case,'guardEdges',zoneMesh(guards,'bevel'),caseMat('bevel'));for(const p of guards)p.geometry.dispose()}
   /* the caseback face: engraving, or the movement behind a sapphire window */
   const faceDown=geo=>{geo.rotateX(Math.PI/2);geo.rotateY(Math.PI);return geo};
   if(arch.caseback==='exhibition'){const rw=Rr.rCase*CASEBACK_WINDOW;

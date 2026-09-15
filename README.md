@@ -13,9 +13,12 @@ Every dimension lives in `core/geometry.js` in millimetres: the radial stack
 mid-case, movement, dial, bezel, crystal). The 3D watch is built from those
 numbers and nothing else:
 
-- **Metal is lathed or extruded** (`core/three/lathe.js`): case, bezel, rehaut,
-  crystal and caseback are solids of revolution from the two stacks; lugs,
-  crown guards, crown and pushers use the outlines the 2D renderers draw.
+- **Metal is lathed or swept** (`core/three/lathe.js`, `casebody.js`): the case
+  band (straight, drum, sloped or stepped), bezel, rehaut, crystal and caseback
+  are solids of revolution from the two stacks. The lugs (straight, twisted or
+  hooded) and crown guards are swept solids that grow out of the case through
+  fillets, standing a strap's width apart. The crown and pushers are lathed
+  along their own axes.
 - **Hands and applied indices are traced and ground** (`core/three/tracer.js`,
   `relief.js`): the 2D renderer bakes each silhouette, marching squares traces
   it back into outlines, and a height field over that outline gives it facets,
