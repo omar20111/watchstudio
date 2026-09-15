@@ -2,7 +2,7 @@
 
    The 3D watch grinds a set with PartStudio's own relief (three/markerset.js);
    this draws the same outlines and numerals for everything that is still a
-   painting — the preset thumbnail, the 2D fallback, the layered export — in
+   painting — the preset thumbnail, the dial texture, the layered export — in
    each bake mode drMarkers is asked for. Indices sit where PartStudio put them:
    outer end on the hour ring, pointing at the centre; numerals by their ink. */
 import {C,PX} from '../constants.js';

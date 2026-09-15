@@ -14,7 +14,7 @@ import {useSceneClock,fmtChrono} from '../core/time.js';
 import {useApp,store,patchPartT} from '../state/store.js';
 import {GOLD} from './primitives.jsx';
 import {useWatchView,RestoringNotice} from './WatchCanvas.jsx';
-import {FlatWatch} from './FlatWatch.jsx';
+import {NoWebgl} from './NoWebgl.jsx';
 import {SHEET,profileLayout} from '../core/three/view.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {webglState} from '../core/three/support.js';
@@ -31,7 +31,7 @@ const TILT_MAX=25*Math.PI/180,TILT_PER_PX=TILT_MAX/220,TILT_RETURN_MS=420;
 function ChronoReadout(){const c=useSceneClock();
  return<span className="text-[10px] text-neutral-400 tabular-nums pl-1" aria-live="off">chrono {fmtChrono(c.chrono.ms)}</span>}
 
-/* the flat 2D drawing only has a front */
+/* without 3D there is nothing to turn */
 export const stageCamera=(d,customs)=>{
  if(!webglState().ok)return'front';
  const c=['front','three-quarter','back','profile'].includes(d.camera)?d.camera:'front';
@@ -41,7 +41,7 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
  const structural=hasStructuralUpload(d,s.customs);
  const camera=stageCamera(d,s.customs);
  const innerRef=useRef();const drag=useRef(null);const down=useRef(null);
- const{host,canvas,view,box,redraw,gen,lost,flat}=useWatchView({camera,orbit:true});
+ const{host,canvas,view,box,redraw,gen,lost,noGL}=useWatchView({camera,orbit:true});
  const fit=Math.max(220,Math.min(box.w,box.h)-56);const size=fit*d.zoom;
  /* 1 mm = size/SHEET px: the sheet square below and the front camera agree */
  useEffect(()=>{if(view.current){view.current.setFrame({pxPerMm:size/SHEET,zoom:d.zoom});redraw()}},[size,d.zoom,camera,gen]);
@@ -53,11 +53,9 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
 
  /* pointer -> sheet px, through the sheet-sized square centred on the stage */
  const toSheet=e=>{const r=innerRef.current.getBoundingClientRect();const k=size/CAN;return[(e.clientX-r.left)/k,(e.clientY-r.top)/k]};
- const inSheet=e=>{const[px,py]=toSheet(e);return px>=0&&px<=CAN&&py>=0&&py<=CAN};
- /* The flat drawing has no geometry to cast a ray into, so there a drag moves
-    the part already selected in the parts list, from anywhere on the sheet. */
+ /* a ray into the 3D watch; with no 3D there is nothing to pick */
  const pickAt=e=>{const st=store.getState();
-  if(flat)return inSheet(e)?st.sel:null;
+  if(noGL)return null;
   if(!view.current||!canvas.current)return null;
   const r=canvas.current.getBoundingClientRect();
   return view.current.pick(e.clientX-r.left,e.clientY-r.top,st.sel)};
@@ -65,7 +63,7 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
 
  /* the tilt: where it is, the drag holding it, the ease bringing it back */
  const tilt=useRef({x:0,y:0,drag:null,raf:0});const[tilted,setTilted]=useState(false);
- const canTilt=camera==='front'&&!flat;
+ const canTilt=camera==='front'&&!noGL;
  const setTilt=(x,y)=>{const T=tilt.current,r=Math.hypot(x,y),k=r>TILT_MAX?TILT_MAX/r:1;
   T.x=x*k;T.y=y*k;if(view.current){view.current.setTilt(T.x,T.y);redraw()}};
  const settle=()=>{const T=tilt.current;cancelAnimationFrame(T.raf);
@@ -164,16 +162,15 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
   onPointerCancel={end} onLostPointerCapture={end}>
 
   {/* at night the backdrop goes dark with the studio (view.js applyNight) */}
-  {!flat&&d.night&&<div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(90% 80% at 50% 45%, rgba(8,12,18,.82) 0%, rgba(2,3,6,.94) 100%)'}}/>}
-  {!flat&&<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label={`Watch, ${camera} view`}/>}
+  {!noGL&&d.night&&<div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(90% 80% at 50% 45%, rgba(8,12,18,.82) 0%, rgba(2,3,6,.94) 100%)'}}/>}
+  {noGL?<NoWebgl/>:<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label={`Watch, ${camera} view`}/>}
   {lost&&<RestoringNotice/>}
   {camera==='profile'&&<canvas ref={overlay} className="absolute inset-0 w-full h-full pointer-events-none"/>}
 
   {/* the sheet: invisible in 3D, but it is the coordinate frame for guides and
-      drags — and in the flat drawing it is the drawing itself */}
+      drags */}
   <div ref={innerRef} className="absolute pointer-events-none" style={{width:size,height:size,left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
-   {flat&&<FlatWatch size={size} className="absolute inset-0"/>}
-   {camera==='front'&&!tilted&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
+   {camera==='front'&&!tilted&&!noGL&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
     {frames(s.sel,d).map((f,i)=>f.t==='c'
      ?<circle key={i} cx={C} cy={C} r={f.r} fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>
      :<rect key={i} x={f.x} y={f.y} width={f.w} height={f.h} rx="14" fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"
@@ -184,12 +181,12 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
   <div data-ui="1" className="stage-hint absolute top-3 left-3 text-[10px] text-neutral-400 bg-black/50 backdrop-blur px-2.5 py-1.5 rounded-lg border border-white/10"
    style={{zIndex:50,opacity:hintGone?0:1,transition:'opacity .5s',pointerEvents:hintGone?'none':undefined}} aria-hidden={hintGone||undefined}>
    {touchUI
-    ?(flat?'Pick a part in the list, then drag to move it · pinch to zoom'
+    ?(noGL?'The watch needs 3D graphics'
      :camera==='front'?'Drag a part to move it · pinch to zoom · two fingers to tilt · drag a diver bezel to turn it'
      :camera==='three-quarter'?'Drag to turn · pinch to zoom · tap a part to select it'
      :camera==='back'?'The caseback, the watch turned over · pinch to zoom'
      :'Side elevation and caseback, measured')
-    :(flat?'Flat 2D drawing · pick a part in the list, then drag to move it · Alt-drag rotate · drag a diver bezel to turn it · arrows nudge · 1–8 select · Ctrl+Z undo'
+    :(noGL?'The watch needs 3D graphics'
      :camera==='front'?'Drag part to move · Alt-drag rotate · drag a diver bezel to turn it · right-drag to tilt · Shift+scroll scale · arrows nudge · 1–8 select · V camera · Ctrl+Z undo'
      :camera==='three-quarter'?'Drag to orbit · click a part to select it · scroll to zoom · V camera'
      :camera==='back'?'The caseback, the watch turned over · scroll to zoom · V camera'
@@ -197,13 +194,13 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
 
   <div data-ui="1" role="group" aria-label="Camera" className="absolute top-3 right-3 flex items-center gap-1 bg-black/60 backdrop-blur px-2 py-1.5 rounded-full border border-white/10" style={{zIndex:50}}>
    {[['front','Front'],['three-quarter','¾'],['back','Back'],['profile','Side']].map(([id,label])=>{
-    const off=(id!=='front'&&flat)||((id==='three-quarter'||id==='back')&&structural);
+    const off=noGL||((id==='three-quarter'||id==='back')&&structural);
     return<button key={id} className={`chip ${camera===id?'on':''}`} disabled={off} aria-pressed={camera===id}
-     title={flat&&id!=='front'?`The ${label} view needs 3D graphics (WebGL), which this browser isn’t providing`
+     title={noGL?'Cameras need 3D graphics (WebGL), which this browser isn’t providing'
       :off?`An uploaded case, bezel, crown, hands or strap is a flat picture — it has no depth to turn, so the ${label} view is unavailable while one is in use`:id==='back'?'Back camera: the caseback, and the movement behind an exhibition window':`${label} camera`}
      style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
      onClick={()=>s.setD(n=>{n.camera=id})}>{label}</button>})}
-   {!flat&&<button className={`chip ${d.night?'on':''}`} aria-pressed={!!d.night} title={d.night?'Lights on (N)':'Lights out: see the lume glow (N)'}
+   {!noGL&&<button className={`chip ${d.night?'on':''}`} aria-pressed={!!d.night} title={d.night?'Lights on (N)':'Lights out: see the lume glow (N)'}
     onClick={()=>s.setD(n=>{n.night=!n.night})}>Night</button>}
    {camera==='three-quarter'&&<button className="chip" title="Reset the orbit" onClick={()=>{view.current&&view.current.fit();redraw();s.setD(n=>{n.zoom=1})}}>Reset</button>}
    {/* here as well as the toolbar: on a phone the toolbar's end is scrolled out of view */}

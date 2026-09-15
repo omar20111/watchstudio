@@ -203,9 +203,8 @@ for(const[name,apply,check]of COMBOS){
  const crownTip=C+g.R+g.crownR*1.8;
  if(crownTip>CAN)bad(name,`crown tip at ${crownTip.toFixed(0)}px exceeds the sheet`);
 
- /* every procedural layer must actually render */
- for(const l of layers){if(!l.proc)continue;
-  try{M.getProc(l.proc[0],d,l.proc[1])}catch(e){bad(name,`${l.proc[0]} renderer threw: ${e.message}`)}}
+ /* every part's artwork must actually render (buildLayers bakes it) */
+ for(const l of layers)if(!l.cv&&!l.url)bad(name,`${l.key} has no artwork`);
 
  checkHead(name,d);
  for(const crystal of['flat','dome','box']){const d2=M.clone(d);d2.case.crystal=crystal;checkHead(`${name} / ${crystal} crystal`,d2)}

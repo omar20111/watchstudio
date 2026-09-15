@@ -11,7 +11,6 @@ import {toast} from '../core/utils.js';
 import {sceneBlob3D} from '../core/three/view.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {webglState} from '../core/three/support.js';
-import {flatBlob} from './flat.js';
 
 export {loadImg,cover,paintBackground} from './background.js';
 
@@ -27,18 +26,16 @@ export function capMult(mult){const cap=maxMult();
  if(mult<=cap)return{mult,capped:false};
  return{mult:cap,capped:true}}
 
-/* with no WebGL there is only the flat front drawing, named so the file says so */
-export const exportCamera=(d,customs)=>!webglState().ok?'front-2d'
- :d.camera==='three-quarter'&&!hasStructuralUpload(d,customs)?'three-quarter':'front';
+export const exportCamera=(d,customs)=>d.camera==='three-quarter'&&!hasStructuralUpload(d,customs)?'three-quarter':'front';
 
 /* a composed scene as a Blob, at `mult` resolution */
 export function sceneBlob(d,customs,o={}){
  const {mult}=capMult(o.mult||1);
- if(!webglState().ok)return flatBlob(d,customs,{size:CAN*mult,clock:o.clock});
  return sceneBlob3D(d,customs,{size:CAN*mult,camera:o.camera||exportCamera(d,customs),clock:o.clock})}
 
 export async function exportPNG(want){
  const s=store.getState(),d=s.d;
+ if(!webglState().ok){toast('PNG export renders the watch in 3D, which needs WebGL');return}
  const {mult,capped}=capMult(want);
  if(capped)toast(`Exporting at ${mult}x — this device reports too little memory for ${want}x`);
  /* posed designs export from the scene clock; a live design is frozen at the
@@ -48,7 +45,6 @@ export async function exportPNG(want){
  try{blob=await sceneBlob(d,s.customs,{mult,clock})}
  catch(e){console.error('WatchStudio: PNG export failed',e)}
  if(!blob){toast('Export failed — the image was too large for this device');return}
- if(!webglState().ok)toast('Exported the flat 2D drawing — 3D renders need WebGL');
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
  a.download=`${s.projName.replace(/\s+/g,'_')}_${exportCamera(d,s.customs)}_${mult}x.png`;a.click();
  setTimeout(()=>URL.revokeObjectURL(a.href),4000)}

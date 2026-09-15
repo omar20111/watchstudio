@@ -478,7 +478,7 @@ export function dialDayOf(d,nowMs=Date.now()){const t=d.time||{},now=new Date(no
  return Math.min(clamp(Math.round(+t.date||1),1,31),last)}
 
 /* crown grows with the 'oversized' variant — shared by its frame, hit-box and selection guide */
-const crownScale=d=>d.parts.crown.variant==='oversized'?1.22:1;  /* must match crown.js */
+const crownScale=d=>d.parts.crown.variant==='oversized'?1.22:1;  /* must match crownParts in three/lathe.js */
 
 /* bounding frame used for upload auto-fit + thumbnails */
 export function frameBox(part,d){const g=geoOf(d);switch(part){

@@ -12,7 +12,7 @@ import {PartsList} from './ui/PartsList.jsx';
 import {Controls} from './ui/Controls.jsx';
 import {Stage,stageCamera} from './ui/Stage.jsx';
 import {hasStructuralUpload} from './core/three/uploads.js';
-import {useWebgl,webglState,retryWebgl,WEBGL_MESSAGE} from './core/three/support.js';
+import {useWebgl,webglState} from './core/three/support.js';
 import {SaveModal,ProjectsModal,SharedModal} from './ui/Modals.jsx';
 import {ARModal} from './ui/ARModal.jsx';
 import {Welcome,QuickStart,shouldWelcome} from './ui/Welcome.jsx';
@@ -37,22 +37,6 @@ class Boundary extends React.Component{
     <button className="btn" onClick={()=>this.setState({err:null})}>Try again</button>
     <button className="btn" onClick={()=>{store.get().setD(n=>{n.view='edit';n.camera='front';n.zoom=1});this.setState({err:null})}}>Back to the editor</button>
    </div></div>}}
-
-/* Says why the watch is flat and what still works. Retrying only helps after
-   the user changes something (hardware acceleration, another tab freeing the
-   GPU), so it re-probes rather than reloading. */
-function WebglBanner(){const gl=useWebgl();const[hidden,setHidden]=useState(false);const[tried,setTried]=useState(false);
- if(gl.ok||hidden)return null;
- const forced=gl.reason==='forced';
- return<div role="status" className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 bg-sky-500/10 border-b border-sky-400/30 text-[11px] text-sky-100">
-  <span aria-hidden="true">◐</span>
-  <span className="flex-1 min-w-[240px]">{WEBGL_MESSAGE[gl.reason]||WEBGL_MESSAGE.failed} Designing, saving, sharing and PNG export all still work; the ¾ and side views need WebGL.
-   {!forced&&' Turning on hardware acceleration in your browser settings, or using another browser, usually fixes it.'}
-   {tried&&' Still unavailable.'}</span>
-  {forced?<a className="btn" href={location.pathname+location.hash}>Open in 3D</a>
-   :<button className="btn" onClick={()=>setTried(!retryWebgl())}>Try 3D again</button>}
-  <button className="btn" aria-label="Hide this message" onClick={()=>setHidden(true)}>✕</button>
- </div>}
 
 export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
  const[modal,setModal]=useState(null);
@@ -127,7 +111,6 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
  const vault=s.vault||{ok:true};
  return<div className="h-full flex flex-col">
   <TopBar onModal={m=>m==='gallery'?setWelcome(true):setModal(m)}/>
-  <WebglBanner/>
   {/* A banner, not a toast: the failure this reports is silent data loss, and
       a message that fades after two seconds is how it went unnoticed before. */}
   {!vault.ok&&<div role="alert" className="shrink-0 flex items-center gap-3 px-3 py-2 bg-amber-500/15 border-b border-amber-500/40 text-[11px] text-amber-200">
@@ -152,7 +135,7 @@ export default function App(){const s=useApp();const d=s.d;const gl=useWebgl();
    </div>
    <div className="statusbar h-7 shrink-0 flex items-center gap-4 px-3 border-t border-white/10 bg-[#16171b] text-[10px] text-neutral-500 overflow-x-auto whitespace-nowrap">
     <span>Scale 1 mm = {PX} px @1200²</span><span>Case {d.caseMm} mm</span><span>Lug {strapMmOf(d)} mm</span>
-    <span>Zoom {Math.round(d.zoom*100)}%</span><span className="text-neutral-600">{gl.ok?'3D, built from the millimetre geometry':'Flat 2D drawing (no WebGL)'} · artwork on a 1200×1200 sheet, center (600,600)</span>
+    <span>Zoom {Math.round(d.zoom*100)}%</span><span className="text-neutral-600">{gl.ok?'3D, built from the millimetre geometry':'3D graphics unavailable'} · artwork on a 1200×1200 sheet, center (600,600)</span>
    </div></>}
   </Boundary>
   {shared&&<SharedModal shared={shared} onClose={()=>setShared(null)}/>}

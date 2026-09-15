@@ -153,9 +153,7 @@ function crystalSolid(H,Rr,arch,c0){const a=Rr.rBezIn,h=H.top-c0,shape=arch.crys
 export const lathe=(points,segments=160)=>new LatheGeometry(points,segments);
 
 /* ---------------------------------------------------------------------------
-   The parts that are not solids of revolution. Every outline below is the one
-   case.js / crown.js already draw, re-expressed in mm, so the 3D case and the
-   2D drawing share their proportions.
+   The parts that are not solids of revolution: lugs, crown and strap, in mm.
 --------------------------------------------------------------------------- */
 
 const shapeOf=pts=>{const s=new Shape();pts.forEach(([x,y],i)=>i?s.lineTo(x,y):s.moveTo(x,y));return s};

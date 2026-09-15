@@ -50,11 +50,13 @@ const expect=(ok,msg)=>{if(!ok){fails++;console.log('  FAIL  '+msg)}};
 
 const d0=M.clone(M.DEF);
 const L=M.buildLayers(d0,{});
-expect(L.length===12,`default design should build 12 layers, got ${L.length}`);
+/* strap top and bottom, bezel, dial, markers and three hands: the case, crown
+   and crystal are solids with no flat artwork */
+expect(L.length===8,`default design should build 8 artwork layers, got ${L.length}`);
 for(const t of M.THEMES){const n=M.clone(M.DEF);t.apply(n);
- expect(M.buildLayers(n,{}).length>=12,`theme "${t.name}" built too few layers`)}
+ expect(M.buildLayers(n,{}).length>=8,`theme "${t.name}" built too few layers`)}
 const n2=M.clone(M.DEF);M.shuffleInto(n2);
-expect(M.buildLayers(n2,{}).length>=12,'shuffled design built too few layers');
+expect(M.buildLayers(n2,{}).length>=8,'shuffled design built too few layers');
 const st=M.store.getState();
 /* ---- picking: a ray straight down into the built 3D watch ----
    sheet px -> mm on the dial plane; 12 o'clock is -z */
@@ -89,8 +91,10 @@ expect(miss===null,`click in the corner should pick nothing, got ${miss}`);
  const minHolder=G.hands.children.find(h=>h.name==='hand:min');
  expect(minHolder&&Math.abs(minHolder.rotation.y+Math.PI/2)<1e-9,'the minute hand transform must turn only the minute hand');
  d.case.thicknessMm=14;expect(M.headKey(d,{})!==k0,'a dimension change must rebuild')}
-let thumbs=0;const want=Object.values(M.VARIANTS).reduce((a,v)=>a+v.length,0);
-for(const part of Object.keys(M.VARIANTS))for(const v of M.VARIANTS[part]){
+/* artwork presets bake a thumbnail; the case, crown and crystal are solids (ui/PresetThumb.jsx) */
+const ART=Object.keys(M.VARIANTS).filter(p=>!['case','crown','crystal'].includes(p));
+let thumbs=0;const want=ART.reduce((a,p)=>a+M.VARIANTS[p].length,0);
+for(const part of ART)for(const v of M.VARIANTS[part]){
  expect(typeof M.getThumb(part,v,st.d)==='string',`thumbnail ${part}/${v} is not a data URL`);thumbs++}
 expect(thumbs===want,`expected ${want} thumbnails, got ${thumbs}`);
 const hy=M.hydrate({parts:{dial:{color:'#123456'}}});
@@ -153,26 +157,17 @@ const out=renderToString(React.createElement(M.App));
 expect(out.length>1000,`<App/> server render is suspiciously short (${out.length} chars)`);
 console.log('RENDER-TO-STRING ('+out.length+' chars)');
 
-/* ---- no WebGL: the flat 2D drawing takes over ----
+/* ---- no WebGL: every view says why, in place of the watch ----
    Before this, a browser without WebGL 2 threw into the error boundary and its
    "Try again" threw again. */
 {expect(M.webglState().ok,'the mocked browser should report WebGL as available');
- const d=M.clone(M.DEF),clock=M.sceneClock(d,0);
- const prep=await M.prepareFlat(d,{});
- expect(prep.below.width===M.CAN,`the flat static stack should be ${M.CAN}px, got ${prep.below.width}`);
- const over=prep.over.map(l=>l.key).join(',');
- expect(over==='hour,min,sec,crystal',`only the hands and crystal should draw per tick, got ${over}`);
- const[,ctx]=M.mk(600);let threw=null;try{M.drawFlat(ctx,prep,clock,.5)}catch(e){threw=e}
- expect(!threw,'drawFlat threw: '+(threw&&threw.message));
- expect((await M.prepareFlat(d,{},{mult:2})).below.width===M.CAN*2,'a 2x flat export should re-render at 2400px');
  const tq=M.clone(M.DEF);tq.camera='three-quarter';
  expect(M.stageCamera(tq,{})==='three-quarter','with WebGL the stage keeps a three-quarter camera');
  M.markWebglFailed('lost');
- expect(!M.webglState().ok&&M.webglState().reason==='lost','markWebglFailed did not switch views to the flat drawing');
+ expect(!M.webglState().ok&&M.webglState().reason==='lost','markWebglFailed did not record that 3D was lost');
  expect(M.stageCamera(tq,{})==='front','without WebGL the stage must fall back to the front camera');
- expect(M.exportCamera(tq,{})==='front-2d','without WebGL the PNG export must be the flat front drawing');
- const flatOut=renderToString(React.createElement(M.App));
- expect(/graphics driver stopped responding/.test(flatOut),'the app does not explain why the watch went flat');
+ const noGL=renderToString(React.createElement(M.App));
+ expect(/needs 3D graphics/.test(noGL)&&/graphics driver stopped responding/.test(noGL),'the app does not explain why the watch is missing');
  expect(M.retryWebgl()&&M.webglState().ok,'retryWebgl did not restore 3D once WebGL was available again')}
 
 /* ---- v7: dials gained a date window and a chapter step ----

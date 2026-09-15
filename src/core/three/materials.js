@@ -60,7 +60,7 @@ export function zoneFinish(finish,zone){const f=!finish||finish==='none'?'polish
  if(zone==='turned')return f==='matte'?'matte':'brushed';
  return f}
 
-/* AR coating strength by finish, as in render/crystal.js */
+/* AR coating strength by finish */
 const AR={none:1,brushed:.85,polished:.6,matte:.28};
 
 /* the real thickness of a solid glass part, for the renderers that trace light

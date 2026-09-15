@@ -117,11 +117,11 @@ pixels; these images are the check that does.
 
 ## Without WebGL
 
-If the browser has no WebGL 2 (hardware acceleration off, remote desktops,
-older machines) or the GPU drops out and does not recover, WatchStudio shows a
-flat 2D drawing instead, with a banner saying so. Designing, saving, sharing,
-PNG and GLB export all still work; the ¾ and side views need WebGL. Add `?2d`
-to the URL to force this mode.
+The watch is drawn only in 3D. If the browser has no WebGL 2 (hardware
+acceleration off, remote desktops, older machines) or the GPU drops out and
+does not recover, the stage says so in place of the watch, with how to fix it
+and a retry. The design stays saved; saving, sharing and project files still
+work, and the watch comes back as soon as 3D does.
 
 ## Publish online (GitHub Pages)
 
@@ -153,10 +153,10 @@ src/
 │   ├── cache.js         bakes (painted / flat / shape / lume / print) & thumbnails
 │   ├── layers.js        per-part artwork list, clock angle table
 │   ├── time.js          scene clock, chronograph
-│   ├── render/          2D renderers: thumbnails, artwork, textures for 3D
+│   ├── render/          artwork painters (dial, markers, hands, bezel, strap, caseback): textures, silhouettes, artwork files
 │   └── three/           lathe, tracer, surface, studio, uploads, watch, view
 ├── state/               store (undo/redo, autosave, projects, migrations), themes
-├── export/              png, glb, flat 2D fallback, layered zip, spec, project file, share URL
+├── export/              png, glb, tech pack, layered zip, spec, project file, share URL
 └── ui/                  App shell, Stage (editor), WatchCanvas, Controls, Views…
 ```
 

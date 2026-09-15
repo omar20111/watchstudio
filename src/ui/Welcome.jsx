@@ -4,8 +4,7 @@
    Shown to a first-time visitor who arrives with no design of their own and no
    share link; anyone can reopen it from the ⋯ menu (Gallery). The gallery's
    pictures are real renders of each theme, made one at a time in the
-   background so the page stays responsive; the flat drawing stands in where
-   there is no WebGL. */
+   background so the page stays responsive. Without WebGL the cards go without. */
 import React from 'react';
 import {store,useApp,DEF} from '../state/store.js';
 import {THEMES} from '../state/themes.js';
@@ -15,7 +14,6 @@ import {VARIANTS,VNAME} from '../core/parts.js';
 import {marketingClock} from '../core/time.js';
 import {renderStill} from '../core/three/view.js';
 import {webglState} from '../core/three/support.js';
-import {flatCanvas} from '../export/flat.js';
 const {useEffect,useRef,useState}=React;
 
 const WELCOMED='ws:welcomed';
@@ -32,11 +30,10 @@ const themeDesign=t=>{const d=clone(DEF);t.apply(d);d.time={...d.time,mode:'set'
 const stills=new Map();
 function useThemeStills(){const[,tick]=useState(0);
  useEffect(()=>{let alive=true;
-  (async()=>{for(const t of THEMES){if(!alive)return;if(stills.has(t.id))continue;
+  (async()=>{if(!webglState().ok){for(const t of THEMES)stills.set(t.id,null);tick(x=>x+1);return}
+   for(const t of THEMES){if(!alive)return;if(stills.has(t.id))continue;
    const d=themeDesign(t);
-   try{const cv=webglState().ok
-     ?await renderStill(d,{},{w:320,h:320,camera:'three-quarter',clock:marketingClock(d)})
-     :await flatCanvas(d,{},{size:320,background:false});
+   try{const cv=await renderStill(d,{},{w:320,h:320,camera:'three-quarter',clock:marketingClock(d)});
     stills.set(t.id,cv.toDataURL('image/png'))}
    catch(e){stills.set(t.id,null)}
    if(alive)tick(x=>x+1);

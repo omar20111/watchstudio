@@ -10,12 +10,11 @@ import {geoOf,strapMmOf,caseThickOf,lugToLugOf,crownMmOf,crystalMmOf,caseOf,dial
 import {marketingClock} from '../core/time.js';
 import {useApp} from '../state/store.js';
 import {useWatchView,RestoringNotice} from './WatchCanvas.jsx';
-import {FlatWatch} from './FlatWatch.jsx';
+import {NoWebgl} from './NoWebgl.jsx';
 import {renderStill} from '../core/three/view.js';
 import {headKey} from '../core/three/watch.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {useWebgl} from '../core/three/support.js';
-import {flatCanvas} from '../export/flat.js';
 import {useTwoFingers,useMedia} from './gestures.js';
 import {PhotoOverlay} from './Photo.jsx';
 import {SURFACES} from '../core/three/surfaces.js';
@@ -25,7 +24,7 @@ const {useEffect,useRef,useState}=React;
 
 export function ProductRender(){const s=useApp();const d=s.d;
  const camera=hasStructuralUpload(d,s.customs)?'front':'three-quarter';
- const{host,canvas,view,redraw,box,gen,lost,flat}=useWatchView({camera,orbit:true});
+ const{host,canvas,view,redraw,box,gen,lost,noGL}=useWatchView({camera,orbit:true});
  /* a pinch moves in closer for a look at the finish; it is this view's own
     framing, not the design's zoom */
  const[zoom,setZoom]=useState(1);const pinch0=useRef(1);
@@ -39,11 +38,10 @@ export function ProductRender(){const s=useApp();const d=s.d;
  const setProduct=patch=>s.setD(n=>{n.product={...(n.product||{}),...patch}});
  return<div ref={host} className="flex-1 min-h-0 relative overflow-hidden"
   style={{background:'radial-gradient(115% 85% at 50% 8%, #4a4e56 0%, #2c2f35 46%, #141519 100%)',touchAction:'none'}}>
-  {flat?<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <FlatWatch size={Math.max(220,Math.min(box.w*.78,box.h*.82))} label="Product render of the watch, flat 2D drawing"/></div>
+  {noGL?<NoWebgl/>
    :<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>}
   {lost&&<RestoringNotice/>}
-  {!flat&&!photo&&<div className="absolute top-3 right-3 left-3 sm:left-auto flex flex-wrap justify-end items-center gap-1.5" style={{zIndex:50}}>
+  {!noGL&&!photo&&<div className="absolute top-3 right-3 left-3 sm:left-auto flex flex-wrap justify-end items-center gap-1.5" style={{zIndex:50}}>
    <div role="group" aria-label="Surface" className="flex flex-wrap items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1">
     <span className="text-[10px] text-neutral-400 px-1">Surface</span>
     {SURFACES.map(([id,label])=><button key={id} className={`chip ${pr.surface===id?'on':''}`} aria-pressed={pr.surface===id}
@@ -60,7 +58,7 @@ export function ProductRender(){const s=useApp();const d=s.d;
    {s.projName} · {d.caseMm} mm · {(METALS[d.parts.case.metal]||{}).name}
   </div>
   {/* above the name line: the staging bar holds the top */}
-  <div className="absolute bottom-10 left-0 right-0 text-center text-[10px] text-neutral-500 pointer-events-none">{flat?'Flat 2D drawing — turning the watch needs WebGL':touchUI?'Drag to turn the watch · pinch to zoom':'Drag to turn the watch'}</div>
+  <div className="absolute bottom-10 left-0 right-0 text-center text-[10px] text-neutral-500 pointer-events-none">{noGL?'':touchUI?'Drag to turn the watch · pinch to zoom':'Drag to turn the watch'}</div>
  </div>}
 
 /* ---------------------------------------------------------------- sheet */
@@ -90,10 +88,8 @@ function useSheetStills(d,customs){const[img,setImg]=useState({});const gl=useWe
   (async()=>{const clock=marketingClock(d);
    /* drawings on paper: no table, so no drop shadow */
    const dd={...d,shadow:false};
-   /* No WebGL: the front elevation is the flat drawing; the side and caseback
-      are only ever built in 3D, so they say so instead of spinning forever. */
-   if(!gl.ok){const front=(await flatCanvas(dd,customs,{size:600,clock,background:false,shadow:false})).toDataURL('image/png');
-    if(alive)setImg({front,side:'unavailable',back:'unavailable'});return}
+   /* No WebGL: every elevation is built in 3D, so they say so instead of spinning forever */
+   if(!gl.ok){if(alive)setImg({front:'unavailable',side:'unavailable',back:'unavailable'});return}
    const url=async(camera,w,h)=>(await renderStill(dd,customs,{w,h,camera,clock})).toDataURL('image/png');
    try{
     const front=await url('front',600,600);if(!alive)return;setImg(o=>({...o,front}));

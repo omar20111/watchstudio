@@ -11,7 +11,7 @@
    The watch is rebuilt only when its headKey changes; part transforms, the
    bezel angle and the clock are applied to the built watch every frame. */
 import {WebGLRenderer,Scene,OrthographicCamera,PerspectiveCamera,DirectionalLight,Mesh,PlaneGeometry,
-        ShadowMaterial,NeutralToneMapping,SRGBColorSpace,VSMShadowMap,Vector3,Vector2,Raycaster,Spherical} from 'three';
+        ShadowMaterial,NeutralToneMapping,SRGBColorSpace,VSMShadowMap,Vector3,Vector2,Raycaster,Spherical,Box3} from 'three';
 import {CAN,PX} from '../constants.js';
 import {LIGHT} from '../render/material.js';
 import {lugToLugOf,geoOf} from '../geometry.js';
@@ -236,6 +236,11 @@ function stillView(){if(still)return still;
  c.addEventListener('webglcontextlost',()=>{still=null},{once:true});
  return still}
 
+/* Stills take turns on the one view: a preset picture rendering in the panel
+   must not swap the design out from under an export's frame, or the reverse. */
+let turn=Promise.resolve();
+const inTurn=fn=>{const r=turn.then(fn);turn=r.catch(()=>{});return r};
+
 async function ready(v,d,customs){let p=v.setDesign(d,customs);
  /* uploads load asynchronously; wait, then rebuild with them in place */
  for(let i=0;p&&i<3;i++){await p;p=v.setDesign(d,customs)}}
@@ -243,23 +248,42 @@ async function ready(v,d,customs){let p=v.setDesign(d,customs);
 /* A transparent still of the design. `camera` is front, three-quarter, side or
    back; front stills use the sheet scale so SVG dimension lines drawn at
    1 mm = size/SHEET px still land on the features. */
-export async function renderStill(d,customs,{w=CAN,h=w,camera='front',clock}={}){
+export function renderStill(d,customs,{w=CAN,h=w,camera='front',clock}={}){return inTurn(async()=>{
  const v=stillView();await ready(v,d,customs);
  v.setCamera(camera);v.resize(w,h,1);v.setFrame({pxPerMm:camera==='front'?Math.min(w,h)/SHEET:null,zoom:1});
  if(camera==='three-quarter')v.fit();
  v.render(clock||sceneClock(d,Date.now()));
  const out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(v.renderer.domElement,0,0);
- return out}
+ return out})}
+
+/* A preset's picture for the Presets row (ui/PresetThumb.jsx), as a data URL:
+   the case face-on out to its lug tips, the crown close up from three-quarter.
+   Rendered at twice the size and scaled down, so edges stay clean. */
+export function presetStill(d,part,{size=120,clock}={}){return inTurn(async()=>{
+ const v=stillView();await ready(v,d,{});
+ const S=size*2;v.resize(S,S,1);
+ try{
+  if(part==='crown'){const c=new Box3().setFromObject(v.watch.getObjectByName('crown')).getCenter(new Vector3());
+   v.setCamera('three-quarter');v.fit();v.orbit.phi=62*Math.PI/180;v.orbit.theta=60*Math.PI/180;
+   v.target().copy(c);v.setFrame({pxPerMm:null,zoom:5})}
+  else{const g=geoOf(d),r=(g.R+g.lugExt+14)/PX;
+   v.setCamera('front');v.setFrame({pxPerMm:S/(2*r),zoom:1})}
+  v.render(clock||sceneClock(d,Date.now()));
+  const out=document.createElement('canvas');out.width=out.height=size;
+  out.getContext('2d').drawImage(v.renderer.domElement,0,0,S,S,0,0,size,size);
+  return out.toDataURL('image/png')}
+ /* every other still frames from the centre */
+ finally{v.target().set(0,0,0);v.fit()}})}
 
 /* A technical line drawing of a design from the front, side or back
    (export/lineart.js), on the still view's renderer. */
-export async function lineDrawing(d,customs,opts={}){
+export function lineDrawing(d,customs,opts={}){return inTurn(async()=>{
  const v=stillView();await ready(v,d,customs);
- return renderLines(v.renderer,v.watch,opts)}
+ return renderLines(v.renderer,v.watch,opts)})}
 
 /* A frame of a design composed over its scene background, as a PNG Blob, at any
    size: large exports are rendered in GPU-sized tiles. */
-export async function sceneBlob3D(d,customs,{size=CAN,camera='front',clock,background=true}={}){
+export function sceneBlob3D(d,customs,{size=CAN,camera='front',clock,background=true}={}){return inTurn(async()=>{
  const v=stillView();await ready(v,d,customs);
  const out=document.createElement('canvas');out.width=out.height=size;
  const ctx=out.getContext('2d');
@@ -267,4 +291,4 @@ export async function sceneBlob3D(d,customs,{size=CAN,camera='front',clock,backg
  v.setCamera(camera==='profile'?'front':camera);v.setFrame({pxPerMm:camera==='three-quarter'?null:size/SHEET,zoom:1});
  if(camera==='three-quarter')v.fit();
  v.renderTiled(clock||sceneClock(d,Date.now()),size,(src,sx,sy,sw,sh,dx,dy)=>ctx.drawImage(src,sx,sy,sw,sh,dx,dy,sw,sh));
- return new Promise(r=>out.toBlob(r,'image/png'))}
+ return new Promise(r=>out.toBlob(r,'image/png'))})}

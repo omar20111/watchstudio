@@ -2,8 +2,7 @@
 
    An upload is a 1200² sheet-aligned image (upload.jsx fits it into the part's
    frame), so it drops onto the same sheet the procedural bakes use. The metal
-   tint and finish texture the 2D layer applied with CSS are composited into
-   the texture here instead.
+   tint and finish texture are composited into the texture here.
 
    A flat picture of a dial, strap artwork or markers still reads correctly as a
    texture on the 3D part. A flat picture of a case, bezel, crown or hands has no
@@ -28,7 +27,7 @@ function load(url){let e=images.get(url);
   img.src=url;images.set(url,e)}
  return e}
 
-/* how each part's upload was dressed in 2D (layers.js) */
+/* how each part's upload is dressed: tinted to its metal, and finished */
 const DRESS={strap:{tint:true,finish:true},case:{tint:true,finish:true},crown:{tint:true},
  bezel:{tint:true,finish:true},hands:{tint:true},dial:{},markers:{},crystal:{}};
 

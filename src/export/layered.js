@@ -18,7 +18,6 @@ import {loadImg} from './background.js';
 import {sceneBlob3D,renderStill} from '../core/three/view.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {webglState} from '../core/three/support.js';
-import {flatBlob} from './flat.js';
 
 const bytes=async blob=>blob?new Uint8Array(await blob.arrayBuffer()):new Uint8Array(0);
 const enc=s=>new TextEncoder().encode(s);
@@ -73,8 +72,8 @@ export async function exportLayered(){
  const clock=marketingClock(d);
  const files=[];
 
- /* Every layer on its own transparent sheet, at 1:1 — including parts the
-    user replaced with their own artwork. Skipping url-backed layers would
+ /* Every part's artwork on its own transparent sheet, at 1:1 — including parts
+    the user replaced with their own artwork. Skipping url-backed layers would
     quietly drop exactly the components someone customised. */
  const seen=new Set();
  for(const l of buildLayers(d,s.customs)){
@@ -88,8 +87,8 @@ export async function exportLayered(){
   const b=await new Promise(r=>cv.toBlob(r,'image/png'));
   files.push({name:`parts/${safe(l.key)}.png`,data:await bytes(b)})}
 
- /* every camera at 2x, from the same clock as the parts. Without WebGL the only
-    view is the flat front drawing; the parts, spec and geometry are unaffected. */
+ /* every camera at 2x, from the same clock as the parts. Without WebGL the
+    views are left out; the parts, spec and geometry are unaffected. */
  const has3D=webglState().ok;
  if(has3D){
   const front=await sceneBlob3D(d,s.customs,{size:CAN*2,camera:'front',clock});
@@ -99,15 +98,15 @@ export async function exportLayered(){
    files.push({name:'views/three-quarter@2x.png',data:await bytes(tq)})}
   files.push({name:'views/profile@2x.png',data:await bytes(await elevation(d,s.customs,'side',2800,1800,clock))});
   files.push({name:'views/caseback@2x.png',data:await bytes(await elevation(d,s.customs,'back',1800,1800,clock))})}
- else files.push({name:'views/front-2d@2x.png',data:await bytes(await flatBlob(d,s.customs,{size:CAN*2,clock}))});
 
  files.push({name:'spec.json',data:enc(JSON.stringify(specData(d,s.projName),null,2))});
  files.push({name:'geometry.json',data:enc(JSON.stringify(geometryData(d),null,2))});
  files.push({name:'README.txt',data:enc(
   `${s.projName}\nWatchStudio layered export\n\n`+
-  `parts/     every component's artwork on its own transparent 1200x1200 sheet\n`+
+  `parts/     the strap, bezel, dial, markers and hands artwork (and any uploaded part),\n`+
+  `           each on its own transparent 1200x1200 sheet\n`+
   (has3D?`views/     rendered front, three-quarter, profile and caseback at 2x\n`
-   :`views/     the flat 2D front drawing at 2x (this browser had no WebGL, so no 3D views)\n`)+
+   :`views/     none: this browser had no WebGL, which the rendered views need\n`)+
   `spec.json  every dimension in millimetres\n`+
   `geometry.json  the ring stack in canvas pixels (1 mm = ${PX} px)\n`)});
 

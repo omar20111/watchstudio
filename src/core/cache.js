@@ -34,9 +34,7 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
   part==='hands'?[d.parts.markers.variant,d.parts.markers.variant==='partstudio'?d.parts.markers.set:0]:0,
   /* a 3D strap is cut to its length from the spring bar, which a sport case's
      broader lugs move */
-  part==='strap'&&mode==='flat'?d.parts.case.variant:0,
-  /* the cyclops sits over the date window, wherever the dial puts one */
-  part==='crystal'?[p.cyclops,d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0])};
+  part==='strap'&&mode==='flat'?d.parts.case.variant:0])};
 
 /* Most bakes are the 1200² sheet. A 3D strap runs far past the sheet edge as it
    curves away, so its flat bake is a tall canvas reaching from just past the
@@ -62,10 +60,9 @@ export function getProc(part,d,sub,mode){const key=procKey(part,d,sub,mode);
  DR[part](ctx,procOpts(part,d,sub,mode));
  cache.set(key,cv);if(cache.size>CACHE_MAX)cache.delete(cache.keys().next().value);return cv}
 
-/* A preset thumbnail is the design with that preset applied, baked through the
-   same procOpts as the stage. It used to build its own option object, which
-   lacked pushers and the crown bearing — so case thumbnails never showed chrono
-   pushers the stage was drawing. */
+/* An artwork preset's thumbnail: the design with that preset applied, baked
+   through the same procOpts as the 3D textures, cropped to the part's frame.
+   The case, crown and crystal are solids and get theirs from ui/PresetThumb.jsx. */
 const THUMB_SUB={strap:'bottom',hands:'hour'};
 const tcache=new Map();
 export function getThumb(part,variant,d){const dv=clone(d);applyVariant(dv,part,variant);

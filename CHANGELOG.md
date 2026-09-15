@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+**Removed — the flat 2D watch**
+- The watch is drawn only in 3D now. The flat whole-watch drawing (the painted
+  case with its lugs, crown, crystal and rehaut, the layer compositor behind
+  it, the flat stage and `?2d`) is gone. It had become a second picture of the
+  watch that every case feature had to be built for twice, and it still could
+  not show a drum side, a hooded lug or an integrated shoulder.
+- **Kept:** the artwork painters for the dial, markers, hands, bezel, strap and
+  caseback. They are what the 3D watch is dressed in (textures, traced
+  silhouettes), and they still make the layered export's part files and the
+  tech pack's artwork.
+- **Without WebGL** the stage and the product view say so in place of the
+  watch: why, how to fix it (hardware acceleration, another browser), and a
+  retry. The design stays saved. PNG export says it needs 3D; the design
+  sheet's elevations say the same; the gallery cards go without pictures.
+- **Preset thumbnails:** the case and crown presets are small 3D stills of the
+  design with that preset applied, rendered one at a time and kept. The crystal
+  presets are drawn as their profile on the bezel (flat, domed, box), since
+  clear glass is not something a picture of the whole watch tells apart.
+- Still renders (exports, the design sheet, the gallery, preset pictures) now
+  take turns on their shared view, so one can no longer swap the design out
+  from under another's frame.
+- The layered export's `parts/` folder holds the strap, bezel, dial, markers
+  and hands artwork, plus any part the user uploaded a picture for.
+
 **Added — shaped cases and integrated bracelets**
 - **Case shape** (Case panel): *Round*, *Cushion* (a square with big rounded
   corners) or *Octagon*. The case band, chamfer and case top are lofted around

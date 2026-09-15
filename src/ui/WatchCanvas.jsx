@@ -13,10 +13,10 @@
    nothing.
 
    No WebGL, or a renderer that fails to start, and the hook creates nothing:
-   callers read `flat` and show the 2D drawing instead. If the GPU drops the
-   context the loop stops and `lost` is set; when the browser restores it the
-   view is rebuilt from scratch (`gen` bumps), and if it never comes back every
-   view switches to the flat drawing. */
+   callers read `noGL` and say why in place of the watch (NoWebgl.jsx). If the
+   GPU drops the context the loop stops and `lost` is set; when the browser
+   restores it the view is rebuilt from scratch (`gen` bumps), and if it never
+   comes back every view says so. */
 import React from 'react';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {store} from '../state/store.js';
@@ -37,8 +37,7 @@ export function useWatchView({camera='front',orbit=false}={}){
  const[gen,setGen]=useState(0);
  const[lost,setLost]=useState(false);
 
- /* the host is measured whether or not there is a 3D view: the flat drawing
-    is sized from it too */
+ /* the host is measured whether or not there is a 3D view yet */
  useEffect(()=>{const ro=new ResizeObserver(e=>{const r=e[0].contentRect;
    setBox({w:r.width,h:r.height});
    if(view.current){view.current.resize(r.width,r.height,dprOf());dirty.current=true}});
@@ -96,7 +95,7 @@ export function useWatchView({camera='front',orbit=false}={}){
 
  /* callers changing the frame or orbit from outside mark the view for a redraw */
  const redraw=()=>{dirty.current=true};
- return{host,canvas,view,box,redraw,gen,lost,flat:!gl.ok}}
+ return{host,canvas,view,box,redraw,gen,lost,noGL:!gl.ok}}
 
 /* shown over a view while the browser brings a dropped GPU context back */
 export const RestoringNotice=()=><div role="status" className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{zIndex:55}}>

@@ -4,6 +4,7 @@ import {PARTS,VARIANTS,VNAME,variantOf,applyVariant} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
+import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
 import {UploadZone} from './upload.jsx';
@@ -37,7 +38,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    {VARIANTS[part].map(v=>
     <button key={v} title={VNAME[v]||v} onClick={()=>s.upd(n=>applyVariant(n,part,v),'ctl:'+part)} className="flex flex-col items-center gap-0.5">
      <span className={`block rounded-lg overflow-hidden border-2 ${!d.active[part]&&variantOf(part,d)===v?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
-      <img src={getThumb(part,v,thumbD)} className="w-14 h-14 object-cover" alt={v}/></span>
+      <PresetThumb part={part} v={v} d={thumbD}/></span>
      <span className="text-[9px] text-neutral-500">{VNAME[v]||v}</span></button>)}
    {/* a marker set imported from PartStudio sits with the presets */}
    {part==='markers'&&p.set&&<button title={`PartStudio: ${p.set.name||'marker set'}`} aria-label="Use the PartStudio marker set"
