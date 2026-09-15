@@ -216,7 +216,14 @@ export function crownParts(d){
   /* barrel as lathe pieces around its own axis (radius, distance along axis) */
   inner:[V(rb*.19,0),V(rb-e,0),...round(V(rb-e,0),V(rb,0),V(rb,e)),V(rb,e)],
   side:[V(rb,e),V(rb,L-e*1.4)],
-  end:[V(rb,L-e*1.4),V(rb-e*1.4,L),...round(V(rb-e*1.4,L),V(rb*.55,L+e*.5),V(0,L+e*.35),6),V(0,L+e*.35)],
+  /* the end: a polished chamfer, then a shallow dome with a fine ring engraved
+    round it, which a flat disc — reflecting one patch of the studio — never shows */
+  end:(()=>{const r0=rb-e*1.4,cap=Math.min(.45,rb*.11),dome=r=>L+cap*(1-(r/r0)*(r/r0));
+   const rg=r0*.64,w=Math.min(.09,rb*.03),dep=Math.min(.06,cap*.25),pts=[V(rb,L-e*1.4),V(r0,L)];
+   for(let i=1;i<=6;i++){const r=r0-(r0-(rg+w))*i/6;pts.push(V(r,dome(r)))}
+   pts.push(V(rg,dome(rg)-dep),V(rg-w,dome(rg-w)));
+   for(let i=1;i<=8;i++){const r=(rg-w)*(1-i/8);pts.push(V(r,dome(r)))}
+   return pts})(),
   teeth:Math.max(18,Math.round(rb*2*Math.PI/.55)),
   pushers:d.case&&caseOf(d).pushers?[-30,30].map(off=>{const b=crownAng(d)+off,Rp=g.R/PX+caseReachMm(d,b);return{bearing:b,
    shoulder:{r:cr*.86*.3,x0:Rp-cr*.18,x1:Rp+cr*.16},

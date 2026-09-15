@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Changed — the crown's end**
+- The crown's end was a nearly flat disc, which reflects one patch of the
+  studio and reads as a grey plate. It is now a polished chamfer, a shallow
+  dome and a fine ring engraved round it, the way a signed crown is finished.
+
 **Changed — brushed steel streaks along its grain**
 - Brushed metal gets its directional highlight back, now clean: a brushed
   surface's mesh is given tangents from its uv (`materials.js withTangents`),
