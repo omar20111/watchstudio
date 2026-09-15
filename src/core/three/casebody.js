@@ -231,7 +231,10 @@ export function caseHorns(d){
  const strips=(k,W,h)=>{const prog=k/(stations.length-1),t=Math.max(.2,h.top-h.bot);
   const bi=Math.min(twisted?.22:.42,W*.26,t*.3);
   if(twisted){const bo=Math.min(W*(.12+.34*prog),W-bi-.02,t*.9);return hornSection(W,{bi,bo:Math.max(0,bo),facet:true,drop:Math.max(0,Math.min(bo*.85,t*.6))})}
-  return sculptedSection(W,t,{bi,bo:Math.min(.42,W*.26,t*.3)})};
+  /* the flank tucks in only once the lug is clear of the case: where it grows out
+     of the wall through its fillet it stands straight, so it meets the band cleanly */
+  const sMid=(stations[k].inner[1]+stations[k].outer[1])/2;
+  return sculptedSection(W,t,{bi,bo:Math.min(.42,W*.26,t*.3),tuck:.22*smoothstep(sCase+.2,sCase+2.4,sMid)})};
  if(!hooded){
   for(const sy of[-1,1])for(const sx of[-1,1]){
    parts.push(sweep(stations,{toWorld:(lat,s)=>[sx*lat,sy*s],heights,strips,tilt:k=>twisted?.05*k/(stations.length-1):0}));
@@ -285,7 +288,8 @@ export function crownGuards(d){
  for(const side of[-1,1]){
   /* local s runs along the crown's axis, lat across it; +lat toward 6 o'clock at 3 */
   const toWorld=(lat,s)=>{const X=s,Z=side*lat;return[X*cs-Z*sn,X*sn+Z*cs]};
-  out.push(sweep(stations,{toWorld,heights,strips:(k,W,h)=>{const t=Math.max(.2,h.top-h.bot);return sculptedSection(W,t,{bi:Math.min(.35,W*.25,t*.3),bo:Math.min(.35,W*.25,t*.3),tuck:.12})}}))}
+  out.push(sweep(stations,{toWorld,heights,strips:(k,W,h)=>{const t=Math.max(.2,h.top-h.bot),sMid=(stations[k].inner[1]+stations[k].outer[1])/2;
+   return sculptedSection(W,t,{bi:Math.min(.35,W*.25,t*.3),bo:Math.min(.35,W*.25,t*.3),tuck:.12*smoothstep(reach+.2,reach+1.8,sMid)})}}))}
  return out}
 
 /* ---------------------------------------------------------------- shaped profiles */
