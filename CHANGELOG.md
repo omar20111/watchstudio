@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+**Changed — a watch photographer's studio**
+- Polished metal looked like grey plastic: seen from above, a case's side
+  reflects the table, and the studio's table was an even pale grey, so the
+  side came out one flat grey (and rose gold one brown smear). The studio
+  (`three/studio.js`) is rebuilt as a catalogue set, built for reflections: a
+  dark room, a large overhead softbox pulled toward 12, two tall strip lights
+  at 2 and 10 o'clock, a lit backdrop behind with a crisp horizon line, and
+  white bounce cards stood on a dark table at 4, 7 and 10. A polished case
+  side now shows bright bands against dark ones, and edges and bezels carry
+  thin lines of light.
+- The set is one function of direction: the live views prefilter it (as half
+  float, which filters on every WebGL 2 device), and Photo mode path traces the
+  same panorama, now at full strength since the room is dark.
+- **Brushed** metal is a softer satin (rougher, no anisotropy). Its streaking
+  was derived per 2×2 pixel block without tangents, which the crisp new lights
+  turned into blotches; directional brushing comes back with real tangents.
+- **Black DLC** gains its glossy film (a clearcoat), and forged carbon a
+  stronger one: against a dark room a black case otherwise vanished, and the
+  grey reflections of the lights in that film are what show its shape.
+
 **Added — square and tonneau cases, square bezel**
 - **Case shape** gains *Square* (tight corners) and *Tonneau*: a barrel 1.2
   times as long from 12 to 6 as it is across, its sides bowed out, its ends

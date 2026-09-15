@@ -10,7 +10,7 @@ import {SAPPHIRE_IOR} from '../geometry.js';
 import {METALS} from '../constants.js';
 
 /* how each finish moves the metal's own roughness */
-const FINISH_ROUGH={polished:r=>Math.max(.05,r*.55),none:r=>Math.max(.05,r*.55),brushed:r=>Math.max(.26,r*1.6),matte:r=>Math.max(.5,r*2.2)};
+const FINISH_ROUGH={polished:r=>Math.max(.05,r*.55),none:r=>Math.max(.05,r*.55),brushed:r=>Math.max(.3,r*1.8),matte:r=>Math.max(.5,r*2.2)};
 
 /* the finish a metal material was made with, for wear.js (kept off userData,
    which a GLB export would write into the file) */
@@ -36,15 +36,19 @@ export function metalMaterial(metalId,finish='polished',o={}){
  const mat=new MeshPhysicalMaterial({color:new Color(m.base),roughness:rough,envMapIntensity:m.refl??1});
  finishOf.set(mat,f);
  if(m.kind==='metal'){mat.metalness=1;
-  /* circular graining: the lathe's u runs around the ring, so anisotropy along the
-     tangent streaks the highlight around the bezel the way a turned finish does */
-  if(f==='brushed'){mat.anisotropy=.85;mat.anisotropyRotation=0}}
+  /* black DLC is a hard carbon film: under the dark metal, its own glossy surface
+     throws back the studio's lights in grey, and that is what shows its shape */
+  if(metalId==='black'){mat.clearcoat=f==='matte'?.25:.7;mat.clearcoatRoughness=f==='matte'?.45:f==='brushed'?.22:.08}
+  /* brushed reads as satin: a rougher, softer reflection. (Anisotropy streaked it,
+     but with no tangents on the geometry the shader derives a direction per
+     2x2 pixel block, which against the studio's crisp lights showed as blotches.) */
+  }
  /* white ceramic: a bright diffuse body under a thin gloss. Full environment
     strength on both flattens it to paper white seen from above. */
  else if(m.kind==='ceramic'){mat.metalness=0;mat.roughness=.42;mat.clearcoat=.8;mat.clearcoatRoughness=.05;mat.envMapIntensity=.55;
   mat.color=new Color(m.base).multiplyScalar(.9)}
  else{/* forged carbon: a dark dielectric under a lacquer coat */
-  mat.metalness=.15;mat.roughness=.55;mat.clearcoat=.6;mat.clearcoatRoughness=.12}
+  mat.metalness=.15;mat.roughness=.55;mat.clearcoat=1;mat.clearcoatRoughness=.07}
  return mat}
 
 /* Where a finish goes. A case, bezel or crown is not one finish all over: its

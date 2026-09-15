@@ -47,9 +47,9 @@ export function createPhoto(canvas,{textureSize=2048}={}){
  pt.textureSize.set(textureSize,textureSize);
 
  const scene=new Scene();env=env||studioEquirect();
- /* the room fills the shadows; the softbox makes them. At full strength the
-    panorama lights the table from everywhere and the shadow all but vanishes */
- scene.environment=env;scene.environmentIntensity=.55;
+ /* the room fills the shadows; the softbox makes them. The set (studio.js) is a
+    dark room with a few bright lights, so it keeps the shadow at full strength */
+ scene.environment=env;scene.environmentIntensity=1;
  /* the product view's backdrop, lighter above: behind the surface's faded rim */
  const backdrop=new GradientEquirectTexture(64);backdrop.topColor.set(0x3a3d44);backdrop.bottomColor.set(0x131418);backdrop.update();
  scene.background=backdrop;
