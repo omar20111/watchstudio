@@ -14,7 +14,7 @@
 import {C,CAN,PX} from './constants.js';
 import {clamp} from './utils.js';
 import {MARKERSET_VARIANT,markerSetOf,setDepthMm} from './markerset/index.js';
-import {CASE_SHAPES,BEZEL_SHAPES,shapeSpec,extentAlong,inscribedApothem} from './caseshape.js';
+import {CASE_SHAPES,BEZEL_SHAPES,shapeSpec,extentAlong,inscribedApothem,crossingAt,outlinePoly,insetOf} from './caseshape.js';
 
 const num=(v,fallback)=>v==null||v==='auto'||!isFinite(+v)?fallback:+v;
 
@@ -61,8 +61,8 @@ export const DEF_CASE=()=>({
  side:'straight',      /* straight | drum | sloped | stepped — the case band's profile */
  lugs:'straight',      /* straight | twisted | hooded | integrated */
  lugHoles:false,       /* spring-bar holes drilled through the lugs */
- shape:'round',        /* round | cushion | octagon — the case's outline (caseshape.js) */
- bezelShape:'round'}); /* round | octagon */
+ shape:'round',        /* round | cushion | octagon | square | tonneau — the case's outline (caseshape.js) */
+ bezelShape:'round'}); /* round | octagon | square */
 
 export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['straight','twisted','hooded','integrated'];
 export {CASE_SHAPES,BEZEL_SHAPES};
@@ -139,11 +139,20 @@ export function thicknessStack(d){
   total:Math.round((sp.caseback+band+sp.movement+sp.dial+sp.bezel+sp.crystal)*100)/100,
   minThickness:c.minThickness,feasible:c.feasible}}
 
-/* lug-to-lug: case diameter + 2 x the exposed part of each lug. Lugs start
-   inside the case silhouette, so 45% of the lug length is buried in the wall. */
+/* lug-to-lug: the case's length from 12 to 6 + 2 x the exposed part of each
+   lug. Lugs start inside the case silhouette, so 45% of the lug length is
+   buried in the wall. */
 export function lugToLugMm(d){
  const c=caseOf(d);
- return Math.round((( +d.caseMm||40)+2*(c.lugLen*(c.lugs==='integrated'?INTEGRATED_EXPOSED:.55)))*10)/10}
+ return Math.round((caseLengthMm(d)+2*(c.lugLen*(c.lugs==='integrated'?INTEGRATED_EXPOSED:.55)))*10)/10}
+
+/* How much further than its size the case reaches toward 12 (and 6), mm: 0 for
+   every shape but the tonneau, which is longer than it is wide. Read from the
+   outline alone — geoOf leans on the lug-to-lug, so this cannot lean on geoOf. */
+export function endReachMm(d){const c=d.case||{},A0=(+d.caseMm||40)/2;
+ return CASE_SHAPES.includes(c.shape)&&c.shape!=='round'?Math.max(0,extentAlong(shapeSpec(c.shape),A0,-Math.PI/2)-A0):0}
+/* the case from 12 to 6, mm: its size, or a tonneau's length */
+export const caseLengthMm=d=>Math.round(((+d.caseMm||40)+2*endReachMm(d))*10)/10;
 
 export const lugWidthMm=d=>strapMmOf(d);
 /* crown bearing in degrees clockwise from 12 (3h = 90, 4:30 = 135) */
@@ -310,14 +319,46 @@ export function springBarMm(d){const g=geoOf(d),lugW=g.R*(d.parts.case.variant==
  if(caseOf(d).lugs==='integrated')return(g.R+g.lugExt)/PX-.9;
  return(g.R+g.lugExt-lugW*.85)/PX}
 
-/* The case's and the bezel's outlines in mm (caseshape.js): each a spec and the
-   apothem it is sized by (the case radius, the bezel's outer radius). */
-export function outlinesOf(d){const g=geoOf(d),c=caseOf(d),bs=shapeSpec(c.bezelShape);
- /* a shaped bezel keeps within the bezel's round size: its corners, not its
-    flats, reach rBezOut, so it never overhangs the case. `scale` maps a
-    profile's radius onto the outline's apothem. */
- const k=inscribedApothem(bs,1);
- return{case:{kind:c.shape,spec:shapeSpec(c.shape),A0:g.rCase/PX,scale:1},bezel:{kind:c.bezelShape,spec:bs,A0:g.rBezOut/PX*k,scale:k}}}
+/* How large a shaped bezel can be on this case, mm: as large as the case top
+   holds it — everywhere as far inside the case's outline as a round bezel sits
+   inside a round case — and no larger than its flats at the bezel's round size.
+   On a round case that puts an octagon's corners on the bezel's size; on a
+   square case a square bezel's corners run out into the case's. It fits if its
+   flats still clear the crystal opening. */
+const fitCache=new Map();
+export function bezelFit(d,kind){const g=geoOf(d),c=caseOf(d),cs=shapeSpec(c.shape),bs=shapeSpec(kind);
+ const cA0=g.rCase/PX,bOut=g.rBezOut/PX,bIn=g.rBezIn/PX;
+ if(kind==='round')return{A0:bOut,fits:true};
+ const key=[c.shape,kind,cA0,bOut,bIn].join('|');if(fitCache.has(key))return fitCache.get(key);
+ /* the bezel's outline scales with A0: the largest whose every point keeps the gap */
+ const unit=outlinePoly(bs,1,0,720).map(q=>q.p),gap=cA0-bOut;
+ const holds=a=>unit.every(p=>insetOf(cs,cA0,p[0]*a,p[1]*a)>=gap-1e-4);
+ let A0=bOut;
+ if(!holds(A0)){let lo=0,hi=bOut;for(let i=0;i<32;i++){const m=(lo+hi)/2;if(holds(m))lo=m;else hi=m}A0=lo}
+ const r={A0,fits:A0>=bIn+.4};
+ fitCache.set(key,r);if(fitCache.size>64)fitCache.delete(fitCache.keys().next().value);return r}
+
+/* The case's and the bezel's outlines in mm (caseshape.js): each a spec and A0,
+   how far it reaches toward 3 o'clock. A bezel shape that does not fit (bezelFit)
+   is built round. `scale` maps a profile's round radius onto the outline. */
+export function outlinesOf(d){const g=geoOf(d),c=caseOf(d);
+ const bf=bezelFit(d,c.bezelShape),bk=bf.fits?c.bezelShape:'round',A0=bf.fits?bf.A0:g.rBezOut/PX;
+ return{case:{kind:c.shape,spec:shapeSpec(c.shape),A0:g.rCase/PX,scale:1},
+  bezel:{kind:bk,spec:shapeSpec(bk),A0,scale:A0/(g.rBezOut/PX)}}}
+/* A tonneau's ends are narrower than its middle. Where a pair of lugs (or an
+   integrated shoulder) stands wider than the end's flat run, it sits out on the
+   rounded corners: {ok, endMm: the end's width where it still faces 12, needMm}. */
+const endCache=new Map();
+export function lugsFitEnd(d){const O=outlinesOf(d).case,lp=strapMmOf(d)/2+LUG_CLEAR_MM;
+ const sport=d.parts.case.variant==='sport',need=lp+(caseOf(d).lugs==='integrated'?Math.max(.9,O.A0*(sport?.17:.135)*.55):O.A0*(sport?.17:.135)*1.1);
+ if(O.kind!=='tonneau')return{ok:true,endMm:null,needMm:need*2};
+ /* the end still faces 12 while its normal is within 30 degrees of the axis */
+ let lo=endCache.get(O.A0);
+ if(lo==null){lo=0;let hi=O.A0;for(let i=0;i<24;i++){const m=(lo+hi)/2,c=crossingAt(O.spec,O.A0,-Math.PI/2,m);
+   if(c&&Math.abs(Math.atan2(c.normal[0],-c.normal[1]))<Math.PI/6)lo=m;else hi=m}
+  endCache.set(O.A0,lo)}
+ return{ok:need<=lo+1e-6,endMm:lo*2,needMm:need*2}}
+
 /* how much further out the case's outline reaches than its radius, along a
    bearing in degrees clockwise from 12 (a cushion's corner stands proud) */
 export function caseReachMm(d,bearing){const O=outlinesOf(d).case;
@@ -492,12 +533,15 @@ export function frameBox(part,d){const g=geoOf(d);switch(part){
  default:{const r=g.dialR;return[C-r,C-r,2*r,2*r]}}}
 
 /* dashed selection-guide shapes for the stage overlay */
-export function frames(sel,d){const g=geoOf(d),r=g.R;switch(sel){
+/* a shaped outline as an SVG path on the sheet, grown by `grow` px */
+const outlineD=(spec,A0,grow)=>outlinePoly(spec,A0,-grow,96).map(({p},i)=>`${i?'L':'M'}${(C+p[0]).toFixed(1)} ${(C+p[1]).toFixed(1)}`).join('')+'Z';
+export function frames(sel,d){const g=geoOf(d),r=g.R,c=caseOf(d);switch(sel){
  case'strap':return[{t:'r',x:C-g.sw/2-8,y:28,w:g.sw+16,h:C-g.R-40},{t:'r',x:C-g.sw/2-8,y:C+g.R+12,w:g.sw+16,h:CAN-28-(C+g.R+12)}];
- case'case':return[{t:'c',r:r+10}];
+ case'case':return c.shape==='round'?[{t:'c',r:r+10}]:[{t:'p',d:outlineD(shapeSpec(c.shape),g.rCase,10)}];
  /* swung to the crown's bearing, so a 4:30 crown is outlined at 4:30 */
  case'crown':{const b=crownBox(d);return[{t:'r',x:b.x+3,y:b.y+3,w:b.w-6,h:b.h-6,rot:crownAng(d)-90}]}
- case'bezel':return[{t:'c',r:g.rBezOut},{t:'c',r:g.rBezIn}];
+ case'bezel':{const B=outlinesOf(d).bezel;
+  return[B.kind==='round'?{t:'c',r:g.rBezOut}:{t:'p',d:outlineD(B.spec,B.A0*PX,0)},{t:'c',r:g.rBezIn}]}
  case'dial':return[{t:'c',r:g.dialR}];
  case'markers':return[{t:'c',r:g.dialR*0.92}];
  case'hands':return[{t:'c',r:g.dialR*0.95}];

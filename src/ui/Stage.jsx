@@ -171,7 +171,9 @@ export function Stage({onAR}){const s=useApp();const d=s.d;
       drags */}
   <div ref={innerRef} className="absolute pointer-events-none" style={{width:size,height:size,left:'50%',top:'50%',transform:'translate(-50%,-50%)'}}>
    {camera==='front'&&!tilted&&!noGL&&<svg viewBox="0 0 1200 1200" className="absolute inset-0 w-full h-full" style={{zIndex:40}}>
-    {frames(s.sel,d).map((f,i)=>f.t==='c'
+    {frames(s.sel,d).map((f,i)=>f.t==='p'
+     ?<path key={i} d={f.d} fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>
+     :f.t==='c'
      ?<circle key={i} cx={C} cy={C} r={f.r} fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"/>
      :<rect key={i} x={f.x} y={f.y} width={f.w} height={f.h} rx="14" fill="none" stroke={GOLD} strokeWidth="3" className="dashAnim" opacity=".85"
        transform={f.rot?`rotate(${f.rot} ${C} ${C})`:undefined}/>)}

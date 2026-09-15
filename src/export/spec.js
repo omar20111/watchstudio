@@ -1,6 +1,6 @@
 /* Spec-sheet (txt) export. */
 import {PX,METALS} from '../core/constants.js';
-import {strapMmOf,caseOf,thicknessStack,lugToLugOf,crownMmOf,bezelMmOf,dialLayoutOf,handLengthsOf,geoOf} from '../core/geometry.js';
+import {strapMmOf,caseOf,thicknessStack,lugToLugOf,crownMmOf,bezelMmOf,dialLayoutOf,handLengthsOf,geoOf,caseLengthMm,outlinesOf} from '../core/geometry.js';
 import {store} from '../state/store.js';
 
 /* a hand-edited project or a future migration can carry a metal id this build
@@ -11,7 +11,7 @@ export function exportSpec(){const s=store.getState(),d=s.d,P=d.parts;
  const c=caseOf(d),st=thicknessStack(d);
  const insert=P.bezel.variant==='diver'||P.bezel.variant==='gmt';
  const L=['WatchStudio — Spec Sheet',`Project: ${s.projName}`,`Date: ${new Date().toLocaleString()}`,`Canvas: 1200×1200 px, dial center (600,600) · Scale 1 mm = ${PX} px`,'',
- `Case: ${d.caseMm} mm${c.shape==='round'?'':' across flats, '+c.shape}${c.bezelShape==='round'?'':' · '+c.bezelShape+' bezel'} · ${metal(P.case.metal)} · ${P.case.finish} · ${P.case.variant}`,
+ `Case: ${d.caseMm} mm${c.shape==='round'?'':c.shape==='tonneau'?' × '+caseLengthMm(d)+' mm, tonneau':' across flats, '+c.shape}${outlinesOf(d).bezel.kind==='round'?'':' · '+outlinesOf(d).bezel.kind+' bezel'} · ${metal(P.case.metal)} · ${P.case.finish} · ${P.case.variant}`,
  `Case architecture: ${c.thickness} mm thick (caseback ${st.caseback} · band ${st.band} · movement ${st.movement} · dial ${st.dial} · bezel ${st.bezel} · crystal ${st.crystal})${c.feasible?'':` — raised from ${c.requested} mm`}`,
  `Lugs: ${c.lugs}${c.lugHoles?', drilled':''} · ${c.lugLen} mm long · ${c.lugDrop} mm drop · lug-to-lug ${lugToLugOf(d)} mm · lug width ${strapMmOf(d)} mm · case side ${c.side}`,
  `Movement: ${c.movement} · caseback ${c.caseback}${c.caseback==='engraved'?` "${c.engraving}"`:''} · water resistance ${c.wrM} m`,

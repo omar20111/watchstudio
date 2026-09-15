@@ -2,7 +2,7 @@
 import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
-        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf} from '../core/geometry.js';
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
 import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
@@ -74,10 +74,11 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
     {['case','crown','bezel'].includes(part)&&p.finish==='brushed'&&<p className="text-[10px] text-neutral-500">Brushed on the flat surfaces, polished on the bevelled edges — the way a sport case is finished.</p>}</Section>}
   {part==='case'&&(()=>{const c=caseOf(d),st=thicknessStack(d);
    const setc=(patch,tag)=>s.upd(n=>{n.case={...n.case,...patch}},tag||'case');
-   const Pick=({label,val,opts,onPick,tag})=><div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
+   /* `off`: choices that cannot be had here, each with the reason */
+   const Pick=({label,val,opts,onPick,tag,off={}})=><div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400">
      <span>{label}</span><div className="flex gap-1 flex-wrap justify-end">{opts.map(([v,t])=>
-      <button key={v} className={`chip ${val===v?'on':''}`} aria-label={`${label}: ${t}`}
-       onClick={()=>onPick(v)}>{t}</button>)}</div></div>;
+      <button key={v} className={`chip ${val===v?'on':''}`} aria-label={`${label}: ${t}`} disabled={!!off[v]} title={off[v]||undefined}
+       style={off[v]?{opacity:.35,cursor:'not-allowed'}:undefined} onClick={()=>onPick(v)}>{t}</button>)}</div></div>;
    return<Section title="Case Architecture">
     <Slider label="Thickness" min={6} max={20} step={0.1} val={c.thickness}
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({thicknessMm:v},'thk')}/>
@@ -92,14 +93,19 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugLenMm:v},'lug')}/>
     <Slider label="Lug drop" min={0} max={6} step={0.1} val={c.lugDrop}
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugDropMm:v},'drop')}/>
-    <Pick label="Case shape" val={c.shape} opts={[['round','Round'],['cushion','Cushion'],['octagon','Octagon']]}
+    <Pick label="Case shape" val={c.shape} opts={[['round','Round'],['cushion','Cushion'],['octagon','Octagon'],['square','Square'],['tonneau','Tonneau']]}
      onPick={v=>setc({shape:v},'shape')}/>
-    <Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon']]}
-     onPick={v=>setc({bezelShape:v},'bshape')}/>
+    {c.shape==='tonneau'&&<p className="text-[10px] text-neutral-500">{(+d.caseMm).toFixed(1)} mm across, {caseLengthMm(d).toFixed(1)} mm from 12 to 6.</p>}
+    {(()=>{const why=k=>bezelFit(d,k).fits?null:`A ${k} bezel this size would cut into the crystal opening on a ${c.shape} case`;
+     const off={octagon:why('octagon'),square:why('square')};
+     return<><Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon'],['square','Square']]} off={off}
+      onPick={v=>setc({bezelShape:v},'bshape')}/>
+      {off[c.bezelShape]&&<p className="text-[10px] text-amber-400/90">{off[c.bezelShape]}, so it is built round. A square or cushion case, or a wider bezel, makes room for it.</p>}</>})()}
     <Pick label="Case side" val={c.side} opts={[['straight','Straight'],['drum','Drum'],['sloped','Sloped'],['stepped','Stepped']]}
      onPick={v=>setc({side:v},'side')}/>
     <Pick label="Lugs" val={c.lugs} opts={[['straight','Straight'],['twisted','Twisted'],['hooded','Hooded'],['integrated','Integrated']]}
      onPick={v=>setc({lugs:v},'lugs')}/>
+    {(f=>!f.ok&&<p className="text-[10px] text-amber-400/90">This tonneau’s ends are {f.endMm.toFixed(1)} mm across and the {c.lugs==='integrated'?'shoulder':'lugs'} for a {strapMmOf(d)} mm strap need {f.needMm.toFixed(1)} mm, so {c.lugs==='integrated'?'it runs':'they sit'} out onto its rounded corners. A narrower strap or a larger case keeps {c.lugs==='integrated'?'it':'them'} on the end.</p>)(lugsFitEnd(d))}
     <label className="flex items-center gap-2 text-[11px] text-neutral-400">
      <input type="checkbox" checked={c.lugHoles&&c.lugs!=='integrated'} disabled={c.lugs==='integrated'} onChange={e=>setc({lugHoles:e.target.checked},'holes')}/>
      Drilled lug holes</label>

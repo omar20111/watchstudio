@@ -15,7 +15,7 @@
    normals out of the metal. */
 import {Vector2,LatheGeometry,Shape} from 'three';
 import {PX} from '../constants.js';
-import {LUG_CLEAR_MM,caseReachMm,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
+import {LUG_CLEAR_MM,caseReachMm,endReachMm,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -178,7 +178,7 @@ export function lugParts(d){
  for(const sy of[-1,1])for(const sx of[-1,1])shapes.push(shapeOf(outline.map(([x,s])=>[sx*x,-sy*s])));
  return{shapes,top,bottom,thick:top-bottom,drop:arch.lugDrop,
   /* where the drop starts and where it is complete, in mm from the centre */
-  z0:R*.9,z1:tip,
+  z0:(R+endReachMm(d))*.9,z1:tip,
   /* spring bar: near the tip, through the lug */
   springZ:springBarMm(d),
   plan:{xi,xo,xc,wt,rf,tip,lugW},

@@ -54,6 +54,13 @@ export async function run({page,ready,until,press,expect,url}){
  expect(corner>round.hi*1.03,`a cushion case reaches out at its corners (${corner.toFixed(2)} vs round ${round.hi.toFixed(2)})`);
  expect(!(await p.evaluate(()=>!!window.__watchView.watch.getObjectByName('lugHoles'))),'an integrated case drops the drilled holes');
  expect(await until(p,()=>/"shape":"cushion"/.test(localStorage.getItem('ws:auto')||'')&&/"bezelShape":"octagon"/.test(localStorage.getItem('ws:auto')||'')&&/"lugs":"integrated"/.test(localStorage.getItem('ws:auto')||''),null,20000),'the case shape is saved');
+ /* a tonneau is longer from 12 to 6 than across, and a square bezel that would cut into its opening is not on offer */
+ {const u0=await p.evaluate(()=>window.__watchView.watch.uuid);await press(p,'Case shape: Tonneau');
+  expect(await until(p,u=>window.__watchView.watch.uuid!==u,u0,120000),'Case shape: Tonneau rebuilds the watch');
+  const ext=await p.evaluate(()=>{const a=window.__watchView.watch.getObjectByName('chamfer').geometry.attributes.position;let x=0,z=0;
+   for(let i=0;i<a.count;i++){x=Math.max(x,Math.abs(a.getX(i)));z=Math.max(z,Math.abs(a.getZ(i)))}return{x,z}});
+  expect(ext.z>ext.x*1.15,`a tonneau is longer than it is wide (${(2*ext.z).toFixed(1)} by ${(2*ext.x).toFixed(1)} mm)`);
+  expect(await p.evaluate(()=>{const b=document.querySelector('button[aria-label="Bezel shape: Square"]');return !!b&&b.disabled}),'a square bezel is not offered on a tonneau this size')}
  expect(await until(p,()=>/"wear":"worn"/.test(localStorage.getItem('ws:auto')||''),null,20000),'the Wear choice is saved');
  await p.reload();await ready(p);
  expect(await until(p,()=>/\bon\b/.test((document.querySelector('button[aria-label="Wear: Worn"]')||{}).className||''),null,60000),'and survives a reload');

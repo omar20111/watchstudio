@@ -16,7 +16,7 @@ numbers and nothing else:
 - **Metal is lathed or swept** (`core/three/lathe.js`, `casebody.js`): the case
   band (straight, drum, sloped or stepped), bezel, rehaut, crystal and caseback
   are solids of revolution from the two stacks, or lofts of the same profile
-  around a cushion or octagon outline (`core/caseshape.js`), where every inset
+  around a cushion, octagon, square or tonneau outline (`core/caseshape.js`), where every inset
   of the outline keeps its shape. The lugs (straight, twisted, hooded, or an
   integrated shoulder the strap runs flush out of) and crown guards are swept
   solids that grow out of the case through fillets, standing a strap's width

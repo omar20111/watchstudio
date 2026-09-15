@@ -24,7 +24,7 @@ import {webglState} from '../core/three/support.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {headHeights,headRadii,crownParts} from '../core/three/lathe.js';
 import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,dialLayoutOf,handLengthsOf,
-        strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf,outlinesOf} from '../core/geometry.js';
+        strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf,outlinesOf,caseLengthMm} from '../core/geometry.js';
 import {CASEBACK_WINDOW} from '../core/render/caseback.js';
 import {METALS,PX} from '../core/constants.js';
 import {VNAME} from '../core/parts.js';
@@ -124,8 +124,10 @@ function figures(d,name){const c=caseOf(d),st=thicknessStack(d),g=geoOf(d),P=d.p
  const rot=P.bezel.variant==='diver'||P.bezel.variant==='gmt',bracelet=P.strap.variant==='steel';
  const SL=strapLengthsOf(d),hw=P.strap.metal==='ceramic'?'steel':P.strap.metal==='carbon'?'black':(P.strap.metal||'steel');
  return{name,c,st,g,P,H,Rr,L,cp,rot,bracelet,
-  caseMm:+d.caseMm,round:c.shape==='round',sizeLabel:c.shape==='round'?'Ø'+f1(+d.caseMm):f1(+d.caseMm)+' across flats',
-  bezelFlats:outlinesOf(d).bezel.A0*2,
+  caseMm:+d.caseMm,round:c.shape==='round',lengthMm:caseLengthMm(d),
+  sizeLabel:c.shape==='round'?'Ø'+f1(+d.caseMm):c.shape==='tonneau'?f1(+d.caseMm)+' wide':f1(+d.caseMm)+' across flats',
+  /* the bezel as built: a shape that does not fit the case is made round */
+  bezelKind:outlinesOf(d).bezel.kind,bezelFlats:outlinesOf(d).bezel.A0*2,
   l2l:lugToLugMm(d),lugW:strapMmOf(d),crownMm:crownMmOf(d),bezelMm:bezelMmOf(d),
   dialMm:rMm*2,openingMm:Rr.rBezIn*2,hands:{hour:HL.hour*rMm,min:HL.min*rMm,sec:HL.sec*rMm},
   cyclops:cy,vph:BEAT_HZ[c.movement]?BEAT_HZ[c.movement]*7200:null,
@@ -150,7 +152,8 @@ async function cover(doc,F,d,customs,clock,meta,has3D){
  pg.text(X,M+22,'TECH PACK',{size:9,bold:true,color:DIM});
  pg.text(X,M+33,F.name,{size:20,bold:true});
  pg.text(X,M+40,`${meta.date} · made with WatchStudio`,{size:8,color:MUTED});
- const rows=[[F.round?'Case diameter':'Case across flats',`${f1(F.caseMm)} mm${F.round?'':` (${F.c.shape})`}`],['Thickness',`${f1(F.c.thickness)} mm`],['Lug to lug',`${f1(F.l2l)} mm`],
+ const rows=[F.c.shape==='tonneau'?['Case width × length',`${f1(F.caseMm)} × ${f1(F.lengthMm)} mm (tonneau)`]
+  :[F.round?'Case diameter':'Case across flats',`${f1(F.caseMm)} mm${F.round?'':` (${F.c.shape})`}`],['Thickness',`${f1(F.c.thickness)} mm`],['Lug to lug',`${f1(F.l2l)} mm`],
   ['Lug width',`${f1(F.lugW)} mm`],['Crystal',`${F.crystalName} sapphire${F.cyclops?', cyclops':''}`],
   ['Movement',cap(F.c.movement)+(F.vph?` · ${F.vph.toLocaleString('en-US')} vph`:'')],
   ['Caseback',cap(F.c.caseback)],['Water resistance',`${F.c.wrM} m`],
@@ -170,7 +173,7 @@ async function caseSheet(doc,F,d,customs,clock,meta,has3D){
     drawings give the extents to plan with. */
  const probeF=has3D?await lineDrawing(d,customs,{view:'front',ppm:3,pen:.6,clock}):null;
  const probeS=has3D?await lineDrawing(d,customs,{view:'side',ppm:3,pen:.6,clock}):null;
- const ringLabels=[F.c.bezelShape==='round'?`Ø${f1(F.Rr.rBezOut*2)} bezel`:`${f1(F.bezelFlats)} bezel across flats`,`Ø${f1(F.openingMm)} crystal opening`,`Ø${f1(F.dialMm)} dial`];
+ const ringLabels=[F.bezelKind==='round'?`Ø${f1(F.Rr.rBezOut*2)} bezel`:`${f1(F.bezelFlats)} bezel across flats`,`Ø${f1(F.openingMm)} crystal opening`,`Ø${f1(F.dialMm)} dial`];
  const labelW=Math.max(...ringLabels.map(t=>textWidth(t,7)));
  const plan=s=>{const sxC=PAGE_W-M-24-(probeS?probeS.box.u1:hl)*s,sideLeft=sxC+(probeS?probeS.box.u0:-hl)*s;
   const l2lX=sideLeft-9,fx=l2lX-8-(probeF?probeF.box.u1:R+8)*s;
@@ -196,7 +199,7 @@ async function caseSheet(doc,F,d,customs,clock,meta,has3D){
   const crown=FR.extents.crown;if(crown){const[xc,yc]=P(crown.u1,(crown.v0+crown.v1)/2);dimH(pg,xa,xc,yd+8,ya,yc,f1(crown.u1+R)+' over the crown')}}
  /* the rings, by leaders to the left */
  const ring=(r,deg,label,row)=>{const a=deg*Math.PI/180,[px,py]=P(r*Math.sin(a),-r*Math.cos(a));leader(pg,px,py,fx-R*s-3,fy-16+row*6,label,{align:'right'})};
- ring(F.c.bezelShape==='round'?F.Rr.rBezOut*.995:F.bezelFlats/2*.99,292,ringLabels[0],0);
+ ring(F.bezelKind==='round'?F.Rr.rBezOut*.995:F.bezelFlats/2*.99,292,ringLabels[0],0);
  ring(F.Rr.rBezIn,280,ringLabels[1],1);
  ring(F.dialMm/2*.99,266,ringLabels[2],2);
  if(F.L.subdials.length){const sd=F.L.subdials.find(x=>x.key==='chMin')||F.L.subdials[0],[px,py]=P((sd.x-600)/PX,(sd.y-600)/PX);
@@ -212,12 +215,17 @@ async function caseSheet(doc,F,d,customs,clock,meta,has3D){
  const right=sxC+SD.box.u1*s;
  {const[xa,ya]=Q(R,0),[xb,yb]=Q(0,-H.top);dimV(pg,ya,yb,right+6,xa,xb,f1(F.c.thickness))}
  {const[xa,ya]=Q(F.Rr.rBezIn,-H.bezelTop),[xb,yb]=Q(0,-H.top);dimV(pg,ya,yb,right+14,xa,xb,f1(F.st.crystal))}
- const sl=SD.extents.lugs||SD.box,yb=Q(0,sl.v1)[1];
+ /* under the whole drawing: an integrated shoulder sits higher than the caseback */
+ const sl=SD.extents.lugs||SD.box,yb=Q(0,Math.max(sl.v1,SD.box.v1))[1];
  {const[xa]=Q(-hl,0),[xb]=Q(hl,0);dimH(pg,xa,xb,yb+8,Q(-hl,sl.v1)[1]-2,Q(hl,sl.v1)[1]-2,f1(F.l2l))}
+ /* a tonneau is longer than it is wide: its length from 12 to 6, under the lug-to-lug */
+ const long=F.c.shape==='tonneau',extra=long?8:0;
+ if(long){const[xa,ya]=Q(-F.lengthMm/2,0),[xb]=Q(F.lengthMm/2,0);dimH(pg,xa,xb,yb+16,ya,ya,f1(F.lengthMm)+' case length')}
  const cr=SD.extents.crown;if(cr){const[px,py]=Q((cr.u0+cr.u1)/2,cr.v1);
-  leader(pg,px,py,sxC+4,yb+18,`Crown Ø${f1(F.crownMm)}, its axis ${f1(F.cp.axisY)} above the caseback`)}
+  /* slanting away to the left, clear of the dimension figures centred under the drawing */
+  leader(pg,px,py,sxC-24,yb+18+extra,`Crown Ø${f1(F.crownMm)}, its axis ${f1(F.cp.axisY)} above the caseback`)}
  pg.text(right+16,Q(0,-(H.top+H.bezelTop)/2)[1]+1,'crystal',{size:6,color:DIM});
- pg.text(sxC,yb+30,'Thickness stack and construction: sheet 3.',{size:6.5,color:MUTED,align:'center'});
+ pg.text(sxC,yb+30+extra,'Thickness stack and construction: sheet 3.',{size:6.5,color:MUTED,align:'center'});
  if(hasStructuralUpload(d,customs))pg.text(M+6,PAGE_H-M-4,'Uploaded parts are flat pictures and are not drawn.',{size:6.5,color:CUTRED});
  pg.text(M+6,PAGE_H-M-9,'Dimensions in mm. Tolerances to be agreed with the manufacturer (sheet 7).',{size:6.5,color:MUTED})}
 
@@ -256,7 +264,7 @@ function partsSheet(doc,F,d,meta){
  const zones=f=>f==='brushed'?'Brushed; bevels polished':f==='matte'?'Bead-blasted':f==='polished'||f==='none'||!f?'Polished':cap(f);
  const rows=[
   ['Case',`${cap(F.c.shape)} ${(VNAME[P.case.variant]||P.case.variant).toLowerCase()}; ${cap(F.c.side)} side; ${F.c.lugs==='integrated'?'integrated':cap(F.c.lugs)+' lugs'}${F.c.lugHoles&&F.c.lugs!=='integrated'?', drilled':''}`,metalName(P.case.metal),zones(P.case.finish),'—',`Ø${f1(F.caseMm)}, ${f1(F.c.thickness)} thick, lug to lug ${f1(F.l2l)}, lug width ${f1(F.lugW)}`],
-  ['Bezel',`${VNAME[P.bezel.variant]||P.bezel.variant}${F.c.bezelShape==='round'?'':', '+F.c.bezelShape}`,metalName(P.bezel.metal),zones(P.bezel.finish),F.rot?(P.bezel.insertColor||'#101318'):'—',
+  ['Bezel',`${VNAME[P.bezel.variant]||P.bezel.variant}${F.bezelKind==='round'?'':', '+F.bezelKind}`,metalName(P.bezel.metal),zones(P.bezel.finish),F.rot?(P.bezel.insertColor||'#101318'):'—',
    `Outer Ø${f1(F.Rr.rBezOut*2)}, width ${f1(F.bezelMm)}, ${f1(F.st.bezel)} high${F.rot?`; insert, ${detentOf(d)} clicks`:''}`],
   ['Crystal',`${F.crystalName} sapphire`,'Sapphire','Polished','—',`Ø${f1(F.openingMm)} visible, ${f1(F.c.crystalMm)} above the bezel${F.cyclops?'; cyclops over the date':''}`],
   ['Dial',VNAME[P.dial.variant]||P.dial.variant,'—',!P.dial.finish||P.dial.finish==='none'?'—':cap(P.dial.finish),P.dial.color,

@@ -4,10 +4,10 @@
    polished chamfer, a grip edge on rotating types, the top face or insert, and
    an inner chamfer falling to the crystal. Markings are rotated to their own
    angle so they sit on the curve instead of being pasted flat across it. */
-import {C,METALS} from '../constants.js';
+import {C,PX,METALS} from '../constants.js';
 import {clamp,lumOf,shade} from '../utils.js';
 import {posAt} from '../geometry.js';
-import {shapeSpec,outlinePath,inscribedApothem} from '../caseshape.js';
+import {shapeSpec,outlinePath} from '../caseshape.js';
 import {envGrad,envLevel,tone,bevelGrad,ringPath,seam,circGrain,microScratch,
         fresnelRim,applyFinish} from './material.js';
 
@@ -63,9 +63,9 @@ function tachyScale(ctx,m,rTopOut,rInCham,W){
   ctx.save();ctx.translate(x,y);ctx.rotate(deg*Math.PI/180);ctx.fillText(String(v),0,0);ctx.restore()}}
 
 export function drBezel(ctx,o){
- /* an octagonal bezel is the round one cut to its octagon, corners on rBezOut */
- const bs=o.arch&&o.arch.bezelShape!=='round'?shapeSpec(o.arch.bezelShape):null;
- if(bs&&o.mode!=='shape'&&o.mode!=='print'){ctx.save();ctx.beginPath();outlinePath(ctx,bs,inscribedApothem(bs,o.g.rBezOut),0,C,C);ctx.clip();
+ /* a shaped bezel is the round one cut to its outline (geometry.js bezelFit) */
+ const B=o.bezelOutline,bs=B&&B.kind!=='round'?shapeSpec(B.kind):null;
+ if(bs&&o.mode!=='shape'&&o.mode!=='print'){ctx.save();ctx.beginPath();outlinePath(ctx,bs,B.A0*PX,0,C,C);ctx.clip();
   try{return drBezelRound(ctx,o)}finally{ctx.restore()}}
  return drBezelRound(ctx,o)}
 

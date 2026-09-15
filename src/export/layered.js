@@ -6,7 +6,7 @@
    Everything is rendered from the SAME marketing clock, so the hands in the
    views and the hands in the per-part files cannot disagree. */
 import {CAN} from '../core/constants.js';
-import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,rehautMmOf,dialLayoutOf} from '../core/geometry.js';
+import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,rehautMmOf,dialLayoutOf,caseLengthMm,outlinesOf} from '../core/geometry.js';
 import {buildLayers} from '../core/layers.js';
 import {marketingClock} from '../core/time.js';
 import {VNAME} from '../core/parts.js';
@@ -38,7 +38,7 @@ export function specData(d,name){
   construction:{
    crystal:c.crystal,caseback:c.caseback,movement:c.movement,
    waterResistanceM:c.wrM,crownPosition:c.crownPos,pushers:c.pushers,
-   caseShape:c.shape,bezelShape:c.bezelShape,caseSide:c.side,lugStyle:c.lugs,lugHoles:c.lugHoles,
+   caseShape:c.shape,caseLengthMm:caseLengthMm(d),bezelShape:outlinesOf(d).bezel.kind,caseSide:c.side,lugStyle:c.lugs,lugHoles:c.lugHoles,
    caseType:VNAME[P.case.variant]||P.case.variant,
    bezelType:VNAME[P.bezel.variant]||P.bezel.variant,
    bezelDetents:P.bezel.detents,bezelAction:P.bezel.dir==='bi'?'bidirectional':'unidirectional',

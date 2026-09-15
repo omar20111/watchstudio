@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+**Added — square and tonneau cases, square bezel**
+- **Case shape** gains *Square* (tight corners) and *Tonneau*: a barrel 1.2
+  times as long from 12 to 6 as it is across, its sides bowed out, its ends
+  narrower and gently domed. A 40 mm tonneau is 40 × 48 mm.
+- **Bezel shape** gains *Square*.
+- **One outline model for every shape** (`core/caseshape.js`): a convex core
+  polygon with a rounded edge all the way round it. Setting it in by less than
+  the corner radius shrinks the corners; past that the core's own edges move
+  in. Round, cushion and octagon come out exactly as before (checked against
+  the previous code to 1e-11 mm); every point of the new shapes lies exactly
+  on its inset, so a chamfer stays an even width round a tonneau too.
+- **A tonneau's length is real:** lug-to-lug, the lug tips, the lug drop, the
+  bracelet's end link and the integrated shoulder all start from its ends. Its
+  ends are narrower than its middle, so where a pair of lugs for a wide strap
+  would run past the end's flat run, the Case panel says so.
+- **Shaped bezels fit the case they sit on:** a shaped bezel is as large as the
+  case top holds it (everywhere as far inside the case's edge as a round bezel
+  sits in a round case), up to its flats at the bezel's size. On a round case
+  an octagon is unchanged; on a cushion or square case an octagon or square
+  bezel now fills the case's corners. A shape whose flats would cut into the
+  crystal opening (a square bezel on a round, octagon or tonneau case, or any
+  shaped bezel with a very narrow bezel width) is greyed out in the panel, and
+  a design that asks for one is built round.
+- **Editor:** the front view's dashed guide follows a shaped case or bezel.
+- **Tech pack:** a tonneau is "40.0 wide" on the front view, with its case
+  length dimensioned on the side view and "width × length" on the cover; a
+  bezel is labelled by the shape it is built with. Spec sheet and `spec.json`
+  carry the case length.
+- **Fixed on the tech pack's side view:** the lug-to-lug figure ran into the
+  caseback on an integrated case, and the crown's leader crossed the
+  dimension figures.
+- Checked in `combos.mjs` for 5 case shapes × 3 bezel shapes × 4 lug styles on
+  a classic and a sport watch: the bezel keeps its distance from the case's
+  edge and clears the crystal opening, the case is as long as stated, lug tips
+  reach the stated lug-to-lug, and the earlier checks. The editor e2e picks
+  Tonneau.
+
 **Removed — the flat 2D watch**
 - The watch is drawn only in 3D now. The flat whole-watch drawing (the painted
   case with its lugs, crown, crystal and rehaut, the layer compositor behind

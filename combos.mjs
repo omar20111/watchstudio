@@ -703,8 +703,11 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
 
 /* Shaped cases and bezels, and integrated ones (caseshape.js, casebody.js):
    - the flank's top ring lies on the case's outline, a flat facing 12
-   - an octagonal bezel keeps within the bezel's round size, and its top arrives
-     round at the insert or opening
+   - a shaped bezel sits as far inside the case's outline as a round one does,
+     its flats clear of the crystal opening, and its top arrives round at the
+     insert or opening
+   - a tonneau is as long as caseLengthMm says, and its lugs reach the stated
+     lug-to-lug
    - the crown stands outside the outline along its bearing, even at a
      cushion's corner
    - an integrated shoulder is solid across the strap plus a wall, and the strap
@@ -723,8 +726,16 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   const yTop=Math.max(...flank.map(p=>p[1]));let off=0;
   for(const p of flank)if(Math.abs(p[1]-yTop)<1e-4)off=Math.max(off,Math.abs(CS.insetOf(O.case.spec,O.case.A0,p[0],p[2])-(Rr.rCase-L3.bandOf(d).rTop)));
   if(off>.02)bad(tag,`the flank's top ring is ${off.toFixed(3)}mm off the case's outline`);
-  const bez=pts(w,'bezelFlank'),bezR=Math.max(...bez.map(p=>Math.hypot(p[0],p[2])));
-  if(bezR>Rr.rBezOut+1e-3)bad(tag,`the bezel reaches ${bezR.toFixed(2)}mm, past its round size ${Rr.rBezOut.toFixed(2)}mm`);
+  const bez=pts(w,'bezelFlank'),gap=Rr.rCase-Rr.rBezOut;
+  const bezIn=Math.min(...bez.map(p=>CS.insetOf(O.case.spec,O.case.A0,p[0],p[2])));
+  if(bezIn<gap-2e-3)bad(tag,`the bezel stands ${(gap-bezIn).toFixed(3)}mm nearer the case's edge than a round bezel does`);
+  const bezNear=Math.min(...bez.map(p=>Math.hypot(p[0],p[2])));
+  if(bezNear<Rr.rBezIn+.3)bad(tag,`the bezel's flank comes within ${bezNear.toFixed(2)}mm of the centre, into the crystal opening (${Rr.rBezIn.toFixed(2)}mm)`);
+  if(G.bezelFit(d,bezelShape).fits!==(O.bezel.kind===bezelShape))bad(tag,'the bezel is built '+O.bezel.kind+' though '+bezelShape+(G.bezelFit(d,bezelShape).fits?' fits':' does not fit'));
+  const len=2*Math.max(...flank.map(p=>Math.abs(p[2])));
+  if(Math.abs(len-G.caseLengthMm(d))>.08)bad(tag,`the case is ${len.toFixed(2)}mm from 12 to 6, not the ${G.caseLengthMm(d)}mm stated`);
+  if(lugs==='straight'){const tipZ=Math.max(...pts(w,'lugs').map(p=>Math.abs(p[2])));
+   if(Math.abs(2*tipZ-G.lugToLugMm(d))>.35)bad(tag,`the lugs reach ${(2*tipZ).toFixed(2)}mm tip to tip, not the ${G.lugToLugMm(d)}mm lug-to-lug`)}
   /* the innermost ring of the bezel's top: the vertices at the height of its closest point */
   const top=pts(w,'bezelTop'),rOf=p=>Math.hypot(p[0],p[2]),pin=top.reduce((a,p)=>rOf(p)<rOf(a)?p:a),ring=top.filter(p=>Math.abs(p[1]-pin[1])<1e-4&&rOf(p)<rOf(pin)+1);
   const inner=Math.min(...ring.map(rOf)),innerMax=Math.max(...ring.map(rOf));
@@ -732,7 +743,7 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   const cp=L3.crownParts(d),reach=CS.extentAlong(O.case.spec,O.case.A0,(cp.bearing-90)*Math.PI/180);
   if(!(cp.barrelX>reach))bad(tag,`the crown's barrel at ${cp.barrelX.toFixed(2)}mm is inside the case's outline (${reach.toFixed(2)}mm) along its bearing`);
   /* (a round case's profiles are three's own lathes; the swept ones are checked) */
-  for(const n of[...(shape==='round'&&bezelShape==='round'?[]:['flank','chamfer','seat','bezelFlank','bezelEdge','bezelTop']),'lugs','lugEdges']){let badN=0;
+  for(const n of[...(shape==='round'&&O.bezel.kind==='round'?[]:['flank','chamfer','seat','bezelFlank','bezelEdge','bezelTop']),'lugs','lugEdges']){let badN=0;
    w.traverse(o=>{if(!o.isMesh||o.name!==n)return;const a=o.geometry.attributes.normal;for(let i=0;i<a.count;i++)if(!(Math.abs(Math.hypot(a.getX(i),a.getY(i),a.getZ(i))-1)<1e-3))badN++});
    if(badN)bad(tag,`${badN} ${n} normals are not unit length`)}
   if(lugs==='integrated'){const tip=(G.geoOf(d).R+G.geoOf(d).lugExt)/PX,near=(p,z0,z1)=>Math.abs(p[2])>z0&&Math.abs(p[2])<z1&&Math.abs(p[0])<3;
