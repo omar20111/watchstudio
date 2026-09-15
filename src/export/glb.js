@@ -36,6 +36,10 @@ export async function exportWatch(d,customs={}){
  for(let i=0;w.userData.pending&&i<3;i++){await w.userData.pending;disposeHead(w);w=buildHead(d,customs)}
  applyPose(w,d);
  poseHead(w,d.time&&d.time.mode==='set'?sceneClock(d,Date.now()):marketingClock(d));
+ /* the dial's contact shadows stand in for light a rasteriser cannot resolve at
+    that scale; a path tracer and a glTF viewer light the real thing */
+ const drop=[];w.traverse(o=>{if(o.userData&&o.userData.contactShadow)drop.push(o)});
+ for(const o of drop)if(o.parent){o.parent.remove(o);o.traverse(m=>{if(m.isMesh){m.geometry.dispose();m.material.dispose()}})}
  return w}
 
 /* The exporter copies every userData into glTF extras. The editor's bookkeeping

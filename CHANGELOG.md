@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+**Changed — hands that stand over the dial**
+- **Soft shadows on the dial** (`three/contactShadow.js`): the key light's
+  shadow map spans the whole watch and table, so the shadow of a hand a
+  millimetre wide blurred to nothing and the hands looked printed on the dial.
+  Each hand, and the applied indices, now throw a soft shadow drawn from their
+  own silhouette: offset away from the key light by their height above the dial,
+  blurred by the penumbra a softbox gives at that height. A hand's shadow turns
+  with it while still falling away from the light. They are drawn as blended
+  opaque decals, since three renders what is seen through the crystal from
+  opaque objects only; the path tracer and the GLB have real light and leave
+  them out, and the tech pack's line drawings skip them.
+- **Hands have real sides:** each hand stands on a wall of 0.07–0.13 mm below
+  its facets, so from low down it has a thickness and an edge, not a sliver.
+  A dauphine keeps a low wall so its two facets still light and darken apart.
+
 **Changed — a bracelet that looks like a bracelet**
 - Each link was a flat-topped block, which mirrors one patch of the studio and
   read as a black or white tile, in rows of three separate boxes. Links are

@@ -26,6 +26,7 @@ import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
 import {crossingAt} from '../caseshape.js';
 import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
+import {shadowDecal,shadowOffset} from './contactShadow.js';
 import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
 import {markerSetOf} from '../markerset/index.js';
@@ -52,16 +53,19 @@ export const INDEX_FORM={
 
 /* A dauphine is two ground facets meeting at a ridge; batons and swords are
    bevelled with a flat top carrying the lume; a leaf is rounded. Hour hands
-   stand slightly taller than minute hands. */
+   stand slightly taller than minute hands. Every hand has a real side, a wall
+   of 0.08-0.13 mm below its facets, which a polished edge needs to catch a line
+   of light: without it a hand seen from low down is a sliver of paper. */
 function handForm(variant,which){
- if(which==='sec')return{profile:'bevel',height:.16,edge:.06,bevel:.6};
+ if(which==='sec')return{profile:'bevel',height:.16,edge:.08,bevel:.6};
  const tall=which==='hour'?.02:0;
- if(variant==='dauphine')return{profile:'roof',height:.34+tall,edge:.05};
- if(variant==='leaf')return{profile:'dome',height:.3+tall,edge:.05,bevel:.85,pocket:.2+tall};
+ /* a dauphine keeps a low wall: the steeper its facets, the more one darkens as the other lights */
+ if(variant==='dauphine')return{profile:'roof',height:.34+tall,edge:.07};
+ if(variant==='leaf')return{profile:'dome',height:.3+tall,edge:.1,bevel:.85,pocket:.2+tall};
  /* shaped pilot hands: a narrow stem, so a shallow bevel keeps it from grinding to a knife edge */
- if(variant==='cathedral'||variant==='syringe'||variant==='arrow')return{profile:'bevel',height:.26+tall,edge:.09,bevel:.55,pocket:.19+tall};
+ if(variant==='cathedral'||variant==='syringe'||variant==='arrow')return{profile:'bevel',height:.26+tall,edge:.12,bevel:.55,pocket:.19+tall};
  const bevel=variant==='sword'?.45:.4;
- return{profile:'bevel',height:.27+tall,edge:.08,bevel,pocket:.2+tall}}
+ return{profile:'bevel',height:.27+tall,edge:.13,bevel,pocket:.2+tall}}
 
 const SHEET=CAN/PX;                               /* the 1200 px sheet, in mm */
 export const PARTS3D=['strap','case','crown','bezel','dial','markers','hands','crystal'];
@@ -742,7 +746,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
   const rel=reliefFromSilhouette(getProc('markers',d,undefined,'shape'),{...form,lume:lumeCv});
   const printed=printedIndexInk(mk.variant,frame,parts.dial.color);
   if(rel){const m=add(G.markers,'indices',rel.geometry,printed?new MeshPhysicalMaterial({color:new Color(printed),metalness:0,roughness:.5,clearcoat:.35,clearcoatRoughness:.3})
-   :metalMaterial(frame,'polished'));m.position.y=Hc}
+   :metalMaterial(frame,'polished'));m.position.y=Hc;
+   /* an applied index stands on the dial, so it throws a short soft shadow (contactShadow.js) */
+   if(!printed){const h=form.height*.75,sd=shadowDecal(getProc('markers',d,undefined,'shape'),{heightMm:h,sheetMm:SHEET,opacity:.5}),[dx,dz]=shadowOffset(h);
+    sd.position.set(dx,Hc+.008,dz);G.markers.add(sd)}}
   if(lumed){
    const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(lumeCv),mk.lume,mk.glow),{cast:false,noPick:true});
    lm.position.y=Hc+form.pocket+.004}}}
@@ -774,6 +781,12 @@ export function buildHead(d,customs={},{aniso=8}={}){
      ?new MeshPhysicalMaterial({color:new Color(hp.secColor||'#e8482c'),roughness:.32,clearcoat:.6,clearcoatRoughness:.1})
      :metalMaterial(hp.metal,hp.finish);
     add(arbor,k+'Body',rel.geometry,bodyMat,{receive:false});
+    /* its soft shadow on the dial (contactShadow.js): turning with the hand on its
+       own arbor, its offset kept pointing away from the light by poseHead */
+    {const h=lift[k]+form.height*.6,sArbor=new Group();sArbor.name=k+'Shadow';
+     sArbor.userData={spin:k,shadowOf:h,contactShadow:true};hold.add(sArbor);
+     const sd=shadowDecal(getProc('hands',d,k,'shape'),{heightMm:h,sheetMm:SHEET,opacity:k==='sec'?.52:.68});
+     sd.position.y=Hc+.012;sArbor.add(sd)}
     if(lumed){
      const lm=add(arbor,k+'Lume',sheet(),lumeMaterial(tex(lumeCv),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
      lm.position.y=form.pocket+.004}
@@ -838,7 +851,12 @@ export function applyPose(watch,d){
    the exporter uses */
 export function poseHead(head,clock){
  head.traverse(o=>{const k=o.userData&&o.userData.spin;
-  if(k)o.rotation.y=-layerAngle(k,clock)*Math.PI/180})}
+  if(k)o.rotation.y=-layerAngle(k,clock)*Math.PI/180;
+  /* a hand's shadow turns with the hand but falls away from the light: its offset
+     is the world offset turned back by the hand's turn (and the layer's) */
+  if(o.userData&&o.userData.shadowOf!=null&&o.children[0]){const[dx,dz]=shadowOffset(o.userData.shadowOf);
+   const phi=o.rotation.y+(o.parent?o.parent.rotation.y:0),c=Math.cos(phi),s=Math.sin(phi);
+   o.children[0].position.x=dx*c-dz*s;o.children[0].position.z=dx*s+dz*c}})}
 
 /* ---------------------------------------------------------------- picking */
 

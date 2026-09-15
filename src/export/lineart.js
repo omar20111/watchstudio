@@ -43,7 +43,7 @@ const INSIDE=new Set(['movement','dial','hands','markers']);
 function omitted(o,view){const m=o.material||{};
  if(view==='back'){if(o.name==='crownTube')return true;for(let n=o;n;n=n.parent)if(INSIDE.has(n.name)||(n.userData&&INSIDE.has(n.userData.part)))return true}
  if(/^crystal|^cyclops/.test(o.name))return view!=='side';
- return !!(m.transparent||m.alphaTest>0||m.transmission>0)}
+ return !!(m.transparent||m.alphaTest>0||m.transmission>0||(o.userData&&o.userData.contactShadow))}
 
 const EDGE_FS=`
 uniform sampler2D tNormal;uniform sampler2D tDepth;uniform vec2 texel;uniform float depthMm;uniform float stepMm;
