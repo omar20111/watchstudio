@@ -87,7 +87,9 @@ function portableTangents(root){
   for(let i=0;i<t.count;i++){let x=t.getX(i),y=t.getY(i),z=t.getZ(i);const l=Math.hypot(x,y,z);
    if(l>1e-8&&Number.isFinite(l)){x/=l;y/=l;z/=l}
    else{const nx=n.getX(i),ny=n.getY(i),nz=n.getZ(i),[ax,ay,az]=Math.abs(ny)<.9?[0,1,0]:[1,0,0];
-    x=ay*nz-az*ny;y=az*nx-ax*nz;z=ax*ny-ay*nx;const k=Math.hypot(x,y,z)||1;x/=k;y/=k;z/=k}
+    x=ay*nz-az*ny;y=az*nx-ax*nz;z=ax*ny-ay*nx;const k=Math.hypot(x,y,z);
+    /* a vertex whose normal is itself unusable (only zero-area triangles touch it) takes any unit direction */
+    if(k>1e-8&&Number.isFinite(k)){x/=k;y/=k;z/=k}else{x=1;y=0;z=0}}
    t.setXYZW(i,x,y,z,t.getW(i)<0?-1:1)}})}
 
 /* The crystal and the cyclops are closed solids and export with

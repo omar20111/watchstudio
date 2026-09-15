@@ -101,6 +101,9 @@ function sweep(stations,{toWorld,heights,strips,capEnd=false,tilt=()=>0}){
  const geometry=new BufferGeometry();
  geometry.setAttribute('position',new Float32BufferAttribute(pos,3));geometry.setAttribute('uv',new Float32BufferAttribute(uv,2));
  geometry.setIndex([...surface,...bevel]);geometry.computeVertexNormals();
+ /* where a tip closes to a point, a vertex can be touched only by zero-area
+    triangles: give it an upward normal rather than none */
+ {const n=geometry.attributes.normal;for(let i=0;i<n.count;i++){const l=Math.hypot(n.getX(i),n.getY(i),n.getZ(i));if(!(l>1e-6))n.setXYZ(i,0,1,0)}}
  return{geometry,surface,bevel}}
 
 /* a round quarter from the wall top (dx0, off b) to the top (dx1, off 0), n segments */

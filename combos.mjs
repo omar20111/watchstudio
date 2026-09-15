@@ -687,6 +687,11 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   if(Math.abs(maxZ-G.lugToLugOf(d)/2)>.3)bad(tag,`lug tips at ${maxZ.toFixed(2)}mm, lug-to-lug says ${(G.lugToLugOf(d)/2).toFixed(2)}mm`);
   if(maxY>H.seat+1e-6)bad(tag,`a lug stands ${(maxY-H.seat).toFixed(2)}mm above the bezel seat`);
   if(!(topN>.3))bad(tag,`the lugs' highest point faces ${topN&&topN.toFixed(2)} (down or sideways): built inside out`);
+  /* every normal a unit vector: a zero one (a vertex only zero-area triangles
+     touch) breaks the GLB's tangents and the Khronos validator rejects it */
+  for(const m of[lugsMesh,edges,byName('guards'),byName('guardEdges')].filter(Boolean)){const a=m.geometry.attributes.normal;let badN=0;
+   for(let i=0;i<a.count;i++){const l=Math.hypot(a.getX(i),a.getY(i),a.getZ(i));if(!(Math.abs(l-1)<1e-3))badN++}
+   if(badN)bad(tag,`${badN} ${m.name} normals are not unit length`)}
   if(!!byName('lugHoles')!==holes)bad(tag,holes?'no drilled holes':'holes nobody asked for');
   if(lugs==='hooded'&&!(hoodMax-hoodMin<1.9&&hoodMax>-1e9))bad(tag,`the hood is ${(hoodMax-hoodMin).toFixed(2)}mm deep: no tunnel for the strap`);
   if(!!byName('guards')!==(variant==='sport'))bad(tag,'crown guards do not follow the sport case');

@@ -15,7 +15,7 @@ export async function run({page,ready,press,expect,url}){
  const bytes=new Uint8Array(Buffer.concat(chunks));
  const report=await validator.validateBytes(bytes,{maxIssues:50});
  const{numErrors,numWarnings}=report.issues;
- expect(numErrors===0,`the Khronos validator finds no errors (${numErrors})`);
+ expect(numErrors===0,`the Khronos validator finds no errors (${numErrors}${numErrors?': '+report.issues.messages.filter(m=>m.severity===0).slice(0,4).map(m=>m.code+' '+m.pointer).join('; '):''})`);
  expect(numWarnings===0,`and no warnings (${numWarnings})`);
  /* the JSON chunk: the root carries the millimetre-to-metre scale */
  const len=new DataView(bytes.buffer).getUint32(12,true),json=JSON.parse(Buffer.from(bytes.slice(20,20+len)).toString());
