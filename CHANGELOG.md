@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**Changed — metals in their real colours**
+- A 3D metal was made in the colour chosen by eye for the 2D drawing: yellow
+  gold brassy, rose gold copper, titanium a cool blue-grey. Metals now carry
+  their reflectance (constants.js METALS f0): stainless steel and grade 2
+  titanium as measured (titanium is a warm grey), 18k yellow and rose gold from
+  their measured colour set halfway back toward the drawing's saturation, since
+  the tone mapping pales bright highlights and at the measured colour both read
+  as champagne. Bronze keeps its patina; the Milanese mesh and marker-set
+  indices follow.
+
 **Changed — sharp printing up close, and a guilloché that catches the light**
 - **Printing stays sharp when zoomed in.** Every artwork texture was baked on the
   1200 px sheet, 18 px per mm, which a large screen at 300% magnifies about four

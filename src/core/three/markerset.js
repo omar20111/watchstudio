@@ -43,7 +43,7 @@ function bodyMat(s,glow){const M=MATERIALS[s.material];
  if(M.kind==='paint')return new MeshPhysicalMaterial({color:new Color(s.paint),metalness:0,roughness:.5,clearcoat:.35,clearcoatRoughness:.3});
  if(M.kind==='lume')return lumeMat(s.lumeColor,glow);
  const m=metalMaterial(METAL_OF[s.material]||'steel',FINISH_OF[s.finish]||'polished');
- if(s.material==='white'||s.material==='blued')m.color=new Color(M.base);
+ if(s.material==='white'||s.material==='blued')m.color=new Color(M.f0||M.base);
  return m}
 
 /* Put the set's indices into `group` through the head's add(): the dial face at

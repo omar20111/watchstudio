@@ -1,7 +1,8 @@
 /* PBR materials from the METALS table.
 
-   METALS already carries the numbers a physically based material needs: `base`
-   is the reflectance colour, `rough` the microfacet roughness, `refl` how
+   METALS already carries the numbers a physically based material needs: `f0`
+   the measured reflectance colour (`base`, the drawn one, where a metal has
+   none), `rough` the microfacet roughness, `refl` how
    strongly the studio shows in it, and `kind` whether it is a conductor. The
    2D engine had to fake what those mean with gradient contrast; here roughness
    genuinely widens and softens the highlight instead of only greying it. */
@@ -94,7 +95,7 @@ export function metalMaterial(metalId,finish='polished',o={}){
  const m=METALS[metalId]||METALS.steel;
  const f=o.forceFinish||finish;
  const rough=(FINISH_ROUGH[f]||FINISH_ROUGH.polished)(m.rough??.15);
- const mat=new MeshPhysicalMaterial({color:new Color(m.base),roughness:rough,envMapIntensity:m.refl??1});
+ const mat=new MeshPhysicalMaterial({color:new Color(m.f0||m.base),roughness:rough,envMapIntensity:m.refl??1});
  finishOf.set(mat,f);
  if(m.kind==='metal'){mat.metalness=1;
   /* black DLC is a hard carbon film: under the dark metal, its own glossy surface

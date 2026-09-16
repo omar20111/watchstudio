@@ -11,12 +11,21 @@ export const STRAP_REACH_2D=C-46, STRAP_REACH_3D=1650;
 
 /* Materials. hi/base/lo drive the UI swatch and the body ramp; dk is the deep
    reflection shadow, kind picks the reflection model, rough blurs the studio
-   bands and refl scales their contrast. */
+   bands and refl scales their contrast.
+   f0: what the metal itself reflects head-on, the colour a 3D metal is made of.
+   base was chosen by eye for a 2D drawing, darker and more saturated than any
+   real metal (an 18k gold drawn brassy, a rose gold copper); f0 is measured:
+   stainless steel's reflectance and grade 2 titanium's from its CIELAB colour.
+   The golds are measured too (18k yellow L*85 a*2 b*29, rose L*84 a*9 b*20) but
+   set halfway, in linear light, back toward the drawing's saturation: the tone
+   mapping desaturates bright highlights, and at their measured colour both read
+   as champagne. Bronze keeps its drawn colour — a bronze case is worn with its
+   patina — and a DLC coating is not a metal's own colour. */
 export const METALS={
- steel:{name:'Steel',kind:'metal',hi:'#f6f8fb',base:'#c9ced6',lo:'#767d88',dk:'#2f343b',rough:.12,refl:1},
- rose:{name:'Rose Gold',kind:'metal',hi:'#ffe3d1',base:'#e0aa8c',lo:'#9c6a50',dk:'#3d2418',rough:.14,refl:.96},
- gold:{name:'Yellow Gold',kind:'metal',hi:'#ffefb0',base:'#e3bf6e',lo:'#9a752e',dk:'#3a2b0c',rough:.13,refl:.98},
- titanium:{name:'Titanium',kind:'metal',hi:'#eef1f4',base:'#b7bcc3',lo:'#5f666e',dk:'#262b30',rough:.32,refl:.8},
+ steel:{name:'Steel',kind:'metal',hi:'#f6f8fb',base:'#c9ced6',f0:'#c6c7c9',lo:'#767d88',dk:'#2f343b',rough:.12,refl:1},
+ rose:{name:'Rose Gold',kind:'metal',hi:'#ffe3d1',base:'#e0aa8c',f0:'#e9bc9d',lo:'#9c6a50',dk:'#3d2418',rough:.14,refl:.96},
+ gold:{name:'Yellow Gold',kind:'metal',hi:'#ffefb0',base:'#e3bf6e',f0:'#e7c989',lo:'#9a752e',dk:'#3a2b0c',rough:.13,refl:.98},
+ titanium:{name:'Titanium',kind:'metal',hi:'#eef1f4',base:'#b7bcc3',f0:'#c3bbb3',lo:'#5f666e',dk:'#262b30',rough:.32,refl:.8},
  black:{name:'Black DLC',kind:'metal',hi:'#8a8f96',base:'#43474d',lo:'#1b1d20',dk:'#0a0b0c',rough:.36,refl:.76},
  bronze:{name:'Bronze',kind:'metal',hi:'#f2d6a4',base:'#b98b4f',lo:'#6d4726',dk:'#2c1a0c',rough:.26,refl:.86},
  ceramic:{name:'White Ceramic',kind:'ceramic',hi:'#ffffff',base:'#e6e8ec',lo:'#a8aeb6',dk:'#5b626b',rough:.05,refl:1},

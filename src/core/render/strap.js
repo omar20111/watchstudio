@@ -78,7 +78,7 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
   /* a flat strap is its dye; the rounding across its width is real geometry.
      A Milanese band is the metal itself. */
   const mesh=o.variant==='mesh';
-  ctx.fillStyle=mesh?(flat?m.base:axisGrad(ctx,m,C-sw/2,0,C+sw/2,0)):flat?col:g;ctx.fill();
+  ctx.fillStyle=mesh?(flat?(m.f0||m.base):axisGrad(ctx,m,C-sw/2,0,C+sw/2,0)):flat?col:g;ctx.fill();
   ctx.save();path();ctx.clip();
   /* Milanese: a fine diagonal weave, crossed rows of tiny loops */
   if(mesh){ctx.lineWidth=1;const pitch=5;
