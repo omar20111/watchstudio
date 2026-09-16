@@ -29,10 +29,21 @@ jobs:
 
   # The browser checks (e2e/): the built app driven in Chrome with software
   # WebGL. They are slow and newer than the rest, so for now they report on
-  # every push without holding back a deploy.
+  # every push without holding back a deploy. All in one job they had grown past
+  # its 45 minutes and were cancelled, so they run in four groups side by side,
+  # each a job with its own time limit; one group failing does not stop the rest.
   e2e:
+    name: e2e (${{ matrix.suites }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suites:
+          - editor
+          - photo,techpack
+          - welcome,markers,partstudio,crystal
+          - movement,night,touch,logo,ar,glb
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -43,6 +54,7 @@ jobs:
       - run: npm run e2e
         env:
           E2E_CHANNEL: chrome
+          E2E_ONLY: ${{ matrix.suites }}
 
   deploy:
     needs: test
