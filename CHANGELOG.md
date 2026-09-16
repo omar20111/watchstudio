@@ -2,14 +2,22 @@
 
 ## Unreleased
 
-**Fixed — a brushed bracelet was paper white in the front view**
-- three draws the studio in brushed (anisotropic) metal by bending the surface
-  normal toward the viewer across the grain. Seen from straight above, that
-  pointed every link's reflection back up at the overhead softbox, however the
-  links sloped. Brushed metal now reflects the studio along its real surface;
-  the grain still stretches the key light's highlight into a streak. In the
-  front view the links below the case went from near white to steel grey
-  (brightness 215 → 107), with the ones rising to the lugs lighter.
+**Changed — brushed steel reflects the studio as a streak, and shows its brushing**
+- A brushed bracelet was paper white in the front view and near black from the
+  side. three draws brushed (anisotropic) metal by bending the surface normal
+  toward the viewer, which reflects one direction: whatever is behind the
+  camera. Checked against the real anisotropic GGX lobe integrated over the
+  studio (Monte Carlo, links sloping ±30° in both views), that was off by 84
+  levels of 255 on average; reflecting along the plain normal, by 43.
+- The reflection is now sampled as a streak: nine reflections spread along the
+  grain at the quantiles of the lobe, each blurred by the gap to the next —
+  within 14 levels of the integral. The brushing grain tilts each groove's
+  reflection a little, so brushed links, cases and bezels show fine lines of
+  light and shade the way real brushed steel does.
+- **The softbox falls off toward its edges and has a black flag across it**, a
+  little toward 12, as a photographer would set one: brushed links pick up
+  darker bands and gradients instead of one even sheet of light, and a
+  polished case top carries a darker band across its reflection.
 
 **Fixed — bracelets and Milanese turned white when zoomed out**
 - **The three-quarter view zooms with the lens, not by moving the camera.**

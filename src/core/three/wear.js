@@ -159,7 +159,12 @@ const FRAG_BODY=`
  vec4 w=texture2D(uWearMap,wp.zy)*wb.x+texture2D(uWearMap,wp.xz+vec2(.37,.11))*wb.y+texture2D(uWearMap,wp.xy+vec2(.71,.53))*wb.z;
  float dr=uWear.x*w.r+uWear.y*w.b+uWear.z*w.g;
  vec2 mm=vWearUv*uGrainMm;float cr=cos(uGrainRot),sr=sin(uGrainRot);
- dr+=uGrain*(texture2D(uGrainMap,vec2(mm.x*cr+mm.y*sr,-mm.x*sr+mm.y*cr)/uGrainSize).r-.5);
+ float grain=texture2D(uGrainMap,vec2(mm.x*cr+mm.y*sr,-mm.x*sr+mm.y*cr)/uGrainSize).r-.5;
+ dr+=uGrain*grain;
+ #ifdef WS_BRUSHED_IBL
+ // brushed metal's reflection (materials.js) tilts each groove by its grain
+ if(uGrain>0.0)wsGrain=grain;
+ #endif
  roughnessFactor=clamp(roughnessFactor+dr,.04,1.0);
 }
 `;

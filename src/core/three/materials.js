@@ -46,17 +46,49 @@ export function filteredNormals(mat,k=1){
   roughnessFactor = pow( min( 1.0, pow4( roughnessFactor ) + spread ), 0.25 ); }
 #endif`)})}
 
-/* three draws the studio in anisotropic metal by bending the surface normal
-   toward the viewer across the grain (Filament's approximation of a stretched
-   reflection). For a camera looking down, that points every brushed surface's
-   reflection back up at the overhead softbox: a bracelet in the front view came
-   out paper white from end to end, whichever way its links sloped. The studio
-   is reflected along the surface's real normal instead; the grain still
-   stretches the key light's highlight into a streak. */
-function straightStudioReflection(mat){
- return addShaderHook(mat,'ws-straight-ibl',sh=>{
-  sh.fragmentShader=sh.fragmentShader.replace('#include <lights_fragment_maps>',
-   ShaderChunk.lights_fragment_maps.replaceAll('material.anisotropyB, material.anisotropy )','material.anisotropyB, 0.0 )'))})}
+/* How brushed metal reflects the studio.
+
+   Brushing leaves the surface smooth along the grooves and rough across them,
+   so a reflection is stretched into a streak: the environment seen along one
+   line of directions, averaged. three approximates that by bending the normal
+   toward the viewer across the grain (Filament's method), which reflects a
+   single direction — what is behind the camera. Integrated against the real
+   anisotropic GGX lobe over this studio (a Monte Carlo check), that was off by
+   84 levels of 255 on average across bracelet links sloping ±30° in the front
+   and three-quarter views: paper white from above, near black from the side.
+
+   Here the streak is sampled: nine reflections spread along the stretch at the
+   quantiles of the lobe's slope distribution, each blurred by the gap to its
+   neighbour, which comes within 14 levels of the integral. The brushing grain
+   (wear.js, wsGrain) tilts each groove's reflection a little along the streak,
+   so the lines of a brushed finish show in it as they do on real steel. */
+const BRUSHED_IBL=`
+#define WS_BRUSHED_IBL
+float wsGrain = 0.0;
+#if defined( USE_ENVMAP ) && defined( USE_ANISOTROPY )
+vec3 wsBrushedRadiance( const in vec3 viewDir, const in vec3 normal0, const in float roughness, const in vec3 streak, const in float alphaT ) {
+	// quantiles of one axis of the GGX slope distribution (Student t, 2 dof), in units of alphaT,
+	// and the gap from each to the one inside it
+	float Q[4] = float[4]( 0.228, 0.496, 0.894, 1.94 );
+	float G[4] = float[4]( 0.228, 0.268, 0.398, 1.046 );
+	vec3 normal = normalize( normal0 + 2.0 * wsGrain * alphaT * streak );
+	vec3 sum = getIBLRadiance( viewDir, normal, roughness );
+	for ( int i = 0; i < 4; i ++ ) {
+		float s = Q[ i ] * alphaT;
+		float rk = max( roughness, sqrt( G[ i ] * alphaT ) );
+		sum += getIBLRadiance( viewDir, normalize( normal + s * streak ), rk );
+		sum += getIBLRadiance( viewDir, normalize( normal - s * streak ), rk );
+	}
+	return sum / 9.0;
+}
+#endif
+`;
+function brushedReflection(mat){
+ return addShaderHook(mat,'ws-brushed-ibl',sh=>{
+  sh.fragmentShader=sh.fragmentShader.replace('#include <envmap_physical_pars_fragment>','#include <envmap_physical_pars_fragment>\n'+BRUSHED_IBL)
+   .replace('#include <lights_fragment_maps>',ShaderChunk.lights_fragment_maps.replace(
+    'getIBLAnisotropyRadiance( geometryViewDir, geometryNormal, material.roughness, material.anisotropyB, material.anisotropy )',
+    'wsBrushedRadiance( geometryViewDir, geometryNormal, material.roughness, material.anisotropyT, material.alphaT )'))})}
 
 export function metalMaterial(metalId,finish='polished',o={}){
  const m=METALS[metalId]||METALS.steel;
@@ -72,7 +104,7 @@ export function metalMaterial(metalId,finish='polished',o={}){
      uv u (round a lathe, along a lug). The mesh needs tangents for that
      (withTangents); without them the shader guesses a direction per 2x2 pixel
      block, which the studio's crisp lights turn into blotches. */
-  if(f==='brushed'){mat.anisotropy=.55;straightStudioReflection(mat)}}
+  if(f==='brushed'){mat.anisotropy=.55;brushedReflection(mat)}}
  /* white ceramic: a bright diffuse body under a thin gloss. Full environment
     strength on both flattens it to paper white seen from above. */
  else if(m.kind==='ceramic'){mat.metalness=0;mat.roughness=.42;mat.clearcoat=.8;mat.clearcoatRoughness=.05;mat.envMapIntensity=.55;

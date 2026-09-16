@@ -6,7 +6,11 @@
 
    - a dark room, so edges and flanks have something dark to fall away into
    - an overhead softbox pulled toward 12: the case top, the dial and the
-     crystal reflect it, soft-edged so a domed crystal carries a gradient
+     crystal reflect it, soft-edged so a domed crystal carries a gradient.
+     Brightest in its middle and falling well off toward its edges, and split
+     by a black flag across it a little toward 12: without them a brushed
+     bracelet reflects one even sheet of light, and a real one is shaped by
+     the darker bands a photographer sets into its reflection
    - two tall strip lights, at 2 and 10 o'clock: the thin bright lines down a
      chamfer, a bezel's edge, a crown's barrel
    - a lit backdrop rising behind the watch toward 12, with a crisp horizon
@@ -31,7 +35,9 @@ const wrapPi=a=>{a=(a+Math.PI)%TAU;return(a<0?a+TAU:a)-Math.PI};
 export const SET={
  room:.012,
  /* overhead softbox, in the ceiling plane (x/y, z/y): -z is toward 12 */
- softbox:{u:[-1,1],v:[-1.35,.42],feather:.34,L:2.3},
+ /* falloff: how much dimmer its edges are than its middle; gap: the flag, a band
+    of the ceiling plane's v, and how much light it takes out */
+ softbox:{u:[-1,1],v:[-1.35,.42],feather:.34,L:2.6,falloff:.55,gap:{v:-.25,w:.22,feather:.08,depth:.85}},
  /* tall strips: azimuth clockwise from 12, half-width and elevation span */
  /* wide enough, and soft-edged enough, that blurring them for rougher metal
     keeps them smooth: a thin, very bright strip broke up into blotches there */
@@ -55,7 +61,8 @@ export function radianceAt(x,y,z,S=SET){
    const inside=band(u,b.u[0],b.u[1],b.feather)*band(v,b.v[0],b.v[1],b.feather);
    /* a real softbox is brightest in its middle */
    const cu=(b.u[0]+b.u[1])/2,cv=(b.v[0]+b.v[1])/2,hu=(b.u[1]-b.u[0])/2,hv=(b.v[1]-b.v[0])/2;
-   L+=b.L*inside*(.8+.2*(1-Math.min(1,Math.hypot((u-cu)/hu,(v-cv)/hv))))}}
+   const g=b.gap,flag=1-g.depth*band(v,g.v-g.w/2,g.v+g.w/2,g.feather);
+   L+=b.L*inside*flag*((1-b.falloff)+b.falloff*(1-Math.min(1,Math.hypot((u-cu)/hu,(v-cv)/hv))))}}
  /* the line where table meets backdrop, all the way round */
  L+=S.horizon.L*band(eld,-S.horizon.width/2,S.horizon.width/2,.5);
  return L}
