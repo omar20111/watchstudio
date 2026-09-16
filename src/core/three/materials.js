@@ -46,6 +46,18 @@ export function filteredNormals(mat,k=1){
   roughnessFactor = pow( min( 1.0, pow4( roughnessFactor ) + spread ), 0.25 ); }
 #endif`)})}
 
+/* three draws the studio in anisotropic metal by bending the surface normal
+   toward the viewer across the grain (Filament's approximation of a stretched
+   reflection). For a camera looking down, that points every brushed surface's
+   reflection back up at the overhead softbox: a bracelet in the front view came
+   out paper white from end to end, whichever way its links sloped. The studio
+   is reflected along the surface's real normal instead; the grain still
+   stretches the key light's highlight into a streak. */
+function straightStudioReflection(mat){
+ return addShaderHook(mat,'ws-straight-ibl',sh=>{
+  sh.fragmentShader=sh.fragmentShader.replace('#include <lights_fragment_maps>',
+   ShaderChunk.lights_fragment_maps.replaceAll('material.anisotropyB, material.anisotropy )','material.anisotropyB, 0.0 )'))})}
+
 export function metalMaterial(metalId,finish='polished',o={}){
  const m=METALS[metalId]||METALS.steel;
  const f=o.forceFinish||finish;
@@ -60,7 +72,7 @@ export function metalMaterial(metalId,finish='polished',o={}){
      uv u (round a lathe, along a lug). The mesh needs tangents for that
      (withTangents); without them the shader guesses a direction per 2x2 pixel
      block, which the studio's crisp lights turn into blotches. */
-  if(f==='brushed')mat.anisotropy=.55}
+  if(f==='brushed'){mat.anisotropy=.55;straightStudioReflection(mat)}}
  /* white ceramic: a bright diffuse body under a thin gloss. Full environment
     strength on both flattens it to paper white seen from above. */
  else if(m.kind==='ceramic'){mat.metalness=0;mat.roughness=.42;mat.clearcoat=.8;mat.clearcoatRoughness=.05;mat.envMapIntensity=.55;

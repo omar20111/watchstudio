@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Fixed — a brushed bracelet was paper white in the front view**
+- three draws the studio in brushed (anisotropic) metal by bending the surface
+  normal toward the viewer across the grain. Seen from straight above, that
+  pointed every link's reflection back up at the overhead softbox, however the
+  links sloped. Brushed metal now reflects the studio along its real surface;
+  the grain still stretches the key light's highlight into a streak. In the
+  front view the links below the case went from near white to steel grey
+  (brightness 215 → 107), with the ones rising to the lugs lighter.
+
 **Fixed — bracelets and Milanese turned white when zoomed out**
 - **The three-quarter view zooms with the lens, not by moving the camera.**
   Backing the camera away turned every part of the watch to face it a little
