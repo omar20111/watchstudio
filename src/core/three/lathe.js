@@ -13,7 +13,7 @@
    Point order matters: LatheGeometry takes each segment's normal as (dy, -dx),
    so every profile runs bottom -> outside -> top -> inward, which faces its
    normals out of the metal. */
-import {Vector2,LatheGeometry,Shape} from 'three';
+import {Vector2,LatheGeometry,Shape,BufferGeometry,Float32BufferAttribute} from 'three';
 import {PX} from '../constants.js';
 import {LUG_CLEAR_MM,caseReachMm,endReachMm,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
@@ -169,6 +169,39 @@ export const lathe=(points,segments=160)=>{const g=new LatheGeometry(points,segm
  if(n>2){const len=[0];for(let i=1;i<n;i++)len.push(len[i-1]+points[i].distanceTo(points[i-1]));
   const L=len[n-1]||1,uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setY(i,len[i%n]/L)}
  return g};
+
+/* A turned surface with teeth cut into it along the axis: a crown's knurling, a
+   rotating bezel's grip, a coin edge. As a normal map the teeth were a stripe
+   pattern that shimmered at a distance and lay flat against the silhouette; cut
+   into the solid, each tooth takes its own light and the outline is toothed.
+   `teeth` round the turn, each a flat land and a rounded groove `depth` mm deep.
+   Both ends are closed by a flat ring out to the full radius, so the grooves end
+   in the faces they meet instead of leaving slots open into the part. Same axis,
+   point order and uv as lathe(). */
+export function knurledLathe(points,teeth,depth,{perTooth=10}={}){
+ const n=points.length,M=teeth*perTooth,land=.45;
+ const cut=k=>{const p=(k%perTooth)/perTooth;return p<land?0:Math.sin(Math.PI*(p-land)/(1-land))};
+ const len=[0];for(let j=1;j<n;j++)len.push(len[j-1]+points[j].distanceTo(points[j-1]));const Lp=len[n-1]||1;
+ const pos=[],uv=[],idx=[];
+ const V=(r,y,k,v)=>{const a=k/M*Math.PI*2;pos.push(Math.sin(a)*r,y,Math.cos(a)*r);uv.push(k/M,v);return pos.length/3-1};
+ /* the toothed surface */
+ const grid=[];for(let k=0;k<=M;k++){const row=[];for(let j=0;j<n;j++)row.push(V(points[j].x-depth*cut(k),points[j].y,k,len[j]/Lp));grid.push(row)}
+ for(let k=0;k<M;k++)for(let j=0;j<n-1;j++){const a=grid[k][j],b=grid[k+1][j],c=grid[k][j+1],d=grid[k+1][j+1];idx.push(a,b,c,d,c,b)}
+ /* the closing rings, their own vertices so their normals face along the profile
+    out of each end (set once the rest are computed: over a land a ring has no
+    area, and a computed normal there would be zero) */
+ const caps=[];
+ for(const[j,out]of[[0,-1],[n-1,1]]){const inner=[],outer=[],q=points[out<0?1:n-2],t=[points[j].x-q.x,points[j].y-q.y];
+  for(let k=0;k<=M;k++){inner.push(V(points[j].x-depth*cut(k),points[j].y,k,len[j]/Lp));outer.push(V(points[j].x,points[j].y,k,len[j]/Lp))}
+  for(let k=0;k<M;k++){if(!cut(k)&&!cut(k+1))continue;const a=inner[k],b=inner[k+1],c=outer[k],d=outer[k+1];if(out<0)idx.push(a,b,c,b,d,c);else idx.push(a,c,b,b,c,d)}
+  caps.push([inner,outer,t])}
+ const g=new BufferGeometry();
+ g.setAttribute('position',new Float32BufferAttribute(pos,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));
+ g.setIndex(idx);g.computeVertexNormals();
+ const nm=g.attributes.normal;
+ for(const[inner,outer,t]of caps){const l=Math.hypot(t[0],t[1])||1;
+  for(const ring of[inner,outer])ring.forEach((vi,k)=>{const a=k/M*Math.PI*2;nm.setXYZ(vi,Math.sin(a)*t[0]/l,t[1]/l,Math.cos(a)*t[0]/l)})}
+ return g}
 
 /* ---------------------------------------------------------------------------
    The parts that are not solids of revolution: lugs, crown and strap, in mm.

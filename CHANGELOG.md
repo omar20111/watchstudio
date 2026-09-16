@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**Changed — knurling cut into the metal**
+- A crown's knurling, a rotating bezel's grip and a coin edge were a striped
+  normal map on a smooth turned surface: flat against the outline and
+  shimmering at a distance. They are now teeth cut into the solid
+  (lathe.js knurledLathe) — a flat land and a rounded groove a little under a
+  third of the pitch deep, the grooves closed by a ring at each end — so each
+  tooth takes its own light and the edge is toothed. A shaped bezel keeps the
+  pattern.
+- The browser tests run on GitHub in four groups side by side; all in one job
+  they had passed its 45-minute limit and been cancelled on every push.
+
 **Changed — clean edges when the watch is still**
 - The live view draws each frame once with 4x multisampling, which smooths the
   edges of triangles only: a crown's knurling, a minute track, a date window's

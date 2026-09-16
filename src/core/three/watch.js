@@ -21,7 +21,7 @@ import {caseOf,geoOf,outlinesOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,S
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
-import {headProfiles,lathe,crownParts,strapPath,smoothstep} from './lathe.js';
+import {headProfiles,lathe,knurledLathe,crownParts,strapPath,smoothstep} from './lathe.js';
 import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
 import {crossingAt} from '../caseshape.js';
 import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents,filteredNormals,brushedReflection} from './materials.js';
@@ -704,17 +704,22 @@ export function buildHead(d,customs={},{aniso=8}={}){
   add(grp,'crownTube',tube,crownMat('bevel'));
   const along=pts=>{const g=lathe(pts,72);g.rotateZ(-Math.PI/2);g.translate(cp.barrelX,0,0);return g};
   add(grp,'crownInner',along(cp.inner),crownMat('surface'));
-  const knurl=crownMat('surface');knurl.normalMap=stripeNormalMap(cp.teeth,'knurl');knurl.normalScale=new Vector2(1,1);
-  add(grp,'crownSide',along(cp.side),knurl);
+  /* knurled: teeth cut into the barrel, a little under a third of their pitch deep */
+  const side=knurledLathe(cp.side,cp.teeth,Math.PI*2*cp.side[0].x/cp.teeth*.3);side.rotateZ(-Math.PI/2);side.translate(cp.barrelX,0,0);
+  add(grp,'crownSide',side,crownMat('surface'));
   add(grp,'crownEnd',along(cp.end),crownMat('bevel'))}
 
  /* ---- bezel ---- */
  const bz=parts.bezel,bezelMat=zone=>metalMaterial(bz.metal,zoneFinish(bz.finish,zone));
  if(!uploaded('bezel',G.bezel,H.bezelTop+.02)){
-  const flankMat=bezelMat('surface');
-  if(Rr.rotating){flankMat.normalMap=stripeNormalMap(110,'knurl');flankMat.normalScale=new Vector2(.9,.9)}
-  else if(bz.variant==='coin'){flankMat.normalMap=stripeNormalMap(220,'knurl');flankMat.normalScale=new Vector2(.8,.8)}
-  add(G.bezel,'bezelFlank',prof(P.bezelFlank,()=>({from:'bezel'})),flankMat);
+  /* a rotating bezel's grip and a coin edge, cut into a round bezel's flank; a
+     shaped bezel keeps them as a pattern on its surface */
+  const flankMat=bezelMat('surface'),teeth=Rr.rotating?110:bz.variant==='coin'?220:0;
+  let flank;
+  if(teeth&&OL.bezel.kind==='round')flank=knurledLathe(P.bezelFlank,teeth,Math.PI*2*Rr.rBezOut/teeth*(Rr.rotating?.26:.24));
+  else{flank=prof(P.bezelFlank,()=>({from:'bezel'}));
+   if(teeth){flankMat.normalMap=stripeNormalMap(teeth,'knurl');flankMat.normalScale=new Vector2(.9,.9)}}
+  add(G.bezel,'bezelFlank',flank,flankMat);
   add(G.bezel,'bezelEdge',prof(P.bezelEdge,()=>({from:'bezel'})),bezelMat('bevel'));
   const topMat=bezelMat('surface');
   if(bz.variant==='fluted'){topMat.normalMap=stripeNormalMap(84,'flute');topMat.normalScale=new Vector2(1.4,1.4)}
