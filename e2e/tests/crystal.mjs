@@ -25,7 +25,9 @@ const clearance=p=>p.evaluate(()=>{const w=window.__watchView.watch;w.updateMatr
    const ny=u[2]*v[0]-u[0]*v[2],len=Math.hypot(u[1]*v[2]-u[2]*v[1],ny,u[0]*v[1]-u[1]*v[0]);
    if(len>1e-9&&ny/len<-.2)tris.push([a,b,c])}});
  const pts=[];
- w.traverse(o=>{if(!o.isMesh)return;let q=o,inHands=false;while(q){if(q.name==='hands')inHands=true;q=q.parent}
+ /* the hands themselves: their lume and shadow decals are sheets laid over the
+    dial, not metal that could touch the glass */
+ w.traverse(o=>{if(!o.isMesh||o.userData.noPick)return;let q=o,inHands=false;while(q){if(q.name==='hands')inHands=true;q=q.parent}
   if(!inHands)return;const cnt=o.geometry.attributes.position.count,step=Math.max(1,Math.floor(cnt/400));
   for(let i=0;i<cnt;i+=step)pts.push(world(o,i))});
  let gap=1e9,hit=0;

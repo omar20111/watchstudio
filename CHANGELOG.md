@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**Changed — a clear crystal, and hands pressed to a curve**
+- **The dial is sharp through the glass again.** What is seen through the
+  crystal is a second render of everything opaque, sampled with a smoothing
+  filter, so the dial print, the indices and the magnified date all read softer
+  than they are. That render now carries about twice the screen's resolution
+  (and nothing extra on a 2x screen, which already has it), and the sapphire is
+  given the mirror polish it has, since any roughness there blurs what is seen
+  through it.
+- **Hands are pressed to a shallow curve**, their tips dropping 0.05–0.1 mm
+  toward the dial as a real hand's do, with the lume following the curve. A
+  hand now catches the light along its length rather than all at once.
+- The crystal-clearance check in the e2e counts the hands themselves, not the
+  sheets laid over the dial (lume, shadows).
+
 **Added — dials from PartStudio, and a background picture**
 - **Import a dial designed in PartStudio** (Dial panel → Background &
   PartStudio). The file carries the plate's pattern, colour and finish, the date

@@ -104,7 +104,9 @@ export function crystalMaterial(finish='polished',gloss=.65,{solid=0}={}){
     in steps, indices kinked), so it bends by a fraction; solidGlass keeps the
     real figure for the path tracer and the GLB. A thin pane (the caseback
     window) is a double-sided sheet with a small offset. */
- const mat=new MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:.02,
+ /* a sapphire is polished to a mirror: any roughness here blurs the dial seen
+    through it, since the blur is taken from a mip of that second render */
+ const mat=new MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,
   transmission:1,ior:SAPPHIRE_IOR,thickness:solid?Math.min(.25,solid*.25):.2,specularIntensity:Math.min(1,k),
   specularColor:new Color((AR[finish]??.75)<.5?'#b9c2ff':'#dfe6ff'),envMapIntensity:1,side:solid?FrontSide:DoubleSide});
  if(solid)solidGlass.set(mat,solid);

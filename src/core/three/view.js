@@ -172,7 +172,14 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   /* the orbit controls moved the three-quarter camera: remember where */
   syncOrbit(){orbit.setFromVector3(tq.position.clone().sub(target))},
   resize(width,height,dpr=1){w=Math.max(1,Math.round(width));h=Math.max(1,Math.round(height));
-   renderer.setPixelRatio(dpr);renderer.setSize(w,h,false);aim()},
+   renderer.setPixelRatio(dpr);renderer.setSize(w,h,false);
+   /* What is seen through the crystal is a second render of everything opaque,
+      sampled with a smoothing filter — so the dial reads softer than it is
+      unless that render carries more pixels than the screen. Keeping it at about
+      twice the CSS resolution sharpens an ordinary screen and asks nothing extra
+      of a 2x one, which is already there. */
+   renderer.transmissionResolutionScale=Math.min(2,Math.max(1,2/dpr));
+   aim()},
   layout,
   /* ambient occlusion on or off, e.g. when a slow GPU cannot afford it live */
   setAO(on){aoOn=!!on},
