@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**Fixed — the dial blurred through the crystal when zoomed out**
+- three shades every physical material with a roughness of at least 0.0525,
+  more on a curved crystal the smaller it is on screen, and the same roughness
+  picks how blurred a copy of the see-through render the glass samples. That
+  is a pixel or so of blur wherever the watch is drawn: invisible on a large
+  dial, enough to wipe out the printing and indices when zoomed out. The
+  refraction now reads the glass's own roughness (a mirror polish), while the
+  reflection keeps three's floor. Zoomed out, the dial through the crystal is
+  as sharp as the dial with no crystal at all.
+
 **Changed — a clear crystal, and hands pressed to a curve**
 - **The dial is sharp through the glass again.** What is seen through the
   crystal is a second render of everything opaque, sampled with a smoothing

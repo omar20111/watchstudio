@@ -110,7 +110,20 @@ export function crystalMaterial(finish='polished',gloss=.65,{solid=0}={}){
   transmission:1,ior:SAPPHIRE_IOR,thickness:solid?Math.min(.25,solid*.25):.2,specularIntensity:Math.min(1,k),
   specularColor:new Color((AR[finish]??.75)<.5?'#b9c2ff':'#dfe6ff'),envMapIntensity:1,side:solid?FrontSide:DoubleSide});
  if(solid)solidGlass.set(mat,solid);
- return mat}
+ return sharpGlass(mat)}
+
+/* Roughness 0 is not what three shades with: every physical material is floored
+   at .0525, plus the change of the normal across one pixel (specular
+   antialiasing). The reflection wants that; what is seen through the glass does
+   not, because the same roughness picks how blurred a mip of the second render
+   to sample — about .6 of a level — and more on a curved crystal the smaller it
+   is on screen. That is a pixel or so of blur wherever the watch is drawn, which
+   hides nothing when the dial is large and wipes its printing out when the
+   watch is zoomed out. The refraction reads the material's own roughness. */
+function sharpGlass(mat){
+ return addShaderHook(mat,'ws-sharp-glass',sh=>{
+  sh.fragmentShader=sh.fragmentShader.replace('#include <transmission_fragment>',
+   ShaderChunk.transmission_fragment.replace('n, v, material.roughness,','n, v, roughnessFactor,'))})}
 
 /* A magnifier in the rasteriser: the transmission pass samples the frame behind
    the glass at the refracted point, so scaling those samples about the point
