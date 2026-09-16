@@ -51,11 +51,15 @@ export function useWatchView({camera='front',orbit=false}={}){
      or in any build opened with ?e2e */
   if(exposeView())window.__watchView=v;
   const r=host.current.getBoundingClientRect();v.resize(r.width,r.height,dprOf());
-  let raf=null,lastD=null,lastC=null,lastBuild=-1e9,lastDraw=-1e9,giveUp=null,slow=0;
+  let raf=null,lastD=null,lastC=null,lastBuild=-1e9,lastDraw=-1e9,giveUp=null,slow=0,refinedAt=-1,strikes=0;
   v.onDirty(()=>{lastD=null;dirty.current=true});   /* an upload finished loading */
   /* `paused`: something else is using the GPU over this view (a photo being
      path traced) — skip frames until it is done */
   const loop=t=>{if(v.paused){raf=requestAnimationFrame(loop);return}
+   /* a refinement sample that held up the next frame past 100 ms is a device
+      that cannot afford them: three of those and this view stops refining */
+   if(refinedAt>=0&&t-refinedAt>100&&++strikes>=3)console.info('WatchStudio: idle anti-aliasing is off for the live view — this device draws a frame too slowly');
+   refinedAt=-1;
    const st=store.getState();
    if(st.d!==lastD||st.customs!==lastC){dirty.current=true;
     if(v.stale(st.d,st.customs)&&t-lastBuild<90)v.pose(st.d);
@@ -71,6 +75,11 @@ export function useWatchView({camera='front',orbit=false}={}){
     if(smooth&&v.aoOn){slow=t-lastDraw>34?slow+1:Math.max(0,slow-2);
      if(slow>90){v.setAO(false);console.info('WatchStudio: ambient occlusion is off for the live view — this device draws it below 30 fps')}}
     v.render(sceneClock(st.d,Date.now()));dirty.current=false;lastDraw=t}
+   /* still for a moment: add one anti-aliasing sample a frame until the frame
+      has them all (view.js createAccumulator); any change starts over. Not on
+      a device too slow for it (strikes, above) — each sample is a whole frame's
+      work, and a slow GPU would spend seconds on them after every change. */
+   else if(!smooth&&strikes<3&&t-lastDraw>120&&v.refine(sceneClock(st.d,Date.now())))refinedAt=t;
    raf=requestAnimationFrame(loop)};
   raf=requestAnimationFrame(loop);
 

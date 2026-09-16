@@ -11,7 +11,9 @@
    The watch is rebuilt only when its headKey changes; part transforms, the
    bezel angle and the clock are applied to the built watch every frame. */
 import {WebGLRenderer,Scene,OrthographicCamera,PerspectiveCamera,DirectionalLight,Mesh,PlaneGeometry,
-        ShadowMaterial,NeutralToneMapping,SRGBColorSpace,VSMShadowMap,Vector3,Vector2,Raycaster,Spherical,Box3} from 'three';
+        ShadowMaterial,NeutralToneMapping,SRGBColorSpace,VSMShadowMap,Vector3,Vector2,Raycaster,Spherical,Box3,
+        ShaderMaterial,WebGLRenderTarget,FramebufferTexture,HalfFloatType,UnsignedByteType,NoBlending,NearestFilter} from 'three';
+import {FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js';
 import {CAN,PX} from '../constants.js';
 import {LIGHT} from '../render/material.js';
 import {lugToLugOf,geoOf} from '../geometry.js';
@@ -92,6 +94,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  let tilt=[0,0];
  const ao=createAO(renderer,scene,front);let aoOn=true;const buf=new Vector2();
  let onDirty=null;
+ const aa=createAccumulator(renderer);
 
  const ortho=(cam,vw,vh,ppm,cx=0,cy=0)=>{const hw=vw/2/ppm,hh=vh/2/ppm;
   Object.assign(cam,{left:cx-hw,right:cx+hw,top:cy+hh,bottom:cy-hh});cam.updateProjectionMatrix()};
@@ -190,7 +193,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   /* ambient occlusion on or off, e.g. when a slow GPU cannot afford it live */
   setAO(on){aoOn=!!on},
   get aoOn(){return aoOn},
-  render(clock){if(!watch)return;if(clock)poseHead(watch,clock);
+  render(clock){if(!watch)return;if(clock)poseHead(watch,clock);aa.reset();
    if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
     underside(camera==='back');renderer.render(scene,cam());
     if(aoOn){renderer.getDrawingBufferSize(buf);ao.apply(cam(),buf.x,buf.y,aoScale)}
@@ -202,6 +205,20 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     renderer.setViewport(r.x,h-r.y-r.h,r.w,r.h);renderer.setScissor(r.x,h-r.y-r.h,r.w,r.h);
     underside(c===back);renderer.render(scene,c);underside(false)}
    renderer.setScissorTest(false)},
+  /* One more sample of a still frame, for anti-aliasing while nothing moves
+     (createAccumulator): the frame again, shifted by a fraction of a pixel,
+     averaged with the samples before it and shown. False once the frame has all
+     its samples, or where there is nothing to refine (the profile's drawing). */
+  refine(clock){if(!watch||camera==='profile'||aa.done)return false;
+   if(clock)poseHead(watch,clock);
+   renderer.getDrawingBufferSize(buf);const c=cam();
+   aa.sample(buf.x,buf.y,(jx,jy)=>{
+    renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
+    c.setViewOffset(buf.x,buf.y,jx,jy,buf.x,buf.y);
+    underside(camera==='back');renderer.render(scene,c);
+    if(aoOn)ao.apply(c,buf.x,buf.y,aoScale);
+    underside(false);c.clearViewOffset()});
+   return !aa.done},
   /* is something moving in view that the clock does not tick once a second — the
      balance behind an exhibition caseback, seen from below */
   /* night mode on (lume lit, studio dimmed), for the stage and for tests */
@@ -230,8 +247,57 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     if(aoOn)ao.apply(c,x1-x0,y1-y0,1);
     put(renderer.domElement,tx-x0,ty-y0,tw,th,tx,ty)}
    c.clearViewOffset()},
-  dispose(){if(watch)disposeHead(watch);ao.dispose();env.dispose();renderer.dispose();watch=null}};
+  dispose(){if(watch)disposeHead(watch);ao.dispose();aa.dispose();env.dispose();renderer.dispose();watch=null}};
  return view}
+
+/* Anti-aliasing by accumulation. The live view renders each frame once, with
+   4x multisampling on its edges only: fine detail that is not an edge of a
+   triangle — a crown's knurling, a minute track, the rims of a date window, the
+   seams of a bracelet — shimmers and steps. A watch on the stage is still most
+   of the time, so once it is, the same frame is drawn again shifted by a
+   fraction of a pixel (a Halton pattern), and the frames are averaged: sixteen
+   of them is sixteen samples in every pixel, of everything. Each sample is the
+   finished frame as it lies in the canvas (tone mapped, occlusion applied),
+   copied out, blended into a running mean in a float target, and the mean put
+   back. Moving the watch starts again from one sample.
+   Not where WebGL is drawn in software (SwiftShader, llvmpipe — a machine with
+   no usable GPU, as in a test runner): there each sample takes seconds, and a
+   still or an idle stage would spend a minute on sixteen. */
+const AA_SAMPLES=16;
+const softwareGL=renderer=>{try{const gl=renderer.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info');
+ return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(String(gl.getParameter(ext?ext.UNMASKED_RENDERER_WEBGL:gl.RENDERER)))}catch(e){return false}};
+const halton=(i,b)=>{let f=1,r=0;while(i>0){f/=b;r+=f*(i%b);i=Math.floor(i/b)}return r};
+const JITTER=Array.from({length:AA_SAMPLES},(_,i)=>i?[halton(i,2)-.5,halton(i,3)-.5]:[0,0]);
+function createAccumulator(renderer){
+ let n=0,bw=0,bh=0,frame=null,a=null,b=null;const total=softwareGL(renderer)?0:AA_SAMPLES;
+ const vert='varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+ const flat={depthTest:false,depthWrite:false,blending:NoBlending,toneMapped:false};
+ const blend=new ShaderMaterial({...flat,uniforms:{tMean:{value:null},tNew:{value:null},k:{value:1}},vertexShader:vert,
+  fragmentShader:'uniform sampler2D tMean;uniform sampler2D tNew;uniform float k;varying vec2 vUv;void main(){gl_FragColor=mix(texture2D(tMean,vUv),texture2D(tNew,vUv),k);}'});
+ const show=new ShaderMaterial({...flat,uniforms:{t:{value:null}},vertexShader:vert,
+  fragmentShader:'uniform sampler2D t;varying vec2 vUv;void main(){gl_FragColor=texture2D(t,vUv);}'});
+ const quad=new FullScreenQuad(blend);
+ const size=(x,y)=>{if(x===bw&&y===bh&&frame)return;bw=x;bh=y;
+  for(const t of[frame,a,b])t&&t.dispose();
+  frame=new FramebufferTexture(x,y);frame.minFilter=frame.magFilter=NearestFilter;
+  /* a half-float mean where the GPU can render to one, so sixteen blends do not
+     round away; bytes otherwise */
+  const ext=renderer.extensions,type=ext.has('EXT_color_buffer_float')||ext.has('EXT_color_buffer_half_float')?HalfFloatType:UnsignedByteType;
+  const rt=()=>new WebGLRenderTarget(x,y,{type,minFilter:NearestFilter,magFilter:NearestFilter,depthBuffer:false});
+  a=rt();b=rt();n=0};
+ return{
+  get done(){return n>=total},
+  reset(){n=0},
+  /* draw(jx, jy) renders the frame into the canvas shifted by (jx, jy) pixels */
+  sample(x,y,draw){size(x,y);const[jx,jy]=JITTER[n];
+   draw(jx,jy);
+   renderer.setRenderTarget(null);renderer.copyFramebufferToTexture(frame);
+   const prevAuto=renderer.autoClear;renderer.autoClear=false;
+   quad.material=blend;blend.uniforms.tMean.value=a.texture;blend.uniforms.tNew.value=frame;blend.uniforms.k.value=1/(n+1);
+   renderer.setRenderTarget(b);quad.render(renderer);[a,b]=[b,a];
+   renderer.setRenderTarget(null);quad.material=show;show.uniforms.t.value=a.texture;quad.render(renderer);
+   renderer.autoClear=prevAuto;n++},
+  dispose(){for(const t of[frame,a,b])t&&t.dispose();blend.dispose();show.dispose();quad.dispose()}}}
 
 /* ---------------------------------------------------------------- stills */
 
@@ -265,7 +331,9 @@ export function renderStill(d,customs,{w=CAN,h=w,camera='front',clock}={}){retur
  const v=stillView();await ready(v,d,customs);
  v.setCamera(camera);v.resize(w,h,1);v.setFrame({pxPerMm:camera==='front'?Math.min(w,h)/SHEET:null,zoom:1});
  if(camera==='three-quarter')v.fit();
- v.render(clock||sceneClock(d,Date.now()));
+ const at=clock||sceneClock(d,Date.now());
+ /* a still has the time to be anti-aliased in full */
+ v.render(at);while(v.refine(at));
  const out=document.createElement('canvas');out.width=w;out.height=h;out.getContext('2d').drawImage(v.renderer.domElement,0,0);
  return out})}
 
@@ -281,7 +349,8 @@ export function presetStill(d,part,{size=120,clock}={}){return inTurn(async()=>{
    v.target().copy(c);v.setFrame({pxPerMm:null,zoom:5})}
   else{const g=geoOf(d),r=(g.R+g.lugExt+14)/PX;
    v.setCamera('front');v.setFrame({pxPerMm:S/(2*r),zoom:1})}
-  v.render(clock||sceneClock(d,Date.now()));
+  const at=clock||sceneClock(d,Date.now());
+  v.render(at);while(v.refine(at));
   const out=document.createElement('canvas');out.width=out.height=size;
   out.getContext('2d').drawImage(v.renderer.domElement,0,0,S,S,0,0,size,size);
   return out.toDataURL('image/png')}

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**Changed — clean edges when the watch is still**
+- The live view draws each frame once with 4x multisampling, which smooths the
+  edges of triangles only: a crown's knurling, a minute track, a date window's
+  rims and a bracelet's seams shimmered and stepped. Once the watch is still,
+  the view now draws the frame fifteen more times shifted by a fraction of a
+  pixel and averages them (view.js createAccumulator) — sixteen samples of
+  everything in every pixel, a tenth of a second on an Intel UHD. Any change
+  starts again from one; a device whose frames it holds up past 100 ms three
+  times, or WebGL drawn in software, goes without. Stills and the tech pack's
+  renderings get all sixteen.
+
 **Changed — metals in their real colours**
 - A 3D metal was made in the colour chosen by eye for the 2D drawing: yellow
   gold brassy, rose gold copper, titanium a cool blue-grey. Metals now carry
