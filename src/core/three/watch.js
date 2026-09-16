@@ -12,7 +12,7 @@
    the same parts the panels do. */
 import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,BoxGeometry,ExtrudeGeometry,Shape,Path,ShapeGeometry,Matrix4,
         BufferGeometry,BufferAttribute,Float32BufferAttribute,CanvasTexture,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,
-        Color,Vector2} from 'three';
+        Color,Vector2,ClampToEdgeWrapping} from 'three';
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
@@ -99,10 +99,20 @@ export function canvasTexture(cv,aniso=8){let t=texOf.get(cv);
  if(!t){t=new CanvasTexture(cv);t.colorSpace=SRGBColorSpace;t.anisotropy=aniso;texOf.set(cv,t)}
  return t}
 
+/* Artwork seen up close — the dial's printing, the date, a bezel's scale — is
+   baked for its own square of the sheet (cache.js getProc `res`), finer than the
+   sheet's 18 px/mm: zoomed in on a large screen, a dial at 18 px/mm is
+   magnified four times over and its printing goes soft. Three times finer, or
+   twice on a device reporting little memory; never past 4096 px. `half` is the
+   square's half-width in sheet px, centred on the dial. */
+const ART_SCALE=typeof navigator!=='undefined'&&navigator.deviceMemory&&navigator.deviceMemory<=4?2:3;
+const artRes=halfPx=>{const size=2*Math.ceil(halfPx+4);return{box:[C-size/2,C-size/2,size],k:Math.min(ART_SCALE,4096/size)}};
+
 /* map a flat shape's xy onto the sheet, so a disc of radius dialR samples
-   exactly the pixels the 2D dial painted at that radius */
-const sheetUV=geo=>{const p=geo.attributes.position,uv=geo.attributes.uv;
- for(let i=0;i<p.count;i++)uv.setXY(i,.5+p.getX(i)/SHEET,.5+p.getY(i)/SHEET);
+   exactly the pixels the 2D dial painted at that radius; `span` is how many
+   sheet px the uv's 0..1 covers, centred on the dial (a finer bake's square) */
+const sheetUV=(geo,span=CAN)=>{const p=geo.attributes.position,uv=geo.attributes.uv,s=SHEET*span/CAN;
+ for(let i=0;i<p.count;i++)uv.setXY(i,.5+p.getX(i)/s,.5+p.getY(i)/s);
  uv.needsUpdate=true;return geo};
 /* lay an xy shape face-up; canvas top (12 o'clock) lands on -z */
 const faceUp=geo=>{geo.rotateX(-Math.PI/2);return geo};
@@ -131,22 +141,43 @@ let tapNormal=null;
 const tapisserieNormalMap=()=>tapNormal||(tapNormal=normalsFromHeight(512,(x,y)=>{
  const fx=(x%64)/64,fy=(y%64)/64,dd=Math.max(Math.abs(fx-.5),Math.abs(fy-.5));return dd>.42?0:1-dd/.42},8));
 
-function dialMaterial(map,p,dialR=null){
+/* Guilloché, engine-turned: fine concentric waves crossed by a hundred shallow
+   spokes, as the 2D dial painted them in light and shade — here a relief, so the
+   rings catch and lose the light as the watch turns instead of staying printed.
+   A normal map over the plate's uv square (`span` sheet px, centred), with the
+   height's gradient taken analytically: rings `r/n` px apart, the spokes fading
+   out toward the pinion where they would crowd together. */
+const guillocheMaps=new Map();
+function guillocheNormalMap(dialR,span){const key=Math.round(dialR)+':'+span;
+ if(guillocheMaps.has(key))return guillocheMaps.get(key);
+ const N=1024,n=Math.max(18,Math.round(dialR/5.5)),pitch=dialR/n,a1=pitch*.035,a2=dialR*.0006,S=100;
+ const a=new Uint8Array(N*N*4);
+ for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+  const x=((i+.5)/N-.5)*span,y=((j+.5)/N-.5)*span,rho=Math.hypot(x,y)||1e-6,th=Math.atan2(y,x);
+  const w=Math.min(1,Math.max(0,(rho/dialR-.1)/.15));
+  const dr=-a1*(2*Math.PI/pitch)*Math.sin(2*Math.PI*rho/pitch),dt=-a2*w*S*Math.sin(S*th)/rho;
+  const gx=dr*x/rho-dt*y/rho,gy=dr*y/rho+dt*x/rho,l=Math.hypot(gx,gy,1),o=(j*N+i)*4;
+  a[o]=Math.round((-gx/l*.5+.5)*255);a[o+1]=Math.round((-gy/l*.5+.5)*255);a[o+2]=Math.round((1/l*.5+.5)*255);a[o+3]=255}
+ const t=dataTexture(N,N,a);t.wrapS=t.wrapT=ClampToEdgeWrapping;
+ guillocheMaps.set(key,t);if(guillocheMaps.size>4)guillocheMaps.delete(guillocheMaps.keys().next().value);return t}
+
+function dialMaterial(map,p,dialR=null,span=CAN){
  const mat=new MeshPhysicalMaterial({map,metalness:0,roughness:.5});
  if(p.variant==='sunburst'){
   /* radial brushing: the highlight sweeps around the dial as the light moves */
   mat.roughness=.3;mat.anisotropy=.92;mat.anisotropyMap=anisotropyMap('circular')}
  else if(p.finish==='brushed'){mat.roughness=.38;mat.anisotropy=.7;mat.anisotropyMap=anisotropyMap('radial')}
  else if(p.variant==='matte'||p.variant==='chrono')mat.roughness=.82;
- else if(p.variant==='guilloche'){mat.roughness=.34;mat.clearcoat=.35;mat.clearcoatRoughness=.2}
+ else if(p.variant==='guilloche'){mat.roughness=.3;mat.clearcoat=.35;mat.clearcoatRoughness=.2;
+  if(dialR){mat.normalMap=guillocheNormalMap(dialR,span);mat.normalScale=new Vector2(1,1);filteredNormals(mat,1)}}
  else if(p.variant==='fume'){mat.roughness=.28;mat.clearcoat=.6;mat.clearcoatRoughness=.08}
  /* enamel: a glassy glaze fired over the colour */
  else if(p.variant==='enamel'){mat.roughness=.07;mat.clearcoat=1;mat.clearcoatRoughness=.03}
  else if(p.variant==='tapisserie'&&dialR){mat.roughness=.42;
   /* the painting's grid starts at the centre in sheet px; the map's UVs run
-     .5 + px/CAN, so a tile of 8 cells repeats CAN/(8 cells) times, shifted to land
+     .5 + px/span, so a tile of 8 cells repeats span/(8 cells) times, shifted to land
      a cell corner on the centre */
-  const t=tapisserieNormalMap().clone(),R=CAN/(8*tapisserieCell(dialR)),o=-((.5*R*8)%1)/8;
+  const t=tapisserieNormalMap().clone(),R=span/(8*tapisserieCell(dialR)),o=-((.5*R*8)%1)/8;
   t.repeat.set(R,R);t.offset.set(o,o);mat.normalMap=t;mat.normalScale=new Vector2(.9,.9)}
  if(p.finish==='polished'){mat.roughness=Math.min(mat.roughness,.2);mat.clearcoat=Math.max(mat.clearcoat,.5)}
  if(p.finish==='matte')mat.roughness=Math.max(mat.roughness,.85);
@@ -159,21 +190,22 @@ function dialMaterial(map,p,dialR=null){
    Returns a normal map, and a map with roughness in G and metalness in B, both
    on the sheet's UVs like the printed insert — or null where the bake cannot
    be read back. The sheet is a canvas, top row first; a DataTexture's first
-   row is its bottom, so rows are read flipped. Cached per bake. */
+   row is its bottom, so rows are read flipped. Cached per bake. `span`: the
+   sheet px the bake covers, so a finer bake keeps the same groove in mm. */
 const engravings=new WeakMap();
-function engravingMaps(cv){if(engravings.has(cv))return engravings.get(cv);
+function engravingMaps(cv,span=CAN){if(engravings.has(cv))return engravings.get(cv);
  let out=null;
- try{const W=cv.width,px=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,W).data;
+ try{const W=cv.width,k=W/span,px=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,W).data;
   if(!px||px.length<W*W*4)throw new Error('no pixels');
   const a=new Float32Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++)a[y*W+x]=px[((W-1-y)*W+x)*4+3]/255;
   /* a box blur twice over is close to a gaussian: the groove's walls slope over a few px */
-  let b=a;for(let pass=0;pass<2;pass++){const t=new Float32Array(W*W),o=new Float32Array(W*W),R=2,n=2*R+1;
+  let b=a;for(let pass=0;pass<2;pass++){const t=new Float32Array(W*W),o=new Float32Array(W*W),R=Math.max(2,Math.round(2*k)),n=2*R+1;
    for(let y=0;y<W;y++){let s=0;for(let x=-R;x<=R;x++)s+=b[y*W+Math.min(W-1,Math.max(0,x))];
     for(let x=0;x<W;x++){t[y*W+x]=s/n;s+=b[y*W+Math.min(W-1,x+R+1)]-b[y*W+Math.max(0,x-R)]}}
    for(let x=0;x<W;x++){let s=0;for(let y=-R;y<=R;y++)s+=t[Math.min(W-1,Math.max(0,y))*W+x];
     for(let y=0;y<W;y++){o[y*W+x]=s/n;s+=t[Math.min(W-1,y+R+1)*W+x]-t[Math.max(0,y-R)*W+x]}}
    b=o}
-  const normal=normalsFromHeight(W,(x,y)=>-b[y*W+x],1.8);
+  const normal=normalsFromHeight(W,(x,y)=>-b[y*W+x],1.8*k);
   const mr=new Uint8Array(W*W*4);
   for(let i=0;i<W*W;i++){const m=a[i];mr[i*4+1]=Math.round((.34+.18*m)*255);mr[i*4+2]=Math.round(.9*m*255);mr[i*4+3]=255}
   out={normal,mr:dataTexture(W,W,mr)}}
@@ -689,13 +721,15 @@ export function buildHead(d,customs={},{aniso=8}={}){
   /* an octagonal bezel's top runs from its octagon at the grip to the round insert or opening */
   add(G.bezel,'bezelTop',prof(P.bezelTop,(i,p)=>({from:'bezel',to:'round',t:Math.min(1,Math.max(0,(Rr.rGripIn-p.x)/Math.max(1e-6,Rr.rGripIn-Rr.rInCham)))})),topMat);
   add(G.bezel,'bezelInner',lathe(P.bezelInner),bezelMat('bevel'));
-  const ring=(r0,r1)=>faceUp(sheetUV(new RingGeometry(r0,r1,180,1)));
+  const bres=artRes(Math.max(Rr.rInsOut||0,Rr.rGripIn||0,Rr.rInCham||0)*PX);
+  const ring=(r0,r1)=>faceUp(sheetUV(new RingGeometry(r0,r1,180,1),bres.box[2]));
   if(bezelRotatable(d)){
    /* anodised or ceramic: a light coat only — a strong clearcoat mirrors the
       overhead softbox and turns a black insert grey */
-   const insMat=new MeshPhysicalMaterial({map:tex(getProc('bezel',d,'insert','flat')),roughness:.34,clearcoat:.22,clearcoatRoughness:.18});
-   /* the scale engraved into it and filled with metal */
-   const eng=engravingMaps(getProc('bezel',d,'insert','shape'));
+   const insMat=new MeshPhysicalMaterial({map:tex(getProc('bezel',d,'insert','flat',bres)),roughness:.34,clearcoat:.22,clearcoatRoughness:.18});
+   /* the scale engraved into it and filled with metal: its relief at twice the
+      sheet's resolution (its blur and normals are worked out on the CPU, once per bezel design) */
+   const eres={...bres,k:Math.min(2,bres.k)},eng=engravingMaps(getProc('bezel',d,'insert','shape',eres),eres.box[2]);
    if(eng){insMat.normalMap=eng.normal;insMat.normalScale=new Vector2(1,1);
     insMat.roughnessMap=insMat.metalnessMap=eng.mr;insMat.roughness=1;insMat.metalness=1}
    const ins=add(G.bezel,'bezelIns',ring(Rr.rInCham,Rr.rInsOut),insMat,{cast:false});
@@ -710,7 +744,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
     lumeMat.userData.lume=parts.markers.lume||'#dff3e4';
     add(ins,'bezelPipLume',lm,lumeMat,{cast:false,receive:false})}}
   else if(bz.variant==='tachy'){
-   const pr=add(G.bezel,'bezelPrint',ring(Rr.rInCham,Rr.rGripIn),paintedMaterial(tex(getProc('bezel',d,undefined,'print')),{alphaTest:.35,roughness:.6}),{cast:false});
+   const pr=add(G.bezel,'bezelPrint',ring(Rr.rInCham,Rr.rGripIn),paintedMaterial(tex(getProc('bezel',d,undefined,'print',bres)),{alphaTest:.35,roughness:.6}),{cast:false});
    pr.position.y=H.bezelTop+.008}}
 
  /* ---- dial ----
@@ -725,29 +759,30 @@ export function buildHead(d,customs={},{aniso=8}={}){
  {const du=activeUpload(d,customs,'dial');let src=du&&uploadCanvas('dial',du,parts.dial);
   if(src instanceof Promise){pending.push(src);src=null}
   /* the plate wears its artwork, over a background picture where one is set */
-  let plateArt=dialPlateCanvas(d,customs,'flat');
-  if(plateArt instanceof Promise){pending.push(plateArt);plateArt=getProc('dial',d,undefined,'flat')}
+  const dres=artRes(Rr.dialR*PX),dspan=dres.box[2];
+  let plateArt=dialPlateCanvas(d,customs,'flat',dres);
+  if(plateArt instanceof Promise){pending.push(plateArt);plateArt=getProc('dial',d,undefined,'flat',dres)}
   if(dialUpload||src){
-   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX);
-   const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180))),mat,{cast:false});
+   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX,dspan);
+   const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180),src?CAN:dspan)),mat,{cast:false});
    dial.position.y=H.dial}
-  else{const mat=dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX);
+  else{const mat=dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX,dspan);
    const plateR=DL.stepped?DL.stepR/PX:Rr.dialR;
    const outline=new Shape();outline.absarc(0,0,plateR,0,Math.PI*2,false);
    for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
    if(DL.win)outline.holes.push(roundRectPath(new Path(),mmX(DL.win.x),mmY(DL.win.y),DL.win.w/PX,DL.win.h/PX,DL.win.rad/PX));
-   const plate=add(G.dial,'dial',faceUp(sheetUV(new ShapeGeometry(outline,48))),mat,{cast:false});
+   const plate=add(G.dial,'dial',faceUp(sheetUV(new ShapeGeometry(outline,48),dspan)),mat,{cast:false});
    plate.position.y=Hc;
    /* the wall of any recess is the plate's own metal, seen in its own shade */
    const wallMat=()=>new MeshPhysicalMaterial({color:new Color(shade(parts.dial.color||'#16324f',.35)),roughness:.6});
    if(DL.stepped){
-    const ring=add(G.dial,'chapterRing',faceUp(sheetUV(new RingGeometry(plateR,Rr.dialR,180,1))),mat,{cast:false});
+    const ring=add(G.dial,'chapterRing',faceUp(sheetUV(new RingGeometry(plateR,Rr.dialR,180,1),dspan)),mat,{cast:false});
     ring.position.y=H.dial;
     /* the step faces the centre: top to bottom, so the lathe's normals point in */
     add(G.dial,'chapterStep',lathe([new Vector2(plateR,H.dial),new Vector2(plateR,Hc)],180),wallMat(),{cast:false})}
    /* registers: a floor below the plate with snailed grooves, and a wall down to it */
    for(const sd of DL.subdials){const x=mmX(sd.x),y=mmY(sd.y),rs=sd.r/PX;
-    const floor=new CircleGeometry(rs,96);floor.translate(x,y,0);sheetUV(floor);
+    const floor=new CircleGeometry(rs,96);floor.translate(x,y,0);sheetUV(floor,dspan);
     /* uv1 runs 0..1 across the register itself, for its concentric grooves */
     {const p=floor.attributes.position,u1=new Float32Array(p.count*2);
      for(let i=0;i<p.count;i++){u1[i*2]=.5+(p.getX(i)-x)/(2*rs);u1[i*2+1]=.5+(p.getY(i)-y)/(2*rs)}
@@ -767,8 +802,9 @@ export function buildHead(d,customs={},{aniso=8}={}){
     faceUp(fg);
     const fr=add(G.dial,'dateFrame',fg,metalMaterial(parts.hands.metal,'polished'),{cast:false});fr.position.y=wheelY+.05;
     const cr=Math.hypot(w.x-C,w.y-C),span=Math.hypot(w.w,w.h)/2+w.frame*3;
-    const wheel=add(G.dial,'dateWheel',faceUp(sheetUV(new RingGeometry(Math.max(0,cr-span)/PX,(cr+span)/PX,160,1))),
-     paintedMaterial(tex(getProc('dial',d,'dateWheel','flat')),{roughness:.5}),{cast:false});
+    const wres=artRes(cr+span);
+    const wheel=add(G.dial,'dateWheel',faceUp(sheetUV(new RingGeometry(Math.max(0,cr-span)/PX,(cr+span)/PX,160,1),wres.box[2])),
+     paintedMaterial(tex(getProc('dial',d,'dateWheel','flat',wres)),{roughness:.5}),{cast:false});
     wheel.position.y=wheelY;wheel.userData.spin='dateWheel'}}}
  /* chronograph registers: running seconds at 3, 12-hour at 6, 30-minute at 9 */
  if(parts.dial.variant==='chrono'&&!dialUpload){const hp=parts.hands;

@@ -73,9 +73,11 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   if(o.ink==='text')printText(ctx,o,r,col,'ink');
   else if(o.ink==='track'){printTrack(ctx,r,L.stepped?L.stepR+3:0,'#fff');for(const sd of L.subdials||[])registerScale(ctx,sd,'#fff')}
   return}
- /* flat: pigment and printing only. The sunburst sweep, the highlight, the edge
-    vignette and the text emboss are all light, and 3D lighting supplies them
-    from the real surface — painting them too would light the dial twice. */
+ /* flat: pigment and printing only. The sunburst sweep and its spokes, the
+    guilloché's rings, a brushed grain, the highlight, the edge vignette and the
+    text emboss are all light, and 3D lighting supplies them from the real
+    surface (an anisotropy or a normal map) — painting them too would light the
+    dial twice and leave lines that stay put as the watch turns. */
  const flat=o.mode==='flat';
  /* a background picture (core/dialbg.js) is the plate's ground in the 3D
     texture: the colour and the pattern are left out, the printing stays */
@@ -86,7 +88,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  if(ground&&o.variant==='sunburst'){if(!flat&&ctx.createConicGradient){const g=ctx.createConicGradient(0.8,C,C);
    const st=[[0,'rgba(255,255,255,.20)'],[.25,'rgba(0,0,0,.16)'],[.5,'rgba(255,255,255,.20)'],[.75,'rgba(0,0,0,.16)'],[1,'rgba(255,255,255,.20)']];
    st.forEach(s=>g.addColorStop(...s));ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
-  for(let i=0;i<240;i++){const a=i*1.5*Math.PI/180;ctx.beginPath();ctx.moveTo(C,C);ctx.lineTo(C+r*Math.sin(a),C-r*Math.cos(a));
+  if(!flat)for(let i=0;i<240;i++){const a=i*1.5*Math.PI/180;ctx.beginPath();ctx.moveTo(C,C);ctx.lineTo(C+r*Math.sin(a),C-r*Math.cos(a));
    ctx.strokeStyle=`rgba(255,255,255,${i%2?0.015:0.03})`;ctx.lineWidth=1;ctx.stroke()}}
 
  if(ground&&o.variant==='fume'){const fg=ctx.createRadialGradient(C,C,0,C,C,r);
@@ -94,7 +96,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   fg.addColorStop(.78,shade(col,.55));fg.addColorStop(1,shade(col,.84));
   ctx.fillStyle=fg;ctx.fillRect(0,0,W,H)}
 
- if(ground&&o.variant==='guilloche'){
+ if(ground&&o.variant==='guilloche'&&!flat){
   /* engine turning: regular rings crossed by fine spokes reads as hobnail */
   const n=Math.max(18,Math.round(r/5.5)),rg=ctx.createRadialGradient(C,C,0,C,C,r);
   for(let i=0;i<=n;i++)rg.addColorStop(i/n,i%2?'rgba(255,255,255,.11)':'rgba(0,0,0,.14)');
@@ -125,7 +127,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
    ctx.beginPath();ctx.moveTo(C-r,C+i*cell);ctx.lineTo(C+r,C+i*cell);ctx.stroke()}}
 
  if(ground&&(o.variant==='matte'||o.variant==='chrono'))noiseFill(ctx,.07,'overlay');
- if(o.finish==='brushed'){ctx.save();ctx.globalCompositeOperation='overlay';
+ if(o.finish==='brushed'&&!flat){ctx.save();ctx.globalCompositeOperation='overlay';
   ctx.fillStyle=circGrain(ctx,0,r,.8);ctx.fillRect(0,0,W,H);ctx.restore()}
  if(o.finish==='matte')noiseFill(ctx,.10,'overlay',.8);
 

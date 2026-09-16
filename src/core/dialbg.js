@@ -31,8 +31,8 @@ function image(url){let e=images.get(url);
    (printing, window frame, track) over that — or just the artwork when there is
    no picture. A canvas, or a promise while the picture loads. */
 const sheets=new Map();
-export function dialPlateCanvas(d,customs,mode='flat'){
- const art=getProc('dial',d,undefined,mode);
+export function dialPlateCanvas(d,customs,mode='flat',res=null){
+ const art=getProc('dial',d,undefined,mode,res);
  const u=activeDialBg(d,customs);
  if(!u||mode!=='flat')return art;
  const e=image(u.url);
@@ -40,7 +40,9 @@ export function dialPlateCanvas(d,customs,mode='flat'){
  const B=dialBgOf(d),r=geoOf(d).dialR;
  const key=[u.url,B.scale,B.rot,B.x,B.y,d.parts.dial.color,r,art.width,art.__stamp||(art.__stamp=Math.random())].join('|');
  if(sheets.has(key))return sheets.get(key);
- const cv=document.createElement('canvas');cv.width=cv.height=CAN;const x=cv.getContext('2d');
+ /* the same square of the sheet, at the same scale, as the artwork */
+ const cv=document.createElement('canvas');cv.width=cv.height=art.width;const x=cv.getContext('2d');
+ if(res){const k=art.width/res.box[2];x.setTransform(k,0,0,k,-res.box[0]*k,-res.box[1]*k)}
  x.save();x.beginPath();x.arc(C,C,r,0,Math.PI*2);x.clip();
  x.fillStyle=d.parts.dial.color||'#16324f';x.fillRect(0,0,CAN,CAN);
  const iw=e.img.naturalWidth||e.img.width||1,ih=e.img.naturalHeight||e.img.height||1;
@@ -48,6 +50,6 @@ export function dialPlateCanvas(d,customs,mode='flat'){
  x.translate(C+B.x*r,C+B.y*r);x.rotate(B.rot*Math.PI/180);
  x.drawImage(e.img,-iw*k/2,-ih*k/2,iw*k,ih*k);
  x.restore();
- x.drawImage(art,0,0);
+ x.setTransform(1,0,0,1,0,0);x.drawImage(art,0,0);
  sheets.set(key,cv);if(sheets.size>6)sheets.delete(sheets.keys().next().value);
  return cv}

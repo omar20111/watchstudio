@@ -49,14 +49,20 @@ export function bakeSize(part,mode,d,sub){
 /* A 3D design holds about a dozen flat, shape and lume bakes; each 1200² canvas
    is 5.8 MB of backing store, so this keeps roughly two designs warm. */
 const CACHE_MAX=32;
-export function getProc(part,d,sub,mode){const key=procKey(part,d,sub,mode);
+/* `res` bakes one square of the sheet finer than the sheet's own 18 px/mm, for
+   artwork seen up close in 3D: {box:[x0,y0,size]} in sheet px, drawn `k` times
+   finer. The painters draw in sheet px as always; the canvas is scaled and
+   moved under them. */
+export function getProc(part,d,sub,mode,res=null){const key=procKey(part,d,sub,mode)+(res?JSON.stringify(res):'');
  if(cache.has(key)){const v=cache.get(key);cache.delete(key);cache.set(key,v);return v}
- const{w,h,ty}=bakeSize(part,mode,d,sub);
+ let{w,h,ty}=bakeSize(part,mode,d,sub);
+ if(res){w=h=Math.round(res.box[2]*res.k);ty=0}
  /* shape and lume bakes exist to be read back (relief.js): keep their pixels in
     CPU memory, or every readback waits on a copy back from the GPU */
  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
  const ctx=cv.getContext('2d',mode==='shape'||mode==='lume'?{willReadFrequently:true}:undefined);
  if(ty)ctx.translate(0,ty);
+ if(res){const k=w/res.box[2];ctx.scale(k,k);ctx.translate(-res.box[0],-res.box[1])}
  DR[part](ctx,procOpts(part,d,sub,mode));
  cache.set(key,cv);if(cache.size>CACHE_MAX)cache.delete(cache.keys().next().value);return cv}
 

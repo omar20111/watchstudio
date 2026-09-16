@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+**Changed — sharp printing up close, and a guilloché that catches the light**
+- **Printing stays sharp when zoomed in.** Every artwork texture was baked on the
+  1200 px sheet, 18 px per mm, which a large screen at 300% magnifies about four
+  times: dial text, the minute track, the date and a bezel's numerals went soft
+  and stepped. The dial, the date wheel and the bezel are now baked for their own
+  square of the sheet at three times the resolution (twice on a device reporting
+  little memory; cache.js getProc res), with the plate's uv mapped onto it. A
+  rotating bezel's engraved relief is worked out at twice.
+- **Guilloché is a relief.** Its rings and spokes were painted in light and
+  shade, so they stayed put as the watch turned. They are now a normal map of
+  fine concentric waves crossed by shallow spokes, filtered so the pattern does
+  not shimmer into moiré at a distance.
+- The 3D textures no longer paint the sunburst's spokes, the guilloché's rings
+  or a brushed dial's grain: the anisotropy and normal maps make them from the
+  light, and the painted lines doubled them and stayed put.
+
 **Fixed — the strap's Finish, and a bracelet's side view**
 - **Finish works on every strap** (`parts.js strapFinish`, one definition for
   the build, the panel and the tech pack). A bracelet's None is its classic —
