@@ -15,7 +15,8 @@
   above the outer links and hung below them, a second slab above and a thin
   plate beneath; the end link was a single flat slab that matched neither. The
   rows are now one height with a crowned centre, their undersides flush, and the
-  end link carries the centre row over it as a band.
+  end link is cut in three on the rows' lines, each piece fitted to the case, so
+  the centre row and its finish run on to the case.
 - **A dim fill card by the camera** in the studio: polished links turned toward
   the viewer shade from grey to dark instead of reading as black tiles.
 

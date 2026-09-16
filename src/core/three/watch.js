@@ -418,24 +418,26 @@ function braceletParts(d,dir){
   geo.applyMatrix4(m);return geo};
  const outer=[],centre=[],pins=[];
  /* end link: full width, from the case to the first joint, its inner edge cut to
-    the case's curve so it closes the gap between the lugs as a fitted end link does */
+    the case's curve so it closes the gap between the lugs as a fitted end link does.
+    Cut in three like the rows — two outer pieces and a centre one on the same
+    lines, each with its own rounded edges — so the centre row runs on to the case
+    in its own finish. */
  const e1=pitch*.8,O=outlinesOf(d).case,integrated=caseOf(d).lugs==='integrated';
  /* against the case's outline, 0.3 mm clear (its top edge leans in as the link follows the strap's bend); on an integrated case
     it starts under the shoulder's end instead */
  const tipMm=(geoOf(d).R+geoOf(d).lugExt)/PX;
  {const smid=e1/2,x=w0*.98/2,n=20,sy=u=>-dir*(u-smid);
   const edge=xx=>integrated?tipMm+.12-sp.start:crossingAt(O.spec,O.A0,-Math.PI/2,Math.abs(xx),.3).s-sp.start;
-  const sh=new Shape();sh.moveTo(-x,sy(edge(-x)));
-  for(let i=1;i<=n;i++){const xx=-x+2*x*i/n;sh.lineTo(xx,sy(edge(xx)))}
-  sh.lineTo(x,sy(e1-gap/2));sh.lineTo(-x,sy(e1-gap/2));sh.closePath();
-  const t=T,b=Math.min(.38,t*.18);
-  const g=new ExtrudeGeometry(sh,{depth:Math.max(.05,t-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b*.8,bevelOffset:-b*.8,bevelSegments:3,curveSegments:4});
-  g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);outer.push(place(g,smid));
-  /* the centre row carries on over it as a band, from where the case is nearest
-     across the band's width to the joint */
-  const cw=w0*.36;let from=-1e9;for(let i=0;i<=8;i++)from=Math.max(from,edge(-cw/2+cw*i/8));
-  const len=e1-gap/2-from-.15;
-  if(len>1){const band=pillowLink(cw,len,T*.93,{crown:T*.1});band.translate(0,-T*.035,sy(from+.15+len/2));centre.push(place(band,smid))}}
+  const t=T,b=Math.min(.38,t*.18),cw=w0*.36,seam=Math.max(.12,w0*.01);
+  const piece=(xa,xb,to)=>{const sh=new Shape();sh.moveTo(xa,sy(edge(xa)));
+   for(let i=1;i<=n;i++){const xx=xa+(xb-xa)*i/n;sh.lineTo(xx,sy(edge(xx)))}
+   sh.lineTo(xb,sy(e1-gap/2));sh.lineTo(xa,sy(e1-gap/2));sh.closePath();
+   const g=new ExtrudeGeometry(sh,{depth:Math.max(.05,t-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b*.8,bevelOffset:-b*.8,bevelSegments:3,curveSegments:4});
+   g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);to.push(place(g,smid))};
+  piece(-x,-cw/2-seam/2,outer);piece(-cw/2+seam/2,cw/2-seam/2,centre);piece(cw/2+seam/2,x,outer);
+  /* dark under the seams, as under a row's */
+  for(const sx of[-1,1]){const a=edge(sx*cw/2),l=e1-gap/2-a;if(l<=.2)continue;
+   const bar=new BoxGeometry(seam+.3,T*.55,l);bar.translate(sx*cw/2,-T*.12,sy(a+l/2));pins.push(place(bar,smid))}}
  let s=e1;
  for(;s+pitch<sEnd;s+=pitch){
   const mid=s+pitch/2,w=widthAt(mid),pl=pitch-gap;
