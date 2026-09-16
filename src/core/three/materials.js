@@ -29,6 +29,23 @@ export function addShaderHook(mat,key,fn){let list=hookLists.get(mat);
  if(at>=0)list[at]={key,fn};else list.push({key,fn});
  mat.needsUpdate=true;return mat}
 
+/* A normal map's detail finer than a pixel still scatters light. Mipmapping
+   averages it away: the tilted facets come out as one flat normal, and a woven
+   or pebbled metal turns into a smooth mirror the smaller it is on screen. The
+   averaged normal is shorter the more its facets disagreed, so that length
+   gives back the spread as roughness (Toksvig), and the surface keeps the same
+   satin sheen whether its detail can be seen or not. `k` scales that spread. */
+export function filteredNormals(mat,k=1){
+ return addShaderHook(mat,'ws-filtered-normals',sh=>{sh.uniforms.uNormalSpread={value:k};
+  sh.fragmentShader=`uniform float uNormalSpread;
+`+sh.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+#ifdef USE_NORMALMAP_TANGENTSPACE
+{ float nLen = clamp( length( texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0 ), 0.0, 1.0 );
+  // 8-bit texels are only unit length to within a few thousandths
+  float spread = max( 0.0, 1.0 - nLen - 0.004 ) * dot( normalScale, normalScale ) * uNormalSpread;
+  roughnessFactor = pow( min( 1.0, pow4( roughnessFactor ) + spread ), 0.25 ); }
+#endif`)})}
+
 export function metalMaterial(metalId,finish='polished',o={}){
  const m=METALS[metalId]||METALS.steel;
  const f=o.forceFinish||finish;

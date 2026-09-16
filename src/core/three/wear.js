@@ -95,11 +95,13 @@ export function normalsFromHeight(W,h,strength){const H=new Float32Array(W*W);
    nato     the weave: ridges across the webbing, offset column by column */
 export const STRAP_GRAIN_MM={leather:6,rubber:4,nato:3.9,mesh:2.4};
 export const strapGrainMap=variant=>once('strap:'+variant,()=>{const W=512,r=rng(variant.length*7919+13);
- /* Milanese: rows of tiny interlocked loops, a pillow grid turned 45 degrees.
-    16 loops a tile each way keeps both diagonals whole across the edge. */
- if(variant==='mesh'){const k=16/W;
+ /* Milanese: rows of tiny interlocked loops, a pillow grid turned 45 degrees,
+    0.4 mm apart: a whole number of loops a tile each way keeps both diagonals
+    whole across the edge. Finer than that, the weave was under a pixel at an
+    ordinary zoom and the band rendered as a plain sheet of metal. */
+ if(variant==='mesh'){const k=6/W;
   return normalsFromHeight(W,(x,y)=>{const u=(x+y)*k,v=(x-y)*k,fu=u-Math.floor(u),fv=v-Math.floor(v);
-   return Math.sin(fu*Math.PI)*Math.sin(fv*Math.PI)},3)}
+   return Math.sin(fu*Math.PI)*Math.sin(fv*Math.PI)},8)}
  if(variant==='rubber'){const n=lattice(96,96,r),m=lattice(24,24,r);
   return normalsFromHeight(W,(x,y)=>.7*n(x/W*96,y/W*96)+.3*m(x/W*24,y/W*24),1.4)}
  if(variant==='nato'){const rows=10,cols=10,n=lattice(64,64,r);

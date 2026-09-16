@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+**Fixed — bracelets and Milanese turned white when zoomed out**
+- **The three-quarter view zooms with the lens, not by moving the camera.**
+  Backing the camera away turned every part of the watch to face it a little
+  more squarely, and a metal band that showed the dark studio walls up close
+  reflected the overhead softbox from end to end once zoomed out. From one
+  place, zooming only enlarges or crops the same picture: the same patch of
+  bracelet now measures the same brightness at 100% and 40%.
+- **The Milanese shows its weave.** Its loops were 0.15 mm apart, under a pixel
+  at an ordinary zoom, so the band rendered as a plain sheet of polished steel.
+  They are 0.4 mm apart now; the gaps between them darken the band; and as the
+  weave blurs away with distance a little of it becomes roughness
+  (`filteredNormals`, a Toksvig filter on the normal map), so it stays satin.
+
 **Fixed — the dial blurred through the crystal when zoomed out**
 - three shades every physical material with a roughness of at least 0.0525,
   more on a curved crystal the smaller it is on screen, and the same roughness

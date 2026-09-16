@@ -24,7 +24,7 @@ import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,crownParts,strapPath,smoothstep} from './lathe.js';
 import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
 import {crossingAt} from '../caseshape.js';
-import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents} from './materials.js';
+import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents,filteredNormals} from './materials.js';
 import {reliefFromSilhouette} from './relief.js';
 import {shadowDecal,shadowOffset} from './contactShadow.js';
 import {tapisserieCell} from '../render/dial.js';
@@ -200,10 +200,14 @@ function strapMaterial(map,p){const v=p.variant;
  if(v==='steel')return new MeshPhysicalMaterial({map,color:0xffffff,metalness:1,roughness:.3,alphaTest:.5,
   envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
  /* Milanese: a woven metal band; the bake carries the metal's colour, the
-    normal map the weave that breaks its reflections into a soft shimmer */
- if(v==='mesh'){const mm=new MeshPhysicalMaterial({map,color:0xffffff,metalness:1,roughness:.5,alphaTest:.5,
+    normal map the weave that breaks its reflections into a soft shimmer. The
+    colour is darkened for the gaps between the loops, which light barely
+    reaches: without them a band too far away to show its weave reads as a
+    plain sheet of steel. A little of the weave's spread becomes roughness as it
+    blurs away (filteredNormals), so it keeps its satin look at any zoom. */
+ if(v==='mesh'){const mm=new MeshPhysicalMaterial({map,color:new Color(.6,.6,.6),metalness:1,roughness:.5,alphaTest:.5,
    envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
-  mm.normalMap=strapNormalOf('mesh',map.image.height);mm.normalScale=new Vector2(1.3,1.3);return mm}
+  mm.normalMap=strapNormalOf('mesh',map.image.height);mm.normalScale=new Vector2(1.3,1.3);return filteredNormals(mm,.15)}
  const mat=new MeshPhysicalMaterial({map,metalness:0,alphaTest:.5,
   roughness:v==='rubber'?.5:v==='nato'?.88:.62,
   sheen:v==='nato'||v==='leather'?.6:0,sheenRoughness:.7,sheenColor:new Color(p.color||'#6b4a2f').multiplyScalar(.6),

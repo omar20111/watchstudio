@@ -79,7 +79,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  const groundOn=d=>d.shadow!==false&&!surface;
 
  const front=new OrthographicCamera(-1,1,1,-1,.1,2000);   /* placed by aim() */
- const tq=new PerspectiveCamera(19,1,1,4000);
+ const TQ_FOV=19,tq=new PerspectiveCamera(TQ_FOV,1,1,4000);
  const side=new OrthographicCamera(-1,1,1,-1,.1,2000);
  const back=new OrthographicCamera(-1,1,1,-1,.1,2000);back.up.set(0,0,-1);
  const target=new Vector3();
@@ -108,8 +108,14 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   const[tx,ty]=tilt;
   front.position.set(-Math.sin(tx)*Math.cos(ty),Math.cos(tx)*Math.cos(ty),-Math.sin(ty)).multiplyScalar(600).add(target);
   front.up.set(0,0,-1);front.lookAt(target);
-  tq.aspect=a;tq.updateProjectionMatrix();
-  orbit.radius=(SHEET*.58)/Math.tan(tq.fov*Math.PI/360)/Math.min(1,a)/zoom;
+  /* Zoom is the lens, not the distance. Moving the camera back turns every part
+     of the watch to face it a little more squarely, and on polished and brushed
+     metal that changes what it reflects: a bracelet that shows the dark studio
+     walls up close turned to a white sheet of softbox zoomed out. From one
+     place, a zoom only enlarges or crops the same picture. */
+  const t=Math.tan(TQ_FOV*Math.PI/360);
+  tq.aspect=a;tq.fov=2*Math.atan(t/zoom)*180/Math.PI;tq.updateProjectionMatrix();
+  orbit.radius=(SHEET*.58)/t/Math.min(1,a);
   tq.position.setFromSpherical(orbit).add(target);tq.lookAt(target);
   const H=watch.userData.heights;
   side.position.set(600,0,0);side.up.set(0,1,0);side.lookAt(0,0,0);
