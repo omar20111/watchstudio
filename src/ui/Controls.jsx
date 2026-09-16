@@ -1,6 +1,6 @@
 /* Right panel: presets, uploads, transforms and part styling. */
 import React from 'react';
-import {PARTS,VARIANTS,VNAME,variantOf,applyVariant} from '../core/parts.js';
+import {PARTS,VARIANTS,VNAME,variantOf,applyVariant,strapFinish} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit} from '../core/geometry.js';
 import {getThumb} from '../core/cache.js';
@@ -72,7 +72,8 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    <Section title="Metal"><MetalRow val={p.metal} onChange={v=>up({metal:v})}/>{d.active[part]&&<p className="text-[10px] text-neutral-500">applied as tint filter on uploads</p>}</Section>}
   {['strap','case','crown','bezel','hands','dial','crystal'].includes(part)&&
    <Section title="Finish"><FinishRow val={p.finish||'none'} onChange={v=>up({finish:v})}/>
-    {['case','crown','bezel'].includes(part)&&p.finish==='brushed'&&<p className="text-[10px] text-neutral-500">Brushed on the flat surfaces, polished on the bevelled edges — the way a sport case is finished.</p>}</Section>}
+    {['case','crown','bezel'].includes(part)&&p.finish==='brushed'&&<p className="text-[10px] text-neutral-500">Brushed on the flat surfaces, polished on the bevelled edges — the way a sport case is finished.</p>}
+    {part==='strap'&&<p className="text-[10px] text-neutral-500">{strapFinish(p).note}</p>}</Section>}
   {part==='case'&&(()=>{const c=caseOf(d),st=thicknessStack(d);
    const setc=(patch,tag)=>s.upd(n=>{n.case={...n.case,...patch}},tag||'case');
    /* `off`: choices that cannot be had here, each with the reason */

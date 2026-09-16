@@ -24,7 +24,8 @@ import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,crownParts,strapPath,smoothstep} from './lathe.js';
 import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
 import {crossingAt} from '../caseshape.js';
-import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents,filteredNormals} from './materials.js';
+import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents,filteredNormals,brushedReflection} from './materials.js';
+import {strapFinish} from '../parts.js';
 import {reliefFromSilhouette} from './relief.js';
 import {shadowDecal,shadowOffset} from './contactShadow.js';
 import {tapisserieCell} from '../render/dial.js';
@@ -204,9 +205,14 @@ function strapMaterial(map,p){const v=p.variant;
     colour is darkened for the gaps between the loops, which light barely
     reaches: without them a band too far away to show its weave reads as a
     plain sheet of steel. A little of the weave's spread becomes roughness as it
-    blurs away (filteredNormals), so it keeps its satin look at any zoom. */
- if(v==='mesh'){const mm=new MeshPhysicalMaterial({map,color:new Color(.6,.6,.6),metalness:1,roughness:.5,alphaTest:.5,
-   envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
+    blurs away (filteredNormals), so it keeps its satin look at any zoom.
+    Its finish (parts.js strapFinish): satin by default, polished to a brighter
+    shimmer, blasted flat, or brushed along the band's length. */
+ if(v==='mesh'){const f=strapFinish(p).mesh;
+  const mm=new MeshPhysicalMaterial({map,color:new Color(.6,.6,.6),metalness:1,alphaTest:.5,
+   roughness:{polished:.3,brushed:.42,matte:.72}[f]??.5,envMapIntensity:(METALS[p.metal]||METALS.steel).refl??1});
+  /* the strap's v runs along it (strapGeometry) */
+  if(f==='brushed'){mm.anisotropy=.55;mm.anisotropyRotation=Math.PI/2;brushedReflection(mm)}
   mm.normalMap=strapNormalOf('mesh',map.image.height);mm.normalScale=new Vector2(1.3,1.3);return filteredNormals(mm,.15)}
  const mat=new MeshPhysicalMaterial({map,metalness:0,alphaTest:.5,
   roughness:v==='rubber'?.5:v==='nato'?.88:.62,
@@ -414,25 +420,33 @@ function braceletParts(d,dir){
  /* end link: full width, from the case to the first joint, its inner edge cut to
     the case's curve so it closes the gap between the lugs as a fitted end link does */
  const e1=pitch*.8,O=outlinesOf(d).case,integrated=caseOf(d).lugs==='integrated';
- /* against the case's outline, a quarter millimetre clear; on an integrated case
+ /* against the case's outline, 0.3 mm clear (its top edge leans in as the link follows the strap's bend); on an integrated case
     it starts under the shoulder's end instead */
  const tipMm=(geoOf(d).R+geoOf(d).lugExt)/PX;
  {const smid=e1/2,x=w0*.98/2,n=20,sy=u=>-dir*(u-smid);
-  const edge=xx=>integrated?tipMm+.12-sp.start:crossingAt(O.spec,O.A0,-Math.PI/2,Math.abs(xx),.25).s-sp.start;
+  const edge=xx=>integrated?tipMm+.12-sp.start:crossingAt(O.spec,O.A0,-Math.PI/2,Math.abs(xx),.3).s-sp.start;
   const sh=new Shape();sh.moveTo(-x,sy(edge(-x)));
   for(let i=1;i<=n;i++){const xx=-x+2*x*i/n;sh.lineTo(xx,sy(edge(xx)))}
   sh.lineTo(x,sy(e1-gap/2));sh.lineTo(-x,sy(e1-gap/2));sh.closePath();
-  const t=T*.96,b=Math.min(.38,t*.18);
+  const t=T,b=Math.min(.38,t*.18);
   const g=new ExtrudeGeometry(sh,{depth:Math.max(.05,t-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b*.8,bevelOffset:-b*.8,bevelSegments:3,curveSegments:4});
-  g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);centre.push(place(g,smid))}
+  g.translate(0,0,-t/2+b);g.rotateX(-Math.PI/2);outer.push(place(g,smid));
+  /* the centre row carries on over it as a band, from where the case is nearest
+     across the band's width to the joint */
+  const cw=w0*.36;let from=-1e9;for(let i=0;i<=8;i++)from=Math.max(from,edge(-cw/2+cw*i/8));
+  const len=e1-gap/2-from-.15;
+  if(len>1){const band=pillowLink(cw,len,T*.93,{crown:T*.1});band.translate(0,-T*.035,sy(from+.15+len/2));centre.push(place(band,smid))}}
  let s=e1;
  for(;s+pitch<sEnd;s+=pitch){
   const mid=s+pitch/2,w=widthAt(mid),pl=pitch-gap;
-  /* the centre link stands a little proud and crowned; the outer links fall away to the edges */
+  /* One height across the row, as a side view shows a real bracelet: the outer
+     links fall away a little to the edges, and the centre link is crowned, only
+     its middle standing proud of them and its edges dipping below, its underside
+     flush with theirs — no second layer showing above or below. */
   const ow=w*.31,cw=w*.36,seam=(w-2*ow-cw)/2;
-  outer.push(place(pillowLink(ow,pl,T*.9,{crown:T*.05,slope:-T*.09}),mid,-(w/2-ow/2)));
-  outer.push(place(pillowLink(ow,pl,T*.9,{crown:T*.05,slope:T*.09}),mid,w/2-ow/2));
-  centre.push(place(pillowLink(cw,pl,T,{crown:T*.14}),mid,0));
+  outer.push(place(pillowLink(ow,pl,T,{crown:T*.05,slope:-T*.07}),mid,-(w/2-ow/2)));
+  outer.push(place(pillowLink(ow,pl,T,{crown:T*.05,slope:T*.07}),mid,w/2-ow/2));
+  centre.push(place(pillowLink(cw,pl,T*.93,{crown:T*.14}).translate(0,-T*.035,0),mid,0));
   /* the pin at the joint behind this row, and the shadowed seams inside it */
   const pin=new CylinderGeometry(T*.3,T*.3,w*.96,10);pin.rotateZ(Math.PI/2);pin.translate(0,-T*.12,0);
   pins.push(place(pin,s));
@@ -551,22 +565,26 @@ export function buildHead(d,customs={},{aniso=8}={}){
 
  /* ---- strap ---- */
  if(!uploaded('strap',G.strap,sp.pos(0)[1]+sp.T/2))
-  if(parts.strap.variant==='steel'){const st=parts.strap;
-   /* brushed along the bracelet's length: the grain runs across the links' v, not u.
-      A polished centre link is a touch less than mirror: at a true mirror polish
-      each link reflects one dark studio wall and reads as a black tile. */
-   const brushed=()=>Object.assign(metalMaterial(st.metal,'brushed'),{anisotropyRotation:Math.PI/2});
+  if(parts.strap.variant==='steel'){const st=parts.strap,sf=strapFinish(st);
+   /* Each piece in its finish (parts.js strapFinish). Brushed along the
+      bracelet's length: the grain runs across the links' v, not u. Polished is a
+      touch less than mirror: at a true mirror polish each link reflects one dark
+      studio wall and reads as a black tile. The clasp's bevel and hinge are
+      polished unless the whole bracelet is blasted. */
+   const fin=f=>f==='brushed'?Object.assign(metalMaterial(st.metal,'brushed'),{anisotropyRotation:Math.PI/2})
+    :f==='matte'?metalMaterial(st.metal,'matte'):Object.assign(metalMaterial(st.metal,'polished'),{roughness:.14});
+   const edge=()=>metalMaterial(st.metal,sf.links==='matte'?'matte':'polished');
    for(const[dir,which]of[[-1,'top'],[1,'bottom']]){const b=braceletParts(d,dir);
-    add(G.strap,'bracelet:'+which+':outer',b.outer,brushed());
-    add(G.strap,'bracelet:'+which+':centre',b.centre,st.finish==='polished'?Object.assign(metalMaterial(st.metal,'polished'),{roughness:.14}):brushed());
+    add(G.strap,'bracelet:'+which+':outer',b.outer,fin(sf.links));
+    add(G.strap,'bracelet:'+which+':centre',b.centre,fin(sf.centre));
     add(G.strap,'bracelet:'+which+':pins',b.pins,new MeshPhysicalMaterial({color:0x1c1e22,metalness:.7,roughness:.55}),{cast:false});
-    if(b.claspEnd)add(G.strap,'bracelet:top:claspEnd',b.claspEnd,brushed());
+    if(b.claspEnd)add(G.strap,'bracelet:top:claspEnd',b.claspEnd,fin(sf.clasp));
     if(b.clasp){const c=b.clasp,z=bevelZones(c.cover);
-     /* brushed along its length like the links, its bevel polished, the brand engraved on it */
-     add(G.strap,'bracelet:clasp',zonePart(c.cover,z.surface),brushed());
-     add(G.strap,'bracelet:claspEdges',zonePart(c.cover,z.bevel),metalMaterial(st.metal,'polished'));c.cover.dispose();
-     add(G.strap,'bracelet:claspBlades',c.blades,brushed());
-     add(G.strap,'bracelet:claspHinge',c.knuckle,metalMaterial(st.metal,'polished'));
+     /* finished along its length like the links, its bevel polished, the brand engraved on it */
+     add(G.strap,'bracelet:clasp',zonePart(c.cover,z.surface),fin(sf.clasp));
+     add(G.strap,'bracelet:claspEdges',zonePart(c.cover,z.bevel),edge());c.cover.dispose();
+     add(G.strap,'bracelet:claspBlades',c.blades,fin(sf.clasp));
+     add(G.strap,'bracelet:claspHinge',c.knuckle,edge());
      const mark=add(G.strap,'bracelet:claspMark',faceUp(new PlaneGeometry(c.width*.62,c.width*.62*.25)),claspMarkMaterial((d.case&&d.case.engraving)||'WATCHSTUDIO'),{cast:false,receive:false,noPick:true});
      mark.rotation.y=Math.PI/2;mark.position.set(0,sp.pos(c.start+c.length/2)[1]+c.top+.004,sp.start+sp.pos(c.start+c.length/2)[0])}}}
   else{const st=parts.strap;
@@ -576,14 +594,18 @@ export function buildHead(d,customs={},{aniso=8}={}){
       steel or black buckle */
    const hw=st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel');
    const col=st.color||'#6b4a2f';
-   /* satin, not brushed: anisotropy needs a uv the keeper solids do not carry */
-   add(G.strap,'strap:keepers',strapKeepers(d),st.variant==='nato'||st.variant==='mesh'?Object.assign(metalMaterial(hw,'polished'),{roughness:.34})
+   /* the buckle and metal keepers in the strap's finish (parts.js strapFinish).
+      Brushed where the part has a uv to run the grain along; a solid without one
+      (withTangents) falls back to satin. */
+   const hf=strapFinish(st).hardware;
+   const hwMat=(polishedRough)=>hf==='polished'?Object.assign(metalMaterial(hw,'polished'),{roughness:polishedRough}):metalMaterial(hw,hf);
+   add(G.strap,'strap:keepers',strapKeepers(d),st.variant==='nato'||st.variant==='mesh'?hwMat(.34)
     :new MeshPhysicalMaterial({color:new Color(st.variant==='leather'?shade(col,.18):col),metalness:0,
       roughness:st.variant==='rubber'?.5:.62,sheen:st.variant==='rubber'?0:.6,sheenRoughness:.7,
       sheenColor:new Color(col).multiplyScalar(.6),clearcoat:st.variant==='rubber'?.25:0,clearcoatRoughness:.4}));
-   const bk=strapBuckle(d),pol=()=>Object.assign(metalMaterial(hw,'polished'),{roughness:Math.max(.16,(METALS[hw]||METALS.steel).rough??0)});
-   add(G.strap,'strap:buckle',bk.frame,pol());
-   add(G.strap,'strap:tongue',bk.tongue,pol())}
+   const bk=strapBuckle(d),rough=Math.max(.16,(METALS[hw]||METALS.steel).rough??0);
+   add(G.strap,'strap:buckle',bk.frame,hwMat(rough));
+   add(G.strap,'strap:tongue',bk.tongue,hwMat(rough))}
 
  /* ---- case: turned flank, polished chamfer, horns, caseback ----
     Each face takes its zone's finish (materials.js zoneFinish): the case's own

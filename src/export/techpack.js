@@ -27,7 +27,7 @@ import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,dia
         strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf,outlinesOf,caseLengthMm} from '../core/geometry.js';
 import {CASEBACK_WINDOW} from '../core/render/caseback.js';
 import {METALS,PX} from '../core/constants.js';
-import {VNAME} from '../core/parts.js';
+import {VNAME,strapFinish} from '../core/parts.js';
 import {marketingClock} from '../core/time.js';
 import {store} from '../state/store.js';
 import {toast} from '../core/utils.js';
@@ -276,8 +276,8 @@ function partsSheet(doc,F,d,meta){
   ['Caseback',cap(F.c.caseback),F.c.caseback==='exhibition'?`${metalName(P.case.metal)} + sapphire`:metalName(P.case.metal),'Circular grain','—',
    F.c.caseback==='exhibition'?`Window Ø${f1(F.windowMm)}`:`Engraving "${F.c.engraving}"`],
   ['Movement',cap(F.c.movement),'—','—','—',`${f1(F.st.movement)} high${F.vph?`, ${F.vph.toLocaleString('en-US')} vph`:''}; calibre to be specified`],
-  F.bracelet?['Bracelet','Three-link, folding clasp',metalName(P.strap.metal),zones(P.strap.finish),'—',`Width ${f1(F.lugW)}; ${F.strap.top} + ${F.strap.bottom} of links, ${F.strap.clasp} clasp`]
-   :['Strap',F.strap.kind,cap(P.strap.variant==='rubber'?'rubber':P.strap.variant==='nato'?'nylon webbing':P.strap.variant==='mesh'?metalName(P.strap.metal)+' mesh':'leather'),'—',P.strap.color||'—',
+  F.bracelet?['Bracelet','Three-link, folding clasp',metalName(P.strap.metal),strapFinish(P.strap).label,'—',`Width ${f1(F.lugW)}; ${F.strap.top} + ${F.strap.bottom} of links, ${F.strap.clasp} clasp`]
+   :['Strap',F.strap.kind,cap(P.strap.variant==='rubber'?'rubber':P.strap.variant==='nato'?'nylon webbing':P.strap.variant==='mesh'?metalName(P.strap.metal)+' mesh':'leather'),strapFinish(P.strap).label,P.strap.color||'—',
     `Width ${f1(F.lugW)}; ${f1(F.strap.top)} (buckle side) + ${f1(F.strap.bottom)}; buckle in ${metalName(F.strap.hardware)}`]];
  const swatch=i=>{const c=rows[i][4];return/^#[0-9a-f]{3,8}$/i.test(c)?c:null};
  table(pg,M+6,M+24,[{label:'PART',w:28},{label:'STYLE',w:40},{label:'MATERIAL',w:34},{label:'FINISH',w:40},{label:'COLOUR',w:26,swatch},{label:'SIZES (MM)',w:109}],rows,{size:7.5})}

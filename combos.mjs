@@ -764,7 +764,7 @@ for(const caseMm of[34,46]){const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap
  const sp=L3.strapPath(d),R=G.geoOf(d).R/PX,meshes=n=>{const o=[];w.traverse(m=>{if(m.isMesh&&m.name===n)o.push(m)});return o};
  for(const n of['bracelet:clasp','bracelet:claspEdges','bracelet:claspBlades','bracelet:claspHinge','bracelet:top:claspEnd'])if(!meshes(n).length)bad(tag,'no '+n);
  let inside=0,closest=1e9;
- for(const which of['top','bottom'])for(const m of meshes('bracelet:'+which+':centre')){const p=m.geometry.attributes.position;
+ for(const which of['top','bottom'])for(const m of[...meshes('bracelet:'+which+':centre'),...meshes('bracelet:'+which+':outer')]){const p=m.geometry.attributes.position;
   for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getZ(i),y=p.getY(i);if(Math.abs(z)>R+4)continue;const r=Math.hypot(x,z);
    if(y>sp.groundY+.2&&r<R+.05)inside++;if(Math.abs(x)<1)closest=Math.min(closest,Math.abs(z)-R)}}
  if(inside)bad(tag,`${inside} end link vertices inside the case`);

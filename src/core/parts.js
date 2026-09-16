@@ -27,3 +27,19 @@ export const variantOf=(part,d)=>part==='crystal'?caseOf(d).crystal:d.parts[part
 export function applyVariant(n,part,v){
  if(part==='crystal')n.case={...n.case,crystal:v};
  else n.parts[part].variant=v}
+
+/* What the strap's Finish means, for each kind of strap. A bracelet is finished
+   all over like a case, except that None is its classic: brushed links with a
+   polished centre row. A Milanese mesh takes the finish itself (None is satin),
+   and so does its buckle. A leather, rubber or NATO strap has no metal of its
+   own: the finish goes to the buckle and keepers (None is polished). `label`
+   is the tech pack's wording; `note` the panel's. */
+export function strapFinish(strap){const f=strap.finish||'none',v=strap.variant;
+ const word={brushed:'brushed',polished:'polished',matte:'bead-blasted'};
+ const hardware=f==='brushed'||f==='matte'?f:'polished';
+ if(v==='steel'){const links=f==='none'?'brushed':f,centre=f==='none'?'polished':f;
+  return{links,centre,clasp:links,label:f==='none'?'Brushed; centre links polished':word[f][0].toUpperCase()+word[f].slice(1),
+   note:'None is brushed links with a polished centre row; the others finish the whole bracelet.'}}
+ if(v==='mesh'){const mesh=f==='none'?'satin':f;
+  return{mesh,hardware,label:`Mesh ${word[mesh]||mesh}; buckle ${word[hardware]}`,note:'The mesh and its buckle. None is a satin mesh with a polished buckle.'}}
+ return{hardware,label:`Buckle ${word[hardware]}`,note:'The buckle and keepers. None is polished.'}}

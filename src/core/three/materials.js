@@ -83,7 +83,7 @@ vec3 wsBrushedRadiance( const in vec3 viewDir, const in vec3 normal0, const in f
 }
 #endif
 `;
-function brushedReflection(mat){
+export function brushedReflection(mat){
  return addShaderHook(mat,'ws-brushed-ibl',sh=>{
   sh.fragmentShader=sh.fragmentShader.replace('#include <envmap_physical_pars_fragment>','#include <envmap_physical_pars_fragment>\n'+BRUSHED_IBL)
    .replace('#include <lights_fragment_maps>',ShaderChunk.lights_fragment_maps.replace(

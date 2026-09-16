@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+**Fixed — the strap's Finish, and a bracelet's side view**
+- **Finish works on every strap** (`parts.js strapFinish`, one definition for
+  the build, the panel and the tech pack). A bracelet's None is its classic —
+  brushed links, polished centre row — and Brushed, Polished and Matte finish
+  the whole bracelet and clasp; before, None and Brushed looked the same, Matte
+  did nothing and Polished only reached the centre links. A Milanese mesh is
+  satin, brushed along its length, polished or blasted, and its buckle follows.
+  A leather, rubber or NATO strap's finish goes to its buckle and metal keepers,
+  which ignored it. The panel says what the finish means for the strap chosen.
+- **A bracelet reads as one layer from the side.** The centre links stood 0.7 mm
+  above the outer links and hung below them, a second slab above and a thin
+  plate beneath; the end link was a single flat slab that matched neither. The
+  rows are now one height with a crowned centre, their undersides flush, and the
+  end link carries the centre row over it as a band.
+- **A dim fill card by the camera** in the studio: polished links turned toward
+  the viewer shade from grey to dark instead of reading as black tiles.
+
 **Changed — brushed steel reflects the studio as a streak, and shows its brushing**
 - A brushed bracelet was paper white in the front view and near black from the
   side. three draws brushed (anisotropic) metal by bending the surface normal

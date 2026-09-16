@@ -18,6 +18,9 @@
    - white bounce cards stood on the table at 4 and 7:30, dark table between:
      a case's side seen from above reflects the table, so the cards are the
      bright bands down a polished flank and the dark table the band between
+   - a dim fill card by the camera toward 6: a polished link or facet turned to
+     face the viewer finds a faint grey there instead of the black of the room,
+     and shades across its crown rather than reading as a black tile
 
    One function of direction describes it all. The live views prefilter it into
    an environment map; the path tracer (photo.js) reads the same panorama, so a
@@ -42,6 +45,8 @@ export const SET={
  /* wide enough, and soft-edged enough, that blurring them for rougher metal
     keeps them smooth: a thin, very bright strip broke up into blotches there */
  strips:[{az:60,hw:7,el:[-2,68],L:2.2,feather:3.5},{az:300,hw:6,el:[-2,60],L:1.7,feather:3.5}],
+ /* the fill card by the camera, in the strips' terms */
+ fill:{az:180,hw:45,el:[14,62],L:.12,feather:12},
  /* the backdrop's glow above the horizon, strongest toward 12, and its line */
  backdrop:{L:.9,side:.1,height:26},horizon:{L:.35,width:1.4},
  /* the table, dark, a little lighter toward the horizon; cards stood on it */
@@ -56,7 +61,7 @@ export function radianceAt(x,y,z,S=SET){
   for(const c of S.cards)L+=c.L*band(Math.abs(wrapPi(az-c.az*DEG))/DEG,-1e9,c.hw,7)*band(eld,c.el[0],c.el[1],5)}
  else{const B=S.backdrop,toward12=(1+Math.cos(az))/2;
   L+=(B.side+(B.L-B.side)*toward12*toward12)*(1-smooth(0,B.height,eld));
-  for(const s of S.strips)L+=s.L*band(Math.abs(wrapPi(az-s.az*DEG))/DEG,-1e9,s.hw,s.feather)*band(eld,s.el[0],s.el[1],s.feather);
+  for(const s of[...S.strips,S.fill])L+=s.L*band(Math.abs(wrapPi(az-s.az*DEG))/DEG,-1e9,s.hw,s.feather)*band(eld,s.el[0],s.el[1],s.feather);
   if(y>.25){const b=S.softbox,u=x/y,v=z/y;
    const inside=band(u,b.u[0],b.u[1],b.feather)*band(v,b.v[0],b.v[1],b.feather);
    /* a real softbox is brightest in its middle */
