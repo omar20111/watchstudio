@@ -26,7 +26,7 @@ const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
   /* the dial draws its date window, registers and chapter step; a painted dial
      also prints today's date in the window. Markers leave out the index a date
      window replaces, which depends on the dial's variant too. */
-  part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d)]:0,
+  part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d),(d.active||{}).dialbg||0]:0,
   part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0,
   /* a PartStudio set is drawn from its own data */
   part==='markers'&&p.variant==='partstudio'?p.set:0,

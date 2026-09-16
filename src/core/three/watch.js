@@ -37,6 +37,7 @@ import {bezelPipOf} from '../render/bezel.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
+import {dialPlateCanvas} from '../dialbg.js';
 import {buildMovement} from './movement.js';
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
@@ -66,6 +67,25 @@ function handForm(variant,which){
  if(variant==='cathedral'||variant==='syringe'||variant==='arrow')return{profile:'bevel',height:.26+tall,edge:.12,bevel:.55,pocket:.19+tall};
  const bevel=variant==='sword'?.45:.4;
  return{profile:'bevel',height:.27+tall,edge:.13,bevel,pocket:.2+tall}}
+
+/* How far a hand's tip is curved down toward the dial, mm. A hand is not a flat
+   plate: it is pressed to a shallow curve so its tip follows the dial and its
+   length catches the light along a curve rather than all at once. */
+const HAND_CURVE={dauphine:.1,leaf:.1,cathedral:.06,syringe:.06,arrow:.06};
+const handCurve=(variant,which)=>which==='sec'?0:(HAND_CURVE[variant]??.05);
+
+/* Bend a hand (built flat, pointing toward 12, which is -z) down by `drop` mm at
+   its tip, turning its normals with it. */
+function curveHand(geo,drop){const p=geo.attributes.position,n=geo.attributes.normal;
+ let L=0;for(let i=0;i<p.count;i++)L=Math.max(L,-p.getZ(i));
+ if(!(L>.5)||!(drop>0))return geo;
+ for(let i=0;i<p.count;i++){const z=p.getZ(i),t=Math.max(0,-z)/L;
+  p.setY(i,p.getY(i)-drop*t*t);
+  if(!n)continue;
+  /* the surface now slopes by dy/dz along the hand: turn the normal by that much */
+  const b=Math.atan2(-2*drop*z/(L*L),1),c=Math.cos(b),s=Math.sin(b),y=n.getY(i),zz=n.getZ(i);
+  n.setY(i,y*c-zz*s);n.setZ(i,y*s+zz*c)}
+ p.needsUpdate=true;if(n)n.needsUpdate=true;geo.computeBoundingSphere();return geo}
 
 const SHEET=CAN/PX;                               /* the 1200 px sheet, in mm */
 export const PARTS3D=['strap','case','crown','bezel','dial','markers','hands','crystal'];
@@ -676,11 +696,14 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const mmX=px=>(px-C)/PX,mmY=py=>-(py-C)/PX;         /* sheet px -> shape xy (y toward 12) */
  {const du=activeUpload(d,customs,'dial');let src=du&&uploadCanvas('dial',du,parts.dial);
   if(src instanceof Promise){pending.push(src);src=null}
+  /* the plate wears its artwork, over a background picture where one is set */
+  let plateArt=dialPlateCanvas(d,customs,'flat');
+  if(plateArt instanceof Promise){pending.push(plateArt);plateArt=getProc('dial',d,undefined,'flat')}
   if(dialUpload||src){
-   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial,Rr.dialR*PX);
+   const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX);
    const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180))),mat,{cast:false});
    dial.position.y=H.dial}
-  else{const mat=dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial,Rr.dialR*PX);
+  else{const mat=dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX);
    const plateR=DL.stepped?DL.stepR/PX:Rr.dialR;
    const outline=new Shape();outline.absarc(0,0,plateR,0,Math.PI*2,false);
    for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
@@ -777,6 +800,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
     const lumeCv=lumed?getProc('hands',d,k,'lume'):null;
     const rel=reliefFromSilhouette(getProc('hands',d,k,'shape'),{...form,lume:lumeCv});
     if(!rel)continue;
+    const curve=handCurve(hp.variant,k);curveHand(rel.geometry,curve);
     const bodyMat=k==='sec'
      ?new MeshPhysicalMaterial({color:new Color(hp.secColor||'#e8482c'),roughness:.32,clearcoat:.6,clearcoatRoughness:.1})
      :metalMaterial(hp.metal,hp.finish);
@@ -788,7 +812,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
      const sd=shadowDecal(getProc('hands',d,k,'shape'),{heightMm:h,sheetMm:SHEET,opacity:k==='sec'?.52:.68});
      sd.position.y=Hc+.012;sArbor.add(sd)}
     if(lumed){
-     const lm=add(arbor,k+'Lume',sheet(),lumeMaterial(tex(lumeCv),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
+     /* the lume rides the hand's curve, so it needs a sheet with rows to bend */
+     const ls=curve>0?faceUp(new PlaneGeometry(SHEET,SHEET,1,96)):sheet();
+     if(curve>0)curveHand(ls,curve);
+     const lm=add(arbor,k+'Lume',ls,lumeMaterial(tex(lumeCv),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
      lm.position.y=form.pocket+.004}
     if(k==='sec'){/* the pipe that holds the seconds hand, and its dark pinion */
      const cap=add(arbor,'secCap',new CylinderGeometry(13/PX,13/PX,.22,40),metalMaterial(hp.metal,'polished'));cap.position.y=form.height+.11;

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**Added — dials from PartStudio, and a background picture**
+- **Import a dial designed in PartStudio** (Dial panel → Background &
+  PartStudio). The file carries the plate's pattern, colour and finish, the date
+  window, the chapter ring, the brand and model line, the logo and its placing,
+  the background picture, and the marker set it was shown with — so the whole
+  dial lands on the watch at once.
+- **Background picture** (same panel, or drop a picture there): laid *under* the
+  dial's printing (`core/dialbg.js`), not in place of the dial. The date window,
+  the chapter step, the brand and model line and the minute track stay, and so
+  does the plate's finish — a sunburst or a lacquer still catches the light,
+  which a whole-dial upload cannot do. Zoom, turn and move it on the dial.
+- Checked in `e2e/tests/partstudio.mjs` (a dial file brings its picture, its
+  applied logo and its markers; the plate wears them).
+
 **Changed — hands that stand over the dial**
 - **Soft shadows on the dial** (`three/contactShadow.js`): the key light's
   shadow map spans the whole watch and table, so the shadow of a hand a

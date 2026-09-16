@@ -77,21 +77,24 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
     vignette and the text emboss are all light, and 3D lighting supplies them
     from the real surface — painting them too would light the dial twice. */
  const flat=o.mode==='flat';
+ /* a background picture (core/dialbg.js) is the plate's ground in the 3D
+    texture: the colour and the pattern are left out, the printing stays */
+ const ground=!(flat&&o.bgOn);
  ctx.save();ctx.beginPath();ctx.arc(C,C,r,0,7);ctx.clip();
- ctx.fillStyle=col;ctx.fillRect(0,0,W,H);
+ if(ground){ctx.fillStyle=col;ctx.fillRect(0,0,W,H)}
 
- if(o.variant==='sunburst'){if(!flat&&ctx.createConicGradient){const g=ctx.createConicGradient(0.8,C,C);
+ if(ground&&o.variant==='sunburst'){if(!flat&&ctx.createConicGradient){const g=ctx.createConicGradient(0.8,C,C);
    const st=[[0,'rgba(255,255,255,.20)'],[.25,'rgba(0,0,0,.16)'],[.5,'rgba(255,255,255,.20)'],[.75,'rgba(0,0,0,.16)'],[1,'rgba(255,255,255,.20)']];
    st.forEach(s=>g.addColorStop(...s));ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
   for(let i=0;i<240;i++){const a=i*1.5*Math.PI/180;ctx.beginPath();ctx.moveTo(C,C);ctx.lineTo(C+r*Math.sin(a),C-r*Math.cos(a));
    ctx.strokeStyle=`rgba(255,255,255,${i%2?0.015:0.03})`;ctx.lineWidth=1;ctx.stroke()}}
 
- if(o.variant==='fume'){const fg=ctx.createRadialGradient(C,C,0,C,C,r);
+ if(ground&&o.variant==='fume'){const fg=ctx.createRadialGradient(C,C,0,C,C,r);
   fg.addColorStop(0,lighten(col,.30));fg.addColorStop(.42,col);
   fg.addColorStop(.78,shade(col,.55));fg.addColorStop(1,shade(col,.84));
   ctx.fillStyle=fg;ctx.fillRect(0,0,W,H)}
 
- if(o.variant==='guilloche'){
+ if(ground&&o.variant==='guilloche'){
   /* engine turning: regular rings crossed by fine spokes reads as hobnail */
   const n=Math.max(18,Math.round(r/5.5)),rg=ctx.createRadialGradient(C,C,0,C,C,r);
   for(let i=0;i<=n;i++)rg.addColorStop(i/n,i%2?'rgba(255,255,255,.11)':'rgba(0,0,0,.14)');
@@ -105,14 +108,14 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
 
  /* grand feu enamel: one deep, even glaze. Its depth is the gloss the 3D
     material gives it; the 2D drawing only suggests the pool of light in it */
- if(o.variant==='enamel'&&!flat){const eg=ctx.createRadialGradient(C,C-r*.25,0,C,C,r);
+ if(ground&&o.variant==='enamel'&&!flat){const eg=ctx.createRadialGradient(C,C-r*.25,0,C,C,r);
   eg.addColorStop(0,lighten(col,.07));eg.addColorStop(.7,col);eg.addColorStop(1,shade(col,.12));
   ctx.fillStyle=eg;ctx.fillRect(0,0,W,H)}
 
  /* tapisserie: a grid of small square pyramids. The grooves between them are
     ink in every mode; the lit and shaded facets are light, painted only for the
     2D drawing — in 3D a normal map on the same grid does that */
- if(o.variant==='tapisserie'){const cell=tapisserieCell(r);
+ if(ground&&o.variant==='tapisserie'){const cell=tapisserieCell(r);
   const n=Math.ceil(r/cell)+1;
   if(!flat)for(let i=-n;i<n;i++)for(let j=-n;j<n;j++){const x=C+i*cell,y=C+j*cell;
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+cell,y);ctx.lineTo(x+cell/2,y+cell/2);ctx.closePath();ctx.fillStyle='rgba(255,255,255,.09)';ctx.fill();
@@ -121,7 +124,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   for(let i=-n;i<=n;i++){ctx.beginPath();ctx.moveTo(C+i*cell,C-r);ctx.lineTo(C+i*cell,C+r);ctx.stroke();
    ctx.beginPath();ctx.moveTo(C-r,C+i*cell);ctx.lineTo(C+r,C+i*cell);ctx.stroke()}}
 
- if(o.variant==='matte'||o.variant==='chrono')noiseFill(ctx,.07,'overlay');
+ if(ground&&(o.variant==='matte'||o.variant==='chrono'))noiseFill(ctx,.07,'overlay');
  if(o.finish==='brushed'){ctx.save();ctx.globalCompositeOperation='overlay';
   ctx.fillStyle=circGrain(ctx,0,r,.8);ctx.fillRect(0,0,W,H);ctx.restore()}
  if(o.finish==='matte')noiseFill(ctx,.10,'overlay',.8);

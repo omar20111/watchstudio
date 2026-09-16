@@ -37,6 +37,8 @@ export function procOpts(part,d,sub,mode){const src=srcOf(part);const arch=caseO
   strapReach:src==='strap'&&mode==='flat'&&sub?strapReachPx(d,sub):null,
   /* the dial's printing at its sizes in mm (geometry.js dialTextOf) */
   printing:src==='dial'?dialTextOf(d):null,
+  /* a background picture stands in for the plate's own ground (core/dialbg.js) */
+  bgOn:src==='dial'&&!!(d.active&&d.active.dialbg),
   /* the bezel's outline as built: its shape, and how far it reaches toward 3 in mm */
   bezelOutline:src==='bezel'?(B=>({kind:B.kind,A0:B.A0}))(outlinesOf(d).bezel):null,
   secColor:d.parts.hands.secColor,dialColor:d.parts.dial.color,

@@ -10,6 +10,7 @@ import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primiti
 import {UploadZone} from './upload.jsx';
 import {LogoControls} from './LogoControls.jsx';
 import {PartStudioSection} from './MarkerSet.jsx';
+import {DialFromPartStudio} from './DialFromPartStudio.jsx';
 
 function TransformCtl({t,onChange}){return<div className="grid grid-cols-1 gap-0.5">
  <Slider label="Scale" min={0.3} max={2.5} step={0.01} val={t.s} fmt={v=>v.toFixed(2)} onChange={v=>onChange({s:v})}/>
@@ -193,6 +194,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
   {part==='dial'&&<Section title="Dial Color"><div className="flex gap-1.5 mb-1">{['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66'].map(c=>
    <button key={c} className="w-6 h-6 rounded-full border border-white/20" style={{background:c}} onClick={()=>up({color:c})}/>)}</div>
    <ColorField label="Custom" val={p.color} onChange={v=>up({color:v},'dc')}/></Section>}
+  {part==='dial'&&!d.active.dial&&<DialFromPartStudio/>}
   {part==='dial'&&!d.active.dial&&<Section title="Logo"><LogoControls/></Section>}
   {part==='dial'&&<Section title="Dial Text / Branding">
    <input className="tin" placeholder="Top (12h) — brand name" value={p.text.top} onChange={e=>up({text:{...p.text,top:e.target.value}},'txt')}/>

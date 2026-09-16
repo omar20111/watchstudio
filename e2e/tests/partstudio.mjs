@@ -57,4 +57,19 @@ export async function run({page,ready,until,present,press,expect,url,fixtures}){
  await q.goto(url.replace(/#.*$/,'')+'#m='+code);await ready(q);
  expect(await until(q,()=>!!window.__watchView.watch.getObjectByName('index:0'),null,180000),'a PartStudio link opens with its markers on the watch');
  expect(await q.evaluate(()=>!location.hash),'and clears itself from the address');
+
+ /* a dial designed in PartStudio: its plate, its picture under the printing,
+    its logo in metal and the marker set it brought */
+ await q.evaluate(()=>{const b=[...document.querySelectorAll('button')].find(e=>e.textContent.trim().startsWith('Dial'));b&&b.click()});
+ await until(q,()=>!!document.querySelector('input[aria-label="PartStudio dial file"]'),null,30000);
+ await q.locator('input[aria-label="PartStudio dial file"]').setInputFiles(path.join(fixtures,'test.watchstudio-dial.json'));
+ expect(await until(q,()=>{const w=window.__watchView.watch;return !!w.getObjectByName('logo')&&!!w.getObjectByName('index:0')},null,180000),
+  'the dial file brings its applied logo and its markers');
+ const dial=await q.evaluate(()=>{/* the part group is named 'dial' too: take the plate mesh */
+  let m=null;window.__watchView.watch.traverse(o=>{if(!m&&o.isMesh&&o.name==='dial')m=o});
+  const cv=m&&m.material.map&&m.material.map.image;
+  return{textured:!!cv,size:cv?cv.width:0,rough:m?+m.material.roughness.toFixed(2):null,
+   bgPanel:!!document.querySelector('[aria-label="Remove the background picture"]')}});
+ expect(dial.textured&&dial.size>=1200,`the plate wears the picture and its printing (${dial.size} px texture)`);
+ expect(dial.bgPanel,'the background picture can be adjusted or removed in the Dial panel');
  expect(!q.errors.length,'no page errors on the link '+JSON.stringify(q.errors.slice(0,3)))}
