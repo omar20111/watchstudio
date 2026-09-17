@@ -66,9 +66,14 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  /* Seen from below, the watch is turned over under the studio rather than lit
     from behind: the key light and the environment swing round the 12-6 axis
     to the viewer's side, so the caseback and the movement behind its window
-    are lit the way the front is. Only for the render that looks up. */
+    are lit the way the front is. Only for the render that looks up.
+    Swung exactly round, the overhead softbox lands straight behind the camera
+    and every flat polished face under it — a caseback, a movement's bridges —
+    mirrors its brightest middle and reads as white; tipped 0.45 rad off the
+    axis, those faces take its edge and fall-off instead, and the
+    Côtes de Genève, a turned finish and the rubies show. */
  const underside=on=>{key.position.set(on?-KEY[0]:KEY[0],on?-KEY[1]:KEY[1],KEY[2]);
-  scene.environmentRotation.set(0,0,on?Math.PI:0)};
+  scene.environmentRotation.set(on?.45:0,0,on?Math.PI:0)};
 
  /* catches the watch's shadow on the table without drawing a table */
  const ground=new Mesh(new PlaneGeometry(260,260),new ShadowMaterial({opacity:.32}));

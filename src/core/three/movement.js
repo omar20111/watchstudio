@@ -23,9 +23,10 @@
    Local frame: y up toward the dial, x toward 3 o'clock, z toward 6 o'clock.
    Everything is in millimetres, scaled from the movement's radius `m`. */
 import {Group,Mesh,Shape,Path,ExtrudeGeometry,ShapeGeometry,CylinderGeometry,LatheGeometry,TubeGeometry,BoxGeometry,
-        CatmullRomCurve3,Vector2,Vector3,MeshPhysicalMaterial,Color,CanvasTexture,SRGBColorSpace} from 'three';
+        CatmullRomCurve3,Vector2,Vector3,MeshPhysicalMaterial,Color} from 'three';
 import {metalMaterial} from './materials.js';
 import {cotesNormalMap,perlageNormalMap,snailNormalMap} from './surface.js';
+import {engravedMetalMaps} from './wear.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
 /* gap between the caseback's inside and the movement */
@@ -83,16 +84,18 @@ const MAT={
  cover:()=>{const m=new MeshPhysicalMaterial({color:new Color('#c8a95a'),metalness:1,roughness:.3});
   m.normalMap=perlageNormalMap(.7);m.normalScale=new Vector2(.5,.5);return m}};
 
-/* a rotor's engraving, one canvas per text */
+/* A rotor's engraving, cut into its metal: the lettering white on nothing, from
+   which engravedMetalMaps (wear.js) makes grooves with sloped walls, matte and
+   darker than the polish. It was a grey picture with dark print laid over the
+   rotor, as flat as a sticker. One set of maps per text. */
 const engravings=new Map();
 function engraving(text){if(engravings.has(text))return engravings.get(text);
- const cv=document.createElement('canvas');cv.width=cv.height=512;const ctx=cv.getContext('2d');
- ctx.fillStyle='#bfc4ca';ctx.fillRect(0,0,512,512);
- ctx.fillStyle='#5d6168';ctx.textAlign='center';ctx.textBaseline='middle';
+ const W=1024,cv=document.createElement('canvas');cv.width=cv.height=W;const ctx=cv.getContext('2d',{willReadFrequently:true});
+ ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
  /* on the rotor's half disc, seen from the caseback: upper right of the canvas */
- ctx.font='600 19px Georgia, serif';ctx.fillText(text,316,128);
- ctx.font='500 12px system-ui, sans-serif';ctx.fillText('AUTOMATIC · 25 JEWELS',316,156);
- const t=new CanvasTexture(cv);t.colorSpace=SRGBColorSpace;engravings.set(text,t);return t}
+ ctx.font='600 38px Georgia, serif';ctx.fillText(text,632,256);
+ ctx.font='500 24px system-ui, sans-serif';ctx.fillText('AUTOMATIC · 25 JEWELS',632,312);
+ const maps=engravedMetalMaps(cv,W);engravings.set(text,maps);return maps}
 
 /* Build the movement for a design's case. `engrave` is the case's engraving. */
 export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
@@ -165,7 +168,8 @@ export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
   {const p=plate.attributes.position,uv=plate.attributes.uv;
    /* seen from the caseback, 3 o'clock is on the left and 12 at the top */
    for(let i=0;i<p.count;i++)uv.setXY(i,.5-p.getX(i)/(2*ro),.5-p.getZ(i)/(2*ro))}
-  const pm=metalMaterial('steel','polished');pm.map=engraving(engrave.toUpperCase());pm.color=new Color(0xffffff);pm.roughness=.2;
+  const pm=metalMaterial('steel','polished'),eng=engraving(engrave.toUpperCase());pm.color=new Color('#d3d7dc');pm.roughness=.2;
+  if(eng){pm.normalMap=eng.normal;pm.roughnessMap=eng.rough;pm.roughness=.4;pm.map=eng.shade}
   add(rot,'rotorPlate',plate,pm);
   const ring=outline([...arc(0,0,ro,a0,a1,48),...arc(0,0,ri-.05,a1,a0,48)]);
   add(rot,'rotorRim',slab([ring],y0+.05,top,.12),MAT.gilt());

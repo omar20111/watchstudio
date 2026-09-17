@@ -33,7 +33,7 @@ import {printedIndexInk} from '../render/markers.js';
 import {markerSetOf} from '../markerset/index.js';
 import {addMarkerSet} from './markerset.js';
 import {logoSheet,logoOf,activeLogo} from '../logo.js';
-import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight,dataTexture} from './wear.js';
+import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight,dataTexture,engravedMetalMaps} from './wear.js';
 import {bezelPipOf} from '../render/bezel.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
@@ -253,30 +253,6 @@ function engravingMaps(cv,span=CAN){if(engravings.has(cv))return engravings.get(
  catch(e){out=null}
  engravings.set(cv,out);return out}
 
-/* Lettering cut into bare metal, as a caseback's engraving is: from the 'shape'
-   bake (white on nothing) a normal map of grooves with sloped walls, a roughness
-   map (the cut is matte against the finish: G is half on the surface and full in
-   a groove, against a material roughness doubled) and a shade map darkening the
-   groove's floor. On the sheet's uvs; `span` as engravingMaps. Cached per bake. */
-const engravedMetal=new WeakMap();
-function engravedMetalMaps(cv,span=CAN){if(engravedMetal.has(cv))return engravedMetal.get(cv);
- let out=null;
- try{const W=cv.width,k=W/span,px=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,W).data;
-  if(!px||px.length<W*W*4)throw new Error('no pixels');
-  const a=new Float32Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++)a[y*W+x]=px[((W-1-y)*W+x)*4+3]/255;
-  let b=a;for(let pass=0;pass<1;pass++){const t=new Float32Array(W*W),o=new Float32Array(W*W),R=Math.max(1,Math.round(.8*k)),n=2*R+1;
-   for(let y=0;y<W;y++){let s=0;for(let x=-R;x<=R;x++)s+=b[y*W+Math.min(W-1,Math.max(0,x))];
-    for(let x=0;x<W;x++){t[y*W+x]=s/n;s+=b[y*W+Math.min(W-1,x+R+1)]-b[y*W+Math.max(0,x-R)]}}
-   for(let x=0;x<W;x++){let s=0;for(let y=-R;y<=R;y++)s+=t[Math.min(W-1,Math.max(0,y))*W+x];
-    for(let y=0;y<W;y++){o[y*W+x]=s/n;s+=t[Math.min(W-1,y+R+1)*W+x]-t[Math.max(0,y-R)*W+x]}}
-   b=o}
-  const normal=normalsFromHeight(W,(x,y)=>-b[y*W+x],1.4*k);
-  const rough=new Uint8Array(W*W*4),shadeMap=new Uint8Array(W*W*4);
-  for(let i=0;i<W*W;i++){const m=b[i];rough[i*4+1]=Math.round((.5+.5*m)*255);rough[i*4+3]=255;
-   const g=Math.round((1-.5*m)*255);shadeMap[i*4]=shadeMap[i*4+1]=shadeMap[i*4+2]=g;shadeMap[i*4+3]=255}
-  out={normal,rough:dataTexture(W,W,rough),shade:dataTexture(W,W,shadeMap)}}
- catch(e){out=null}
- engravedMetal.set(cv,out);return out}
 
 /* A screw-down caseback's face: a turned disc, radius `rc`, with the six notches
    its wrench takes cut into it as pockets `depth` deep, where the 2D caseback

@@ -199,3 +199,30 @@ export function wearRoughness(mat){const w=wornBy.get(mat);if(!w)return 0;
   means=[r/n/255,g/n/255,b/n/255]}
  const k=(WEAR[w.level]||WEAR.light)[w.finish]||WEAR.light.polished;
  return Math.max(0,k[0]*means[0]+k[2]*means[1]+k[1]*means[2])+(w.finish==='brushed'?.04:0)}
+
+/* Lettering cut into bare metal, as a caseback's engraving is: from the 'shape'
+   bake (white on nothing) a normal map of grooves with sloped walls, a roughness
+   map (the cut is matte against the finish: G is half on the surface and full in
+   a groove, against a material roughness doubled) and a shade map darkening the
+   groove's floor, on the bake's uvs. `span`: how many sheet px the bake covers
+   (its width, for a bake that is not of the sheet), so a finer bake keeps the
+   same groove in mm. Cached per bake. */
+const engravedMetal=new WeakMap();
+export function engravedMetalMaps(cv,span=1200){if(engravedMetal.has(cv))return engravedMetal.get(cv);
+ let out=null;
+ try{const W=cv.width,k=W/span,px=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,W).data;
+  if(!px||px.length<W*W*4)throw new Error('no pixels');
+  const a=new Float32Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++)a[y*W+x]=px[((W-1-y)*W+x)*4+3]/255;
+  let b=a;for(let pass=0;pass<1;pass++){const t=new Float32Array(W*W),o=new Float32Array(W*W),R=Math.max(1,Math.round(.8*k)),n=2*R+1;
+   for(let y=0;y<W;y++){let s=0;for(let x=-R;x<=R;x++)s+=b[y*W+Math.min(W-1,Math.max(0,x))];
+    for(let x=0;x<W;x++){t[y*W+x]=s/n;s+=b[y*W+Math.min(W-1,x+R+1)]-b[y*W+Math.max(0,x-R)]}}
+   for(let x=0;x<W;x++){let s=0;for(let y=-R;y<=R;y++)s+=t[Math.min(W-1,Math.max(0,y))*W+x];
+    for(let y=0;y<W;y++){o[y*W+x]=s/n;s+=t[Math.min(W-1,y+R+1)*W+x]-t[Math.max(0,y-R)*W+x]}}
+   b=o}
+  const normal=normalsFromHeight(W,(x,y)=>-b[y*W+x],1.4*k);
+  const rough=new Uint8Array(W*W*4),shadeMap=new Uint8Array(W*W*4);
+  for(let i=0;i<W*W;i++){const m=b[i];rough[i*4+1]=Math.round((.5+.5*m)*255);rough[i*4+3]=255;
+   const g=Math.round((1-.5*m)*255);shadeMap[i*4]=shadeMap[i*4+1]=shadeMap[i*4+2]=g;shadeMap[i*4+3]=255}
+  out={normal,rough:dataTexture(W,W,rough),shade:dataTexture(W,W,shadeMap)}}
+ catch(e){out=null}
+ engravedMetal.set(cv,out);return out}

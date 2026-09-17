@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**Changed — the back of the watch in real light**
+- The back view lit the watch by turning the studio round the 12-6 axis, which
+  put the overhead softbox straight behind the camera: every flat polished face
+  under it — a caseback, a movement's bridges and rotor — mirrored its
+  brightest middle and read as white. The studio is now also tipped 0.45 rad off
+  that axis, so those faces take its edge and fall-off: the Côtes de Genève, the
+  turned finish and the rubies show.
+- The rotor's engraving was a grey picture with print laid over the metal. It's
+  cut into the rotor now, as the caseback's is (engravedMetalMaps, moved to
+  wear.js for both).
+
 **Changed — every preset picture is the 3D watch**
 - The dial, indices, hands, bezel and strap presets showed the 2D painter's
   bakes, lit and drawn differently from the watch they would give. Like the case
