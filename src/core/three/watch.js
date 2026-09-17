@@ -372,10 +372,20 @@ function strapForm(d,which){const sp=strapPath(d),widthAt=strapWidthAt(d,strapRe
  return{sp,f,sA,sEnd,at}}
 
 /* the section as RING_N points (x across, k up from the path), anticlockwise
-   seen from +z: up the right edge, over the crown, down the left, back under */
-function strapRing({a,c,e,r,k0}){const pts=[],h=a-r,hh=Math.max(h,1e-4);
+   seen from +z: up the right edge, over the crown, down the left, back under.
+   `grooves` (a rubber strap's) are moulded into the crown: each at x = u·a, w mm
+   wide and d mm deep, a rounded channel of five points more; the count stays the
+   same down the strap, and a groove fades out where the strap narrows. */
+const RUBBER_GROOVES=[{u:.32,w:.34,d:.32},{u:-.32,w:.34,d:.32}];
+function strapRing({a,c,e,r,k0},grooves=null){const pts=[],h=a-r,hh=Math.max(h,1e-4);
  for(let i=0;i<RING.edge;i++){const p=-Math.PI/2+Math.PI*i/(RING.edge-1);pts.push([h+r*Math.cos(p),k0+e/2+e/2*Math.sin(p)])}
- for(let i=1;i<=RING.top;i++){const x=h-2*h*i/(RING.top+1);pts.push([x,k0+e+(c-e)*(1-(x/hh)**2)])}
+ const crown=x=>k0+e+(c-e)*(1-(x/hh)**2);
+ if(grooves){const fade=smoothstep(2.5,5,a),top=[];
+  for(let i=1;i<=RING.top;i++){const x=h-2*h*i/(RING.top+1);top.push([x,0,0])}
+  for(const g of grooves){const xg=g.u*a;for(const[t,dd]of[[-1,0],[-.5,.5],[0,1],[.5,.5],[1,0]])top.push([Math.max(-h*.999,Math.min(h*.999,xg+t*g.w)),1,dd*g.d*fade])}
+  top.sort((p,q)=>q[0]-p[0]);
+  for(const[x,,dd]of top){let k=crown(x);for(const g of grooves){const t=Math.abs(x-g.u*a)/g.w;if(t<1)k-=g.d*fade*(.5+.5*Math.cos(Math.PI*t))}pts.push([x,k])}}
+ else for(let i=1;i<=RING.top;i++){const x=h-2*h*i/(RING.top+1);pts.push([x,crown(x)])}
  for(let i=0;i<RING.edge;i++){const p=Math.PI/2+Math.PI*i/(RING.edge-1);pts.push([-h+r*Math.cos(p),k0+e/2+e/2*Math.sin(p)])}
  for(let i=1;i<=RING.bottom;i++)pts.push([-h+2*h*i/(RING.bottom+1),k0]);
  return pts}
@@ -388,7 +398,8 @@ const pathMatrix=(P,dir)=>new Matrix4().makeTranslation(0,P.y,P.z).multiply(new 
 
 function strapGeometry(d,dir){
  const which=dir<0?'top':'bottom',{sp,f,sA,sEnd,at}=strapForm(d,which);
- const{h:Hc,ty}=bakeSize('strap','flat',d,which),M=RING_N;
+ const grooves=d.parts.strap.variant==='rubber'?RUBBER_GROOVES:null;
+ const{h:Hc,ty}=bakeSize('strap','flat',d,which),M=strapRing(at(0,which),grooves).length;
  const vAt=s=>1-(C+dir*(sp.start+s)*PX+ty)/Hc;
  /* stations even down the run, bunched toward the tip where the outline turns */
  const endLen=which==='bottom'?STRAP_TAIL_MM:5,st=[];
@@ -398,7 +409,7 @@ function strapGeometry(d,dir){
  /* `inset` samples the texture just inside the drawn edge: the edge pixel is
     anti-aliased to half alpha, which the alpha test would punch through */
  const ringAt=s=>{const sec=at(s,which),P=pathFrame(sp,s,dir),v=vAt(s),lim=Math.max(0,sec.a-f.inset);
-  for(const[x,k]of strapRing(sec)){pos.push(...onPath(P,dir,x,k));uv.push(.5+Math.max(-lim,Math.min(lim,x))/SHEET,v)}
+  for(const[x,k]of strapRing(sec,grooves)){pos.push(...onPath(P,dir,x,k));uv.push(.5+Math.max(-lim,Math.min(lim,x))/SHEET,v)}
   return sec};
  for(const s of st)ringAt(s);
  for(let i=0;i<st.length-1;i++)for(let j=0;j<M;j++){const a=i*M+j,b=i*M+(j+1)%M,c=a+M,e=b+M;

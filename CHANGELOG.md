@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Changed — a rubber strap's grooves are moulded**
+- The two grooves down a rubber strap were dark lines painted on a smooth
+  crown. They are now cut into the strap's section (watch.js strapRing
+  grooves): rounded channels 0.7 mm wide and 0.3 mm deep a third of the way
+  out from the centre, following the taper and fading out where the tail
+  narrows, so their edges catch the light.
+
 **Changed — straps no longer paint what 3D draws**
 - The Milanese bake painted diagonal weave lines and a bright rolled edge, and
   the NATO bake light and dark weave rows, over the real weave normal maps:

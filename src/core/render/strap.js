@@ -112,7 +112,8 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
     line(12.6);ctx.strokeStyle=st;ctx.lineWidth=2.6;ctx.stroke()}
    ctx.setLineDash([]);ctx.fillStyle=shade(col,.35);ctx.fillRect(C-sw/2,top?y0+dir*44:y0+dir*44-26,sw,26);}
   if(o.variant==='rubber'){noiseFill(ctx,.07,'overlay',.55);
-   for(const s of[-1,1]){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(C+s*sw*0.16-3,yA,6,yB-yA);ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(C+s*sw*0.16+3,yA,2,yB-yA)}
+   /* its moulded grooves (in 3D, cut into the strap's section: watch.js strapRing) */
+   if(!flat)for(const s of[-1,1]){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(C+s*sw*0.16-3,yA,6,yB-yA);ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(C+s*sw*0.16+3,yA,2,yB-yA)}
    if(!flat){const rg=ctx.createLinearGradient(C-sw/2,0,C+sw/2,0);
     rg.addColorStop(0,'rgba(255,255,255,0)');rg.addColorStop(.38,'rgba(255,255,255,.09)');rg.addColorStop(1,'rgba(0,0,0,.18)');
     ctx.fillStyle=rg;ctx.fillRect(C-sw,yA,sw*2,yB-yA)}}
