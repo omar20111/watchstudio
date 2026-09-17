@@ -151,11 +151,12 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   get watch(){return watch},
   /* set once: called when an upload finishes loading and the watch needs a rebuild */
   onDirty(fn){onDirty=fn},
-  setDesign(d,customs={}){lastD=d;lastCustoms=customs;
-   const k=headKey(d,customs);
+  /* `lite`: the watch at the sheet's own resolution (a preset picture) */
+  setDesign(d,customs={},{lite=false}={}){lastD=d;lastCustoms=customs;
+   const k=headKey(d,customs)+(lite?'|lite':'');
    if(k!==built){built=k;
     if(watch){scene.remove(watch);disposeHead(watch)}
-    watch=buildHead(d,customs,{aniso:renderer.capabilities.getMaxAnisotropy()});scene.add(watch);
+    watch=buildHead(d,customs,{aniso:renderer.capabilities.getMaxAnisotropy(),lite});scene.add(watch);
     /* the watch rests on its strap, so the table is wherever the strap lands */
     ground.position.y=watch.userData.groundY-.02;placeSurface();
     target.set(0,watch.userData.heights.dial,0);aim();
@@ -215,9 +216,11 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
    aa.sample(buf.x,buf.y,(jx,jy)=>{
     renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
     c.setViewOffset(buf.x,buf.y,jx,jy,buf.x,buf.y);
+    /* nothing has moved since the frame being refined: its shadow map stands */
+    const auto=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;
     underside(camera==='back');renderer.render(scene,c);
     if(aoOn)ao.apply(c,buf.x,buf.y,aoScale);
-    underside(false);c.clearViewOffset()});
+    underside(false);c.clearViewOffset();renderer.shadowMap.autoUpdate=auto});
    return !aa.done},
   /* is something moving in view that the clock does not tick once a second — the
      balance behind an exhibition caseback, seen from below */
@@ -320,9 +323,9 @@ function stillView(){if(still)return still;
 let turn=Promise.resolve();
 const inTurn=fn=>{const r=turn.then(fn);turn=r.catch(()=>{});return r};
 
-async function ready(v,d,customs){let p=v.setDesign(d,customs);
+async function ready(v,d,customs,opts){let p=v.setDesign(d,customs,opts);
  /* uploads load asynchronously; wait, then rebuild with them in place */
- for(let i=0;p&&i<3;i++){await p;p=v.setDesign(d,customs)}}
+ for(let i=0;p&&i<3;i++){await p;p=v.setDesign(d,customs,opts)}}
 
 /* A transparent still of the design. `camera` is front, three-quarter, side or
    back; front stills use the sheet scale so SVG dimension lines drawn at
@@ -341,16 +344,23 @@ export function renderStill(d,customs,{w=CAN,h=w,camera='front',clock}={}){retur
    the case face-on out to its lug tips, the crown close up from three-quarter.
    Rendered at twice the size and scaled down, so edges stay clean. */
 export function presetStill(d,part,{size=120,clock}={}){return inTurn(async()=>{
- const v=stillView();await ready(v,d,{});
+ const v=stillView();await ready(v,d,{},{lite:true});
  const S=size*2;v.resize(S,S,1);
- try{
+ try{const g=geoOf(d),dial=v.watch.userData.heights.dial;
+  /* face-on, framed on what the preset changes: `r` mm round `z` mm toward 6 */
+  const face=(r,z=0)=>{v.setCamera('front');v.target().set(0,dial,z);v.setFrame({pxPerMm:S/(2*r),zoom:1})};
   if(part==='crown'){const c=new Box3().setFromObject(v.watch.getObjectByName('crown')).getCenter(new Vector3());
    v.setCamera('three-quarter');v.fit();v.orbit.phi=62*Math.PI/180;v.orbit.theta=60*Math.PI/180;
    v.target().copy(c);v.setFrame({pxPerMm:null,zoom:5})}
-  else{const g=geoOf(d),r=(g.R+g.lugExt+14)/PX;
-   v.setCamera('front');v.setFrame({pxPerMm:S/(2*r),zoom:1})}
+  else if(part==='dial'||part==='markers')face(g.dialR/PX*1.04);
+  else if(part==='hands')face(g.dialR/PX*.72);
+  else if(part==='bezel')face(g.R/PX*1.02);
+  else if(part==='strap')face(11,(g.R+g.lugExt)/PX+9);
+  else face((g.R+g.lugExt+14)/PX)
+  /* drawn at twice its size and scaled down, which is anti-aliasing enough for a
+     120 px picture: no refinement */
   const at=clock||sceneClock(d,Date.now());
-  v.render(at);while(v.refine(at));
+  v.render(at);
   const out=document.createElement('canvas');out.width=out.height=size;
   out.getContext('2d').drawImage(v.renderer.domElement,0,0,S,S,0,0,size,size);
   return out.toDataURL('image/png')}

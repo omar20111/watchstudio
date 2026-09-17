@@ -106,7 +106,13 @@ export function canvasTexture(cv,aniso=8){let t=texOf.get(cv);
    twice on a device reporting little memory; never past 4096 px. `half` is the
    square's half-width in sheet px, centred on the dial. */
 const ART_SCALE=typeof navigator!=='undefined'&&navigator.deviceMemory&&navigator.deviceMemory<=4?2:3;
-const artRes=halfPx=>{const size=2*Math.ceil(halfPx+4);return{box:[C-size/2,C-size/2,size],k:Math.min(ART_SCALE,4096/size)}};
+/* A lite build (buildHead's `lite`, for the panel's small preset pictures) bakes
+   and traces the whole sheet at its own resolution: nothing finer would show at
+   120 px. (A painter fills its ground from the canvas's corner, the canvas's own
+   size, so a crop no larger than its box would be filled only in part.) */
+let LITE=false;
+const artRes=halfPx=>{if(LITE)return{box:[0,0,CAN],k:1};
+ const size=2*Math.ceil(halfPx+4);return{box:[C-size/2,C-size/2,size],k:Math.min(ART_SCALE,4096/size)}};
 
 /* Hands and indices are solids traced from their silhouette bakes (relief.js).
    Traced from the sheet's 18 px/mm, a lume channel's rim and a facet's edge follow
@@ -134,12 +140,12 @@ function uploadSilhouette(cv){if(silhouettes.has(cv))return silhouettes.get(cv);
    `rows` rows deep so it can bend with a curved hand. Falls back to the whole
    sheet where the bake's rectangle cannot be read. */
 function fineDecal(sheetCv,bake,{k=2,rows=1}={}){const box=alphaBox(sheetCv);
- if(!box){const g=faceUp(new PlaneGeometry(SHEET,SHEET,1,rows));return{cv:sheetCv,geo:g}}
+ if(!box||LITE){const g=faceUp(new PlaneGeometry(SHEET,SHEET,1,rows));return{cv:sheetCv,geo:g}}
  const res={box,k},[x0,y0,w,h]=box,g=new PlaneGeometry(w/PX,h/PX,1,rows);
  g.translate((x0+w/2-C)/PX,-(y0+h/2-C)/PX,0);return{cv:bake(res),geo:faceUp(g)}}
 
 function fineRelief(part,d,sub,lumed,form){const lo=getProc(part,d,sub,'shape'),box=alphaBox(lo);
- if(!box)return reliefFromSilhouette(lo,{...form,lume:lumed?getProc(part,d,sub,'lume'):null});
+ if(!box||LITE)return reliefFromSilhouette(lo,{...form,lume:lumed?getProc(part,d,sub,'lume'):null});
  const res={box,k:SHAPE_SCALE};
  return reliefFromSilhouette(getProc(part,d,sub,'shape',res),{...form,lume:lumed?getProc(part,d,sub,'lume',res):null,res})}
 
@@ -712,7 +718,9 @@ function cyclopsGeometry({A,B,rc,R,rho,wall}){const M=72,N=12;
 
 /* ---------------------------------------------------------------- head */
 
-export function buildHead(d,customs={},{aniso=8}={}){
+export function buildHead(d,customs={},{aniso=8,lite=false}={}){LITE=lite;
+ try{return buildWatch(d,customs,aniso)}finally{LITE=false}}
+function buildWatch(d,customs,aniso){
  const{profiles:P,heights:H,radii:Rr,crystal:CR}=headProfiles(d);
  const parts=d.parts,arch=caseOf(d),tex=cv=>canvasTexture(cv,aniso);
  const watch=new Group();watch.name='watch';

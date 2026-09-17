@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**Changed — every preset picture is the 3D watch**
+- The dial, indices, hands, bezel and strap presets showed the 2D painter's
+  bakes, lit and drawn differently from the watch they would give. Like the case
+  and crown, each is now a small still of the design with that preset applied
+  (view.js presetStill), framed on its part: the dial and indices face-on, the
+  hands closer in, the bezel with the case, the strap below the lugs. Where
+  WebGL is missing or drawn in software, the painted bakes remain.
+- They are built lite (buildHead lite: the sheet's own resolution, nothing
+  finer to trace) and drawn at twice their size without refinement, about a
+  third of a second each on an Intel UHD, one after another; a picture whose
+  design has changed again before its turn is skipped.
+- Anti-aliasing refinement keeps the frame's shadow map instead of drawing it
+  again for every sample.
+
 **Changed — lume and logo at the dial's sharpness**
 - The lume fills of hands and indices and a printed logo were decals of the
   whole 1200 px sheet, softer than the channels and printing around them now.
