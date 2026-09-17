@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Changed — uploaded hands and indices become solids**
+- An uploaded hands or indices picture was laid on the dial as a flat sheet. A
+  picture drawn on a transparent ground is now traced into a bevelled solid the
+  way the built-in ones are (relief.js), wearing the picture on top, standing
+  at its height over the dial with a soft shadow under it. A picture with no
+  transparent ground — a photo — or one covering a third of the sheet or more
+  would trace to a slab, so it stays a flat sheet.
+
 **Changed — strap holes punched through**
 - The holes down the 6 o'clock strap were dark discs painted on it, with the
   leather's grain running straight across them. They are now cut out of the

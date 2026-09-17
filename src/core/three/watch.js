@@ -120,6 +120,15 @@ function alphaBox(cv){if(alphaBoxes.has(cv))return alphaBoxes.get(cv);let box=nu
   for(let y=0;y<H;y++){const row=y*W;for(let x=0;x<W;x++)if(a[(row+x)*4+3]>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
   if(x1>=0)box=[x0-6,y0-6,x1-x0+13,y1-y0+13]}catch(e){box=null}
  alphaBoxes.set(cv,box);return box}
+/* An upload that is a shape on a transparent ground: something opaque, but
+   less than a third of the sheet, and not reaching every edge of it */
+const silhouettes=new WeakMap();
+function uploadSilhouette(cv){if(silhouettes.has(cv))return silhouettes.get(cv);let ok=false;
+ try{const W=cv.width,H=cv.height,a=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;let n=0;
+  for(let i=3;i<a.length;i+=4)if(a[i]>128)n++;
+  const box=alphaBox(cv);ok=n>40&&n<W*H/3&&!!box&&!(box[0]<=-5&&box[1]<=-5&&box[2]>=W+10&&box[3]>=H+10)}catch(e){ok=false}
+ silhouettes.set(cv,ok);return ok}
+
 function fineRelief(part,d,sub,lumed,form){const lo=getProc(part,d,sub,'shape'),box=alphaBox(lo);
  if(!box)return reliefFromSilhouette(lo,{...form,lume:lumed?getProc(part,d,sub,'lume'):null});
  const res={box,k:SHAPE_SCALE};
@@ -705,6 +714,18 @@ export function buildHead(d,customs={},{aniso=8}={}){
   if(!src)return null;
   if(src instanceof Promise){pending.push(src);return null}
   const map=tex(src);
+  /* Uploaded hands and indices, drawn on a transparent ground, are traced into
+     solids the way the built-in ones are (relief.js), wearing the picture on
+     top, with a soft shadow under them: a hand stands over the dial instead of
+     lying on it as a picture. A picture with no transparent ground (a photo)
+     would trace to a slab the size of the sheet, so it stays a flat sheet. */
+  const solid=(part==='hands'||part==='markers')&&uploadSilhouette(src);
+  if(solid){const rel=reliefFromSilhouette(src,{profile:'bevel',height:part==='hands'?.22:.3,edge:.07,bevel:.35});
+   if(rel){const mat=new MeshStandardMaterial({map,roughness:.45,metalness:0,...extra});delete mat.alphaTest;
+    const m=add(to,'upload:'+part,rel.geometry,mat,{cast:true});m.position.y=y-(part==='hands'?.35:.05);m.userData.alphaCanvas=src;
+    const h=part==='hands'?.6:.25,sd=shadowDecal(src,{heightMm:h,sheetMm:SHEET,opacity:.5}),[dx,dz]=shadowOffset(h);
+    sd.position.set(dx,H.dial+.01,dz);G.dial.add(sd);
+    return m}}
   const mat=new MeshStandardMaterial({map,roughness:.5,metalness:0,alphaTest:.5,...extra});
   const m=add(to,'upload:'+part,sheet(),mat,{cast:true});m.position.y=y;m.userData.alphaCanvas=src;m.userData.noAO=true;
   return m};
