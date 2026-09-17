@@ -69,16 +69,22 @@ export function logoFitOf(d,customs){const u=activeLogo(d,customs);if(!u)return 
    promise while the image loads, or null when there is no logo. Its box is
    logoBoxOf's, so the printing, the date and the hands keep their room. */
 const sheets=new Map();
-export function logoSheet(d,customs){const u=activeLogo(d,customs);if(!u)return null;
+/* `res` ({box:[x0,y0,w,h],k}, as cache.js getProc): only that rectangle of the
+   sheet, drawn k times finer — the 3D logo is traced and printed from it */
+export function logoSheet(d,customs,res=null){const u=activeLogo(d,customs);if(!u)return null;
  const L=logoOf(d),ink=L.color==='ink'?logoInk(d):null;
  const e=image(u.url);
  if(!e.ready)return e.failed?null:e.promise;
  const iw=e.img.naturalWidth||e.img.width||300,ih=e.img.naturalHeight||e.img.height||150;
  const B=logoBoxOf(d,ih/iw),{w,h}=B;
- const key=[u.url,B.x,B.y,w,h,ink||'original'].join('|');
+ const key=[u.url,B.x,B.y,w,h,ink||'original',res?JSON.stringify(res):''].join('|');
  if(sheets.has(key))return sheets.get(key);
- const cv=document.createElement('canvas');cv.width=cv.height=CAN;const x=cv.getContext('2d');
+ const cv=document.createElement('canvas');
+ if(res){cv.width=Math.round(res.box[2]*res.k);cv.height=Math.round(res.box[3]*res.k)}else cv.width=cv.height=CAN;
+ const x=cv.getContext('2d',{willReadFrequently:true});
+ if(res){const k=cv.width/res.box[2];x.setTransform(k,0,0,k,-res.box[0]*k,-res.box[1]*k)}
  x.drawImage(e.img,B.x-w/2,B.y-h/2,w,h);
- if(ink){x.globalCompositeOperation='source-in';x.fillStyle=ink;x.fillRect(0,0,CAN,CAN);x.globalCompositeOperation='source-over'}
+ x.setTransform(1,0,0,1,0,0);
+ if(ink){x.globalCompositeOperation='source-in';x.fillStyle=ink;x.fillRect(0,0,cv.width,cv.height);x.globalCompositeOperation='source-over'}
  sheets.set(key,cv);if(sheets.size>8)sheets.delete(sheets.keys().next().value);
  return cv}

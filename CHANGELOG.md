@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**Changed — lume and logo at the dial's sharpness**
+- The lume fills of hands and indices and a printed logo were decals of the
+  whole 1200 px sheet, softer than the channels and printing around them now.
+  Each is baked for its own rectangle at twice (lume) or three times (logo) the
+  sheet (watch.js fineDecal) on a plane covering just it; an applied logo is
+  traced from a bake twice as fine (logo.js logoSheet res).
+- A hand's lume now bends with the hand's own curve, measured to the hand's
+  tip; it was bent as if the hand reached the sheet's edge, flatter than the
+  channel it lies in.
+
 **Changed — a rubber strap's grooves are moulded**
 - The two grooves down a rubber strap were dark lines painted on a smooth
   crown. They are now cut into the strap's section (watch.js strapRing

@@ -77,8 +77,8 @@ const handCurve=(variant,which)=>which==='sec'?0:(HAND_CURVE[variant]??.05);
 
 /* Bend a hand (built flat, pointing toward 12, which is -z) down by `drop` mm at
    its tip, turning its normals with it. */
-function curveHand(geo,drop){const p=geo.attributes.position,n=geo.attributes.normal;
- let L=0;for(let i=0;i<p.count;i++)L=Math.max(L,-p.getZ(i));
+function curveHand(geo,drop,L0=null){const p=geo.attributes.position,n=geo.attributes.normal;
+ let L=0;if(L0)L=L0;else for(let i=0;i<p.count;i++)L=Math.max(L,-p.getZ(i));
  if(!(L>.5)||!(drop>0))return geo;
  for(let i=0;i<p.count;i++){const z=p.getZ(i),t=Math.max(0,-z)/L;
   p.setY(i,p.getY(i)-drop*t*t);
@@ -128,6 +128,15 @@ function uploadSilhouette(cv){if(silhouettes.has(cv))return silhouettes.get(cv);
   for(let i=3;i<a.length;i+=4)if(a[i]>128)n++;
   const box=alphaBox(cv);ok=n>40&&n<W*H/3&&!!box&&!(box[0]<=-5&&box[1]<=-5&&box[2]>=W+10&&box[3]>=H+10)}catch(e){ok=false}
  silhouettes.set(cv,ok);return ok}
+
+/* A decal of a part's own rectangle of the sheet, finer (a lume fill, a printed
+   logo): the bake of that rectangle at `k` and a face-up plane covering just it,
+   `rows` rows deep so it can bend with a curved hand. Falls back to the whole
+   sheet where the bake's rectangle cannot be read. */
+function fineDecal(sheetCv,bake,{k=2,rows=1}={}){const box=alphaBox(sheetCv);
+ if(!box){const g=faceUp(new PlaneGeometry(SHEET,SHEET,1,rows));return{cv:sheetCv,geo:g}}
+ const res={box,k},[x0,y0,w,h]=box,g=new PlaneGeometry(w/PX,h/PX,1,rows);
+ g.translate((x0+w/2-C)/PX,-(y0+h/2-C)/PX,0);return{cv:bake(res),geo:faceUp(g)}}
 
 function fineRelief(part,d,sub,lumed,form){const lo=getProc(part,d,sub,'shape'),box=alphaBox(lo);
  if(!box)return reliefFromSilhouette(lo,{...form,lume:lumed?getProc(part,d,sub,'lume'):null});
@@ -1007,7 +1016,8 @@ export function buildHead(d,customs={},{aniso=8}={}){
    if(!printed){const h=form.height*.75,sd=shadowDecal(getProc('markers',d,undefined,'shape'),{heightMm:h,sheetMm:SHEET,opacity:.5}),[dx,dz]=shadowOffset(h);
     sd.position.set(dx,Hc+.008,dz);G.markers.add(sd)}}
   if(lumed){
-   const lm=add(G.markers,'indicesLume',sheet(),lumeMaterial(tex(lumeCv),mk.lume,mk.glow),{cast:false,noPick:true});
+   const lf=fineDecal(lumeCv,res=>getProc('markers',d,undefined,'lume',res));
+   const lm=add(G.markers,'indicesLume',lf.geo,lumeMaterial(tex(lf.cv),mk.lume,mk.glow),{cast:false,noPick:true});
    lm.position.y=Hc+form.pocket+.004}}}
 
  /* ---- the user's logo (logo.js): printed as a decal on the dial, or traced
@@ -1015,9 +1025,14 @@ export function buildHead(d,customs={},{aniso=8}={}){
  {const ls=logoSheet(d,customs);
   if(ls instanceof Promise)pending.push(ls);
   else if(ls){const L=logoOf(d);
-   if(L.style==='applied'){const rel=reliefFromSilhouette(ls,{profile:'bevel',height:.16,edge:.05,bevel:.5});
+   /* traced and printed from its own rectangle at three times the sheet, so the
+      logo's edges are as sharp as the dial's printing */
+   const lres=(k)=>{const b=alphaBox(ls);return b&&{box:b,k}};
+   if(L.style==='applied'){const r=lres(2),src=r&&logoSheet(d,customs,r);
+    const rel=src&&!(src instanceof Promise)?reliefFromSilhouette(src,{profile:'bevel',height:.16,edge:.05,bevel:.5,res:r}):reliefFromSilhouette(ls,{profile:'bevel',height:.16,edge:.05,bevel:.5});
     if(rel){const m=add(G.dial,'logo',rel.geometry,metalMaterial(parts.hands.metal,'polished'));m.position.y=Hc}}
-   else{const m=add(G.dial,'logo',sheet(),paintedMaterial(tex(ls),{alphaTest:.4,roughness:.45}),{cast:false,noPick:true});
+   else{const lf=fineDecal(ls,res=>{const c=logoSheet(d,customs,res);return c instanceof Promise||!c?ls:c},{k:3});
+    const m=add(G.dial,'logo',lf.cv===ls?sheet():lf.geo,paintedMaterial(tex(lf.cv),{alphaTest:.4,roughness:.45}),{cast:false,noPick:true});
     m.position.y=Hc+.006}}}
 
  /* ---- hands: each on its own arbor height; `hand:*` carries its transform,
@@ -1033,7 +1048,8 @@ export function buildHead(d,customs={},{aniso=8}={}){
     const lumeCv=lumed?getProc('hands',d,k,'lume'):null;
     const rel=fineRelief('hands',d,k,lumed,form);
     if(!rel)continue;
-    const curve=handCurve(hp.variant,k);curveHand(rel.geometry,curve);
+    const curve=handCurve(hp.variant,k);let bodyL=0;{const pa=rel.geometry.attributes.position;for(let i=0;i<pa.count;i++)bodyL=Math.max(bodyL,-pa.getZ(i))}
+    curveHand(rel.geometry,curve,bodyL);
     const bodyMat=k==='sec'
      ?new MeshPhysicalMaterial({color:new Color(hp.secColor||'#e8482c'),roughness:.32,clearcoat:.6,clearcoatRoughness:.1})
      :metalMaterial(hp.metal,hp.finish);
@@ -1045,10 +1061,11 @@ export function buildHead(d,customs={},{aniso=8}={}){
      const sd=shadowDecal(getProc('hands',d,k,'shape'),{heightMm:h,sheetMm:SHEET,opacity:k==='sec'?.52:.68});
      sd.position.y=Hc+.012;sArbor.add(sd)}
     if(lumed){
-     /* the lume rides the hand's curve, so it needs a sheet with rows to bend */
-     const ls=curve>0?faceUp(new PlaneGeometry(SHEET,SHEET,1,96)):sheet();
-     if(curve>0)curveHand(ls,curve);
-     const lm=add(arbor,k+'Lume',ls,lumeMaterial(tex(lumeCv),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
+     /* the lume rides the hand's curve — the body's, measured to its tip — so its
+        decal has rows to bend */
+     const lf=fineDecal(lumeCv,res=>getProc('hands',d,k,'lume',res),{rows:curve>0?48:1});
+     if(curve>0)curveHand(lf.geo,curve,bodyL);
+     const lm=add(arbor,k+'Lume',lf.geo,lumeMaterial(tex(lf.cv),hp.lume,hp.glow),{cast:false,receive:false,noPick:true});
      lm.position.y=form.pocket+.004}
     if(k==='sec'){/* the pipe that holds the seconds hand, and its dark pinion */
      const cap=add(arbor,'secCap',new CylinderGeometry(13/PX,13/PX,.22,40),metalMaterial(hp.metal,'polished'));cap.position.y=form.height+.11;
