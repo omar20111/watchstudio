@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Changed — straps no longer paint what 3D draws**
+- The Milanese bake painted diagonal weave lines and a bright rolled edge, and
+  the NATO bake light and dark weave rows, over the real weave normal maps:
+  lines that stayed put as the light moved. The flat bakes leave them out.
+- A leather strap's edge paint covered a hairline; it now covers the half
+  millimetre of texture the strap's rolled edge wears, so the edge reads
+  painted all round.
+- On GitHub each failed browser check is written as a public annotation.
+
 **Changed — uploaded hands and indices become solids**
 - An uploaded hands or indices picture was laid on the dial as a flat sheet. A
   picture drawn on a transparent ground is now traced into a bevelled solid the

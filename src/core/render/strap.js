@@ -80,8 +80,10 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
   const mesh=o.variant==='mesh';
   ctx.fillStyle=mesh?(flat?(m.f0||m.base):axisGrad(ctx,m,C-sw/2,0,C+sw/2,0)):flat?col:g;ctx.fill();
   ctx.save();path();ctx.clip();
-  /* Milanese: a fine diagonal weave, crossed rows of tiny loops */
-  if(mesh){ctx.lineWidth=1;const pitch=5;
+  /* Milanese: a fine diagonal weave, crossed rows of tiny loops. The 3D band's
+     weave is a normal map and its rolled edges geometry, so the flat bake paints
+     neither: painted, the lines lay over the real weave and stayed put. */
+  if(mesh&&!flat){ctx.lineWidth=1;const pitch=5;
    for(let k=-sw;k<(yB-yA)+sw;k+=pitch){ctx.beginPath();ctx.moveTo(C-sw,yA+k);ctx.lineTo(C+sw,yA+k+sw*2);
     ctx.strokeStyle=`rgba(0,0,0,${flat?.1:.18})`;ctx.stroke();
     ctx.beginPath();ctx.moveTo(C+sw,yA+k);ctx.lineTo(C-sw,yA+k+sw*2);ctx.strokeStyle=`rgba(255,255,255,${flat?.06:.12})`;ctx.stroke()}
@@ -95,9 +97,11 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
     cg.addColorStop(0,'rgba(255,255,255,0)');cg.addColorStop(.42,'rgba(255,255,255,.13)');
     cg.addColorStop(.58,'rgba(255,255,255,.05)');cg.addColorStop(1,'rgba(0,0,0,.16)');
     ctx.fillStyle=cg;ctx.fillRect(C-sw,yA,sw*2,yB-yA)}
-   /* burnished edges */
-   for(const s of[-1,1]){along(y=>C+s*Math.max(0,wAt(y)/2-2),y0-dir*20,y1);
-    ctx.strokeStyle=shade(col,.6);ctx.lineWidth=5;ctx.stroke()}
+   /* burnished edges. On the 3D strap the texture's outer px are what its rolled
+      edge wears (strapGeometry samples just inside the outline all round the
+      roll), so the edge paint is laid over the half-millimetre the roll takes */
+   for(const s of[-1,1]){along(y=>C+s*Math.max(0,wAt(y)/2-(flat?5:2)),y0-dir*20,y1);
+    ctx.strokeStyle=shade(col,.6);ctx.lineWidth=flat?10:5;ctx.stroke()}
    /* stitches sit in a recessed channel; round a tail the two rows meet */
    for(const s of[-1,1]){const line=inset=>along(y=>C+s*Math.max(0,wAt(y)/2-inset),y0+dir*6,y1-dir*(shaped?22:4));
     ctx.setLineDash([]);line(12);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=7;ctx.stroke();
@@ -113,8 +117,8 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
     rg.addColorStop(0,'rgba(255,255,255,0)');rg.addColorStop(.38,'rgba(255,255,255,.09)');rg.addColorStop(1,'rgba(0,0,0,.18)');
     ctx.fillStyle=rg;ctx.fillRect(C-sw,yA,sw*2,yB-yA)}}
   if(o.variant==='nato'){noiseFill(ctx,.20,'overlay',.8);
-   /* webbing weave */
-   ctx.save();ctx.globalAlpha=.16;for(let y=yA;y<yB;y+=7){ctx.fillStyle=y%14<7?'#ffffff':'#000000';ctx.fillRect(C-sw/2,y,sw,3.5)}ctx.restore();
+   /* webbing weave (the 3D strap's is a normal map) */
+   if(!flat){ctx.save();ctx.globalAlpha=.16;for(let y=yA;y<yB;y+=7){ctx.fillStyle=y%14<7?'#ffffff':'#000000';ctx.fillRect(C-sw/2,y,sw,3.5)}ctx.restore()}
    /* the tall flat canvas starts above the sheet, so stripe the strap's own span */
    for(const s of[-1,1]){ctx.fillStyle=st;if(flat)ctx.fillRect(C+s*sw*0.2-sw*0.065,yA-40,sw*0.13,yB-yA+80);else ctx.fillRect(C+s*sw*0.2-sw*0.065,0,sw*0.13,CAN)}
    for(const off of[36,74]){const y=top?y0-dir*off:y0+dir*off-14;ctx.fillStyle=flat?(m.f0||m.base):axisGrad(ctx,m,0,y,0,y+14);ctx.fillRect(C-sw/2-6,y,sw+12,14)}}
