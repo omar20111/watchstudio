@@ -358,6 +358,41 @@ function strapGeometry(d,dir){
  geo.setIndex(idx);geo.computeVertexNormals();
  return geo}
 
+/* Stitching as thread. The flat bake draws the stitches where a leather strap's
+   run: twelve sheet px in from each edge, a stitch and a gap every 20 px, from
+   just past the lugs to near the end. Painted, they were a dashed line pressed
+   into the leather; here each is a slim spindle of thread lying in that channel,
+   following the strap's crown and bend, standing proud and catching the light
+   along its length. Where the tail narrows the rows stop before they meet. */
+function strapStitches(d,dir){
+ const which=dir<0?'top':'bottom',{sp,sEnd,at}=strapForm(d,which),g=geoOf(d);
+ const inset=12/PX,pitch=20/PX,len=11/PX,rad=.12,ST=6,RN=6;
+ const s0=(g.R*.55+6)/PX-sp.start,s1=sEnd-22/PX;
+ /* the top of the section at x: over the rolled edges and the crown */
+ const topAt=(sec,x)=>{const pts=strapRing(sec).slice(3,3+4+RING.top+4);
+  for(let i=0;i<pts.length-1;i++){const[xa,ka]=pts[i],[xb,kb]=pts[i+1];
+   if((x<=xa&&x>=xb)||(x>=xa&&x<=xb)){const t=(x-xa)/((xb-xa)||1e-9);return ka+(kb-ka)*t}}
+  return sec.k0+sec.e/2};
+ const pos=[],idx=[];
+ for(const side of[-1,1])for(let s=s0;s+len<=s1;s+=pitch){
+  if(at(s+len,which).a-inset<.9)break;
+  const base=pos.length/3,C3=[],U=[];
+  for(let q=0;q<=ST;q++){const ss=s+len*q/ST,sec=at(ss,which),x=side*(sec.a-inset),P=pathFrame(sp,ss,dir);
+   C3.push(onPath(P,dir,x,topAt(sec,x)-rad*.3));U.push([0,P.ca,-dir*P.sa])}
+  for(let q=0;q<=ST;q++){const a=C3[Math.max(0,q-1)],b=C3[Math.min(ST,q+1)];
+   let T=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];const tl=Math.hypot(...T)||1;T=T.map(v=>v/tl);
+   const u=U[q],B=[T[1]*u[2]-T[2]*u[1],T[2]*u[0]-T[0]*u[2],T[0]*u[1]-T[1]*u[0]],bl=Math.hypot(...B)||1;
+   const N=[B[1]*T[2]-B[2]*T[1],B[2]*T[0]-B[0]*T[2],B[0]*T[1]-B[1]*T[0]];
+   const r=rad*Math.sqrt(Math.max(.08,Math.sin(Math.PI*q/ST)));
+   for(let k=0;k<RN;k++){const ph=k/RN*Math.PI*2,cn=Math.cos(ph),sn=Math.sin(ph);
+    pos.push(C3[q][0]+(N[0]*cn+B[0]/bl*sn)*r,C3[q][1]+(N[1]*cn+B[1]/bl*sn)*r,C3[q][2]+(N[2]*cn+B[2]/bl*sn)*r)}}
+  for(let q=0;q<ST;q++)for(let k=0;k<RN;k++){const a=base+q*RN+k,b=base+q*RN+(k+1)%RN,c=a+RN,e=b+RN;idx.push(a,b,c,b,e,c)}
+  const t0=pos.length/3;pos.push(...C3[0]);const t1=t0+1;pos.push(...C3[ST]);
+  for(let k=0;k<RN;k++){idx.push(t0,base+(k+1)%RN,base+k);idx.push(t1,base+ST*RN+k,base+ST*RN+(k+1)%RN)}}
+ if(!pos.length)return null;
+ const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute(pos,3));
+ geo.setIndex(idx);geo.computeVertexNormals();return geo}
+
 /* Two keepers round the buckle strap: loops hugging its section with rounded
    rims, the fixed one just behind the fold and the floating one beyond it. */
 function strapKeepers(d){
@@ -640,7 +675,10 @@ export function buildHead(d,customs={},{aniso=8}={}){
      mark.rotation.y=Math.PI/2;mark.position.set(0,sp.pos(c.start+c.length/2)[1]+c.top+.004,sp.start+sp.pos(c.start+c.length/2)[0])}}}
   else{const st=parts.strap;
    for(const[dir,which]of[[-1,'top'],[1,'bottom']])
-    add(G.strap,'strap:'+which,strapGeometry(d,dir),strapMaterial(tex(getProc('strap',d,which,'flat')),st));
+    {add(G.strap,'strap:'+which,strapGeometry(d,dir),strapMaterial(tex(getProc('strap',d,which,'flat')),st));
+     const sg=st.variant==='leather'&&strapStitches(d,dir);
+     if(sg)add(G.strap,'strap:'+which+':stitches',sg,new MeshPhysicalMaterial({color:new Color(st.stitch||'#e0cfa6'),roughness:.72,
+      sheen:.5,sheenRoughness:.6,sheenColor:new Color(st.stitch||'#e0cfa6')}),{cast:false})}
    /* hardware in the strap's own metal; a ceramic or carbon watch still wears a
       steel or black buckle */
    const hw=st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel');

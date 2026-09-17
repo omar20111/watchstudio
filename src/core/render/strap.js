@@ -101,6 +101,8 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
    /* stitches sit in a recessed channel; round a tail the two rows meet */
    for(const s of[-1,1]){const line=inset=>along(y=>C+s*Math.max(0,wAt(y)/2-inset),y0+dir*6,y1-dir*(shaped?22:4));
     ctx.setLineDash([]);line(12);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=7;ctx.stroke();
+    /* the 3D strap lays thread in the channel (watch.js strapStitches) */
+    if(flat)continue;
     ctx.setLineDash([11,9]);ctx.lineCap='round';
     line(12);ctx.strokeStyle=shade(st,.45);ctx.lineWidth=4;ctx.stroke();
     line(12.6);ctx.strokeStyle=st;ctx.lineWidth=2.6;ctx.stroke()}

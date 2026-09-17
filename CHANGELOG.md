@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Changed — a leather strap is sewn with thread**
+- The stitching was a dashed line painted into the leather's texture, flat and
+  soft up close. Each stitch is now a slim spindle of thread (watch.js
+  strapStitches) laid in the channel the texture still draws, where the painted
+  stitches were — twelve sheet px in from each edge, 1.1 mm apart — following
+  the strap's crown, rolled edge and bend, and stopping before the rows meet in
+  the tail. The thread takes the strap's stitch colour.
+
 **Changed — hands and indices traced finer**
 - Hands and applied indices are solids traced from their silhouettes
   (relief.js). Traced from the 18 px/mm sheet, a long facet's edge wavered and a
