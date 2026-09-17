@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Changed — hands and indices traced finer**
+- Hands and applied indices are solids traced from their silhouettes
+  (relief.js). Traced from the 18 px/mm sheet, a long facet's edge wavered and a
+  lume channel's rim followed a 0.055 mm pixel grid. Each is now traced from a
+  bake of only its own rectangle at twice the resolution (watch.js fineRelief,
+  cache.js getProc with a rectangular box), with the height field's smoothing
+  kept the same size in millimetres and the rim's normals blended across each
+  crossing. Their shadows stay drawn from the sheet bake.
+
 **Changed — knurling cut into the metal**
 - A crown's knurling, a rotating bezel's grip and a coin edge were a striped
   normal map on a smooth turned surface: flat against the outline and

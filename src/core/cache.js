@@ -51,12 +51,12 @@ export function bakeSize(part,mode,d,sub){
 const CACHE_MAX=32;
 /* `res` bakes one square of the sheet finer than the sheet's own 18 px/mm, for
    artwork seen up close in 3D: {box:[x0,y0,size]} in sheet px, drawn `k` times
-   finer. The painters draw in sheet px as always; the canvas is scaled and
-   moved under them. */
+   finer (or a rectangle, [x0,y0,w,h]). The painters draw in sheet px as always;
+   the canvas is scaled and moved under them. */
 export function getProc(part,d,sub,mode,res=null){const key=procKey(part,d,sub,mode)+(res?JSON.stringify(res):'');
  if(cache.has(key)){const v=cache.get(key);cache.delete(key);cache.set(key,v);return v}
  let{w,h,ty}=bakeSize(part,mode,d,sub);
- if(res){w=h=Math.round(res.box[2]*res.k);ty=0}
+ if(res){w=Math.round(res.box[2]*res.k);h=Math.round((res.box[3]??res.box[2])*res.k);ty=0}
  /* shape and lume bakes exist to be read back (relief.js): keep their pixels in
     CPU memory, or every readback waits on a copy back from the GPU */
  const cv=document.createElement('canvas');cv.width=w;cv.height=h;

@@ -108,6 +108,23 @@ export function canvasTexture(cv,aniso=8){let t=texOf.get(cv);
 const ART_SCALE=typeof navigator!=='undefined'&&navigator.deviceMemory&&navigator.deviceMemory<=4?2:3;
 const artRes=halfPx=>{const size=2*Math.ceil(halfPx+4);return{box:[C-size/2,C-size/2,size],k:Math.min(ART_SCALE,4096/size)}};
 
+/* Hands and indices are solids traced from their silhouette bakes (relief.js).
+   Traced from the sheet's 18 px/mm, a lume channel's rim and a facet's edge follow
+   a 0.055 mm pixel grid, ragged up close; they are traced instead from a bake of
+   only the part's own rectangle at twice that. The rectangle is read off the
+   sheet bake, which their shadows are drawn from anyway. */
+const SHAPE_SCALE=2;
+const alphaBoxes=new WeakMap();
+function alphaBox(cv){if(alphaBoxes.has(cv))return alphaBoxes.get(cv);let box=null;
+ try{const W=cv.width,H=cv.height,a=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;let x0=W,y0=H,x1=-1,y1=-1;
+  for(let y=0;y<H;y++){const row=y*W;for(let x=0;x<W;x++)if(a[(row+x)*4+3]>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
+  if(x1>=0)box=[x0-6,y0-6,x1-x0+13,y1-y0+13]}catch(e){box=null}
+ alphaBoxes.set(cv,box);return box}
+function fineRelief(part,d,sub,lumed,form){const lo=getProc(part,d,sub,'shape'),box=alphaBox(lo);
+ if(!box)return reliefFromSilhouette(lo,{...form,lume:lumed?getProc(part,d,sub,'lume'):null});
+ const res={box,k:SHAPE_SCALE};
+ return reliefFromSilhouette(getProc(part,d,sub,'shape',res),{...form,lume:lumed?getProc(part,d,sub,'lume',res):null,res})}
+
 /* map a flat shape's xy onto the sheet, so a disc of radius dialR samples
    exactly the pixels the 2D dial painted at that radius; `span` is how many
    sheet px the uv's 0..1 covers, centred on the dial (a finer bake's square) */
@@ -835,7 +852,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
   else{
   const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
   const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;
-  const rel=reliefFromSilhouette(getProc('markers',d,undefined,'shape'),{...form,lume:lumeCv});
+  const rel=fineRelief('markers',d,undefined,lumed,form);
   const printed=printedIndexInk(mk.variant,frame,parts.dial.color);
   if(rel){const m=add(G.markers,'indices',rel.geometry,printed?new MeshPhysicalMaterial({color:new Color(printed),metalness:0,roughness:.5,clearcoat:.35,clearcoatRoughness:.3})
    :metalMaterial(frame,'polished'));m.position.y=Hc;
@@ -867,7 +884,7 @@ export function buildHead(d,customs={},{aniso=8}={}){
     const arbor=new Group();arbor.name=k;arbor.position.y=H.dial+lift[k];arbor.userData.spin=k;hold.add(arbor);
     const form=handForm(hp.variant,k),lumed=form.pocket!=null;
     const lumeCv=lumed?getProc('hands',d,k,'lume'):null;
-    const rel=reliefFromSilhouette(getProc('hands',d,k,'shape'),{...form,lume:lumeCv});
+    const rel=fineRelief('hands',d,k,lumed,form);
     if(!rel)continue;
     const curve=handCurve(hp.variant,k);curveHand(rel.geometry,curve);
     const bodyMat=k==='sec'

@@ -17,7 +17,9 @@
 
    The outline is marching squares on the anti-aliased alpha, as in tracer.js,
    so the edge is sub-pixel rather than a staircase. Output is millimetres,
-   face-up, underside at y = 0, with sheet UVs for texturing and tangents. */
+   face-up, underside at y = 0, with sheet UVs for texturing and tangents.
+   `res` (cache.js getProc): the bake covers only box [x0,y0,w,h] of the sheet,
+   drawn finer — the lume bake likewise. */
 import {BufferGeometry,Float32BufferAttribute} from 'three';
 import {C,PX,CAN} from '../constants.js';
 import {traceLoops,simplifyLoop} from './tracer.js';
@@ -28,7 +30,7 @@ const alphaOf=cv=>cv?cv.getContext('2d').getImageData(0,0,cv.width,cv.height).da
 
 const cache=new WeakMap();
 export function reliefFromSilhouette(cv,opts={}){
- const key=JSON.stringify([opts.height,opts.edge,opts.profile,opts.bevel,opts.pocket]);
+ const key=JSON.stringify([opts.height,opts.edge,opts.profile,opts.bevel,opts.pocket,opts.res&&opts.res.box]);
  let per=cache.get(cv);if(!per){per=new Map();cache.set(cv,per)}
  const lumeKey=opts.lume||null;
  let hit=per.get(key);
@@ -37,8 +39,10 @@ export function reliefFromSilhouette(cv,opts={}){
     tangents to it — neither may reach the cached original */
  return hit.out&&{...hit.out,geometry:hit.out.geometry.clone()}}
 
-function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket=null}={}){
+function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket=null,res=null}={}){
  const W0=cv.width,H0=cv.height,data=alphaOf(cv);
+ /* sheet px per bake px, and where the bake's corner lies on the sheet */
+ const K=res?W0/res.box[2]:1,OX=res?res.box[0]:0,OY=res?res.box[1]:0;
  let x0=W0,y0=H0,x1=-1,y1=-1;
  for(let y=0;y<H0;y++){const row=y*W0;for(let x=0;x<W0;x++)if(data[(row+x)*4+3]>8){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}}
  if(x1<0)return null;
@@ -103,20 +107,20 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
   hAt[k]=h}
  /* A lume pocket is cut where the lume bake's pixels are, so its rim follows the
     pixel grid; and the grid samples the surface only once a pixel. A small
-    gaussian (one pass of a 5-tap binomial, sigma ~1 px, about 0.05 mm) rounds
-    the pocket rim and the ridge just enough. Outside the part the smoothed
+    gaussian (a 5-tap binomial, sigma ~1 sheet px, about 0.05 mm, so K² passes
+    on a bake K times finer) rounds the pocket rim and the ridge just enough. Outside the part the smoothed
     mirror is kept for the rim's gradients only — the rim itself is built at
     the edge height, so the outline stays put. */
- {const tmp=new Float32Array(W*H),K=[1,4,6,4,1];
+ for(let pass=0,passes=Math.max(1,Math.round(K*K));pass<passes;pass++){const tmp=new Float32Array(W*H),B=[1,4,6,4,1];
   for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
-   for(let q=-2;q<=2;q++){const ii=i+q;if(ii<0||ii>=W)continue;s+=hAt[j*W+ii]*K[q+2];w+=K[q+2]}tmp[j*W+i]=s/w}
+   for(let q=-2;q<=2;q++){const ii=i+q;if(ii<0||ii>=W)continue;s+=hAt[j*W+ii]*B[q+2];w+=B[q+2]}tmp[j*W+i]=s/w}
   for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
-   for(let q=-2;q<=2;q++){const jj=j+q;if(jj<0||jj>=H)continue;s+=tmp[jj*W+i]*K[q+2];w+=K[q+2]}
+   for(let q=-2;q<=2;q++){const jj=j+q;if(jj<0||jj>=H)continue;s+=tmp[jj*W+i]*B[q+2];w+=B[q+2]}
    /* nothing inside sinks below the rim, or the rim grows a hairline moat */
    const k=j*W+i;hAt[k]=inside[k]?Math.max(edge,s/w):s/w}}
 
  const pos=[],nrm=[],uv=[],idx=[];
- const mmX=i=>(i+bx-C)/PX,mmZ=j=>(j+by-C)/PX,step=1/PX;
+ const mmX=i=>((i+bx)/K+OX-C)/PX,mmZ=j=>((j+by)/K+OY-C)/PX,step=1/(PX*K);
  const push=(x,y,z,nx,ny,nz)=>{pos.push(x,y,z);nrm.push(nx,ny,nz);uv.push(.5+x/SHEET,.5-z/SHEET);return pos.length/3-1};
  /* top-surface normal from the height field's gradient */
  const hN=(i,j)=>{const g=(ii,jj)=>ii<0||jj<0||ii>=W||jj>=H?edge:hAt[jj*W+ii];
@@ -129,7 +133,11 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
  const cross=(i,j,horizontal)=>{const id=(j*W+i)*2+(horizontal?0:1);let c=crossing.get(id);
   if(!c){const i2=horizontal?i+1:i,j2=horizontal?j:j+1,va=A[j*W+i],vb=A[j2*W+i2],t=(TH-va)/((vb-va)||1e-9);
    const x=mmX(i+(i2-i)*t),z=mmZ(j+(j2-j)*t);
-   const ii=inside[j*W+i]?i:i2,jj=inside[j*W+i]?j:j2,[nx,ny,nz]=hN(ii,jj);
+   /* the rim's normal, blended between the grid points either side of the
+      crossing as the point itself is: taken from one of them, it jumps from
+      pixel to pixel and a long, shallow edge shows a dashed highlight */
+   const na=hN(i,j),nb=hN(i2,j2),tc=Math.min(1,Math.max(0,t));
+   let nx=na[0]+(nb[0]-na[0])*tc,ny=na[1]+(nb[1]-na[1])*tc,nz=na[2]+(nb[2]-na[2])*tc;const nl=Math.hypot(nx,ny,nz)||1;nx/=nl;ny/=nl;nz/=nl;
    c={x,z,top:push(x,edge,z,nx,ny,nz)};crossing.set(id,c)}
   return c};
  const tri=(a,b,c)=>idx.push(a,c,b);            /* image-clockwise in, +y normal out */
@@ -158,7 +166,7 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
   else walls.push([cs[0],cs[1]])}
 
  /* walls: from the rim down to the dial, faced outward, smooth along the contour */
- const bilinear=(x,z)=>{const fi=x*PX+C-bx,fj=z*PX+C-by,i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j;
+ const bilinear=(x,z)=>{const fi=(x*PX+C-OX)*K-bx,fj=(z*PX+C-OY)*K-by,i=Math.floor(fi),j=Math.floor(fj),u=fi-i,v=fj-j;
   const g=(ii,jj)=>ii<0||jj<0||ii>=W||jj>=H?0:A[jj*W+ii];
   return g(i,j)*(1-u)*(1-v)+g(i+1,j)*u*(1-v)+g(i,j+1)*(1-u)*v+g(i+1,j+1)*u*v};
  const wallV=new Map(),acc=[];
@@ -178,4 +186,4 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
  geo.setAttribute('normal',new Float32BufferAttribute(nrm,3));
  geo.setAttribute('uv',new Float32BufferAttribute(uv,2));
  geo.setIndex(idx);geo.computeBoundingSphere();
- return{geometry:geo,maxDmm:maxD/PX,pocket}}
+ return{geometry:geo,maxDmm:maxD/(PX*K),pocket}}
