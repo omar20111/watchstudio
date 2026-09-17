@@ -12,13 +12,13 @@
    the same parts the panels do. */
 import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,BoxGeometry,ExtrudeGeometry,Shape,Path,ShapeGeometry,Matrix4,
         BufferGeometry,BufferAttribute,Float32BufferAttribute,CanvasTexture,SRGBColorSpace,MeshPhysicalMaterial,MeshStandardMaterial,
-        Color,Vector2,ClampToEdgeWrapping} from 'three';
+        Color,Vector2,ClampToEdgeWrapping,TorusGeometry,BackSide} from 'three';
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
 import {caseOf,geoOf,outlinesOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
-        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM} from '../geometry.js';
+        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,knurledLathe,crownParts,strapPath,smoothstep} from './lathe.js';
@@ -440,6 +440,22 @@ function strapStitches(d,dir){
  const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute(pos,3));
  geo.setIndex(idx);geo.computeVertexNormals();return geo}
 
+/* The holes down the 6 o'clock strap. The bake cuts each out (render/strap.js),
+   which the strap's alpha test punches through its top and its underside; this
+   is what a punched hole has besides: the wall of the cut, through the strap's
+   thickness, facing into the hole — and on a NATO a metal eyelet, a rolled
+   flange on each face. Each is placed on the strap's path at its hole, in the
+   strap's own frame (pathMatrix), which near the tail lies flat on the table. */
+function strapHoles(d){
+ const{sp,sEnd,at}=strapForm(d,'bottom'),nato=d.parts.strap.variant==='nato',r=nato?.7:.78;
+ const walls=[],eyelets=[];
+ for(const mm of STRAP_HOLES_MM){const s=sEnd-mm;if(s<0)continue;
+  const sec=at(s,'bottom'),top=sec.k0+sec.c,M=pathMatrix(pathFrame(sp,s,1),1);
+  const w=new CylinderGeometry(r,r,top-sec.k0+.06,24,1,true);w.translate(0,(top+sec.k0)/2,0);w.applyMatrix4(M);walls.push(w);
+  if(nato)for(const k of[top,sec.k0]){const e=new TorusGeometry(r+.16,.17,8,28);e.rotateX(Math.PI/2);e.translate(0,k,0);e.applyMatrix4(M);eyelets.push(e)}}
+ const merge=list=>{if(!list.length)return null;const g=mergeGeometries(list);list.forEach(x=>x.dispose());return g};
+ return{walls:merge(walls),eyelets:merge(eyelets)}}
+
 /* Two keepers round the buckle strap: loops hugging its section with rounded
    rims, the fixed one just behind the fold and the floating one beyond it. */
 function strapKeepers(d){
@@ -726,6 +742,11 @@ export function buildHead(d,customs={},{aniso=8}={}){
      const sg=st.variant==='leather'&&strapStitches(d,dir);
      if(sg)add(G.strap,'strap:'+which+':stitches',sg,new MeshPhysicalMaterial({color:new Color(st.stitch||'#e0cfa6'),roughness:.72,
       sheen:.5,sheenRoughness:.6,sheenColor:new Color(st.stitch||'#e0cfa6')}),{cast:false})}
+   if(st.variant!=='mesh'){const ho=strapHoles(d),col=st.color||'#6b4a2f';
+    /* the cut edge of the leather or rubber, facing into the hole */
+    if(ho.walls)add(G.strap,'strap:holeWalls',ho.walls,st.variant==='nato'?Object.assign(metalMaterial(st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel'),'polished'),{side:BackSide})
+     :new MeshStandardMaterial({color:new Color(shade(col,st.variant==='rubber'?.35:.55)),roughness:.85,metalness:0,side:BackSide}),{cast:false});
+    if(ho.eyelets)add(G.strap,'strap:eyelets',ho.eyelets,metalMaterial(st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel'),'polished'),{cast:false})}
    /* hardware in the strap's own metal; a ceramic or carbon watch still wears a
       steel or black buckle */
    const hw=st.metal==='ceramic'?'steel':st.metal==='carbon'?'black':(st.metal||'steel');

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Changed — strap holes punched through**
+- The holes down the 6 o'clock strap were dark discs painted on it, with the
+  leather's grain running straight across them. They are now cut out of the
+  strap's bake, which its alpha test punches through the top and the underside,
+  each with the wall of the cut facing into the hole (watch.js strapHoles); a
+  leather strap keeps its pressed rim, and a NATO gets a metal eyelet rolled
+  over each face.
+
 **Changed — a caseback cut from metal**
 - A solid or engraved caseback was a painted picture laid on its face: dark bars
   for the wrench notches, the engraving in soft dark ink, painted rings over the

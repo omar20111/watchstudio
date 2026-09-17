@@ -119,10 +119,15 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
    for(const s of[-1,1]){ctx.fillStyle=st;if(flat)ctx.fillRect(C+s*sw*0.2-sw*0.065,yA-40,sw*0.13,yB-yA+80);else ctx.fillRect(C+s*sw*0.2-sw*0.065,0,sw*0.13,CAN)}
    for(const off of[36,74]){const y=top?y0-dir*off:y0+dir*off-14;ctx.fillStyle=flat?(m.f0||m.base):axisGrad(ctx,m,0,y,0,y+14);ctx.fillRect(C-sw/2-6,y,sw+12,14)}}
   /* the holes down the 6 o'clock strap: dark wells with a pressed rim, painted
-     through both faces as a punched hole would show. A NATO's are eyelets. */
+     through both faces as a punched hole would show. A NATO's are eyelets. For
+     the 3D strap the hole is cut out of the bake (alpha, which the strap's alpha
+     test punches through both faces) around a pressed rim, and its wall and a
+     NATO's eyelet are geometry (watch.js strapHoles). */
   if(shaped&&!top&&!mesh)for(const mm of STRAP_HOLES_MM){const y=y1-dir*mm*PX,r=(o.variant==='nato'?.7:.78)*PX;
+   if(flat){if(o.variant!=='nato'){ctx.beginPath();ctx.arc(C,y,r+2.5,0,Math.PI*2);ctx.fillStyle=shade(col,o.variant==='rubber'?.3:.45);ctx.fill()}
+    ctx.save();ctx.globalCompositeOperation='destination-out';ctx.beginPath();ctx.arc(C,y,r,0,Math.PI*2);ctx.fill();ctx.restore();continue}
    ctx.beginPath();ctx.arc(C,y,r+(o.variant==='nato'?4:2.5),0,Math.PI*2);
-   ctx.fillStyle=o.variant==='nato'?(flat?(m.f0||m.base):m.base):shade(col,o.variant==='rubber'?.3:.45);ctx.fill();
+   ctx.fillStyle=o.variant==='nato'?m.base:shade(col,o.variant==='rubber'?.3:.45);ctx.fill();
    const hg=ctx.createRadialGradient(C,y-r*.25,r*.1,C,y,r);
    hg.addColorStop(0,'#050404');hg.addColorStop(.75,'#0d0a08');hg.addColorStop(1,shade(col,.7));
    ctx.beginPath();ctx.arc(C,y,r,0,Math.PI*2);ctx.fillStyle=hg;ctx.fill()}
