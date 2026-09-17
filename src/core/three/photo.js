@@ -10,8 +10,9 @@
 
    The scene is the same watch (exportWatch), the same room (studioEquirect) and
    the key light as a real area light where the live view uses a point. */
-import {WebGLRenderer,Scene,RectAreaLight,NeutralToneMapping,SRGBColorSpace} from 'three';
-import {WebGLPathTracer,PhysicalCamera,GradientEquirectTexture} from 'three-gpu-pathtracer';
+import {WebGLRenderer,Scene,RectAreaLight,NeutralToneMapping,SRGBColorSpace,NoBlending} from 'three';
+import {WebGLPathTracer,PhysicalCamera,GradientEquirectTexture,DenoiseMaterial} from 'three-gpu-pathtracer';
+import {FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js';
 import {LIGHT} from '../render/material.js';
 import {studioEquirect} from './studio.js';
 import {disposeHead,poseHead} from './watch.js';
@@ -45,6 +46,19 @@ export function createPhoto(canvas,{textureSize=2048}={}){
  pt.tiles.set(2,2);pt.bounces=6;pt.transmissiveBounces=6;pt.filterGlossyFactor=.5;
  /* every texture in the scene is resampled to one size in a texture array */
  pt.textureSize.set(textureSize,textureSize);
+ /* Denoised as it converges. A few dozen samples in, a path traced frame is
+    speckled; an edge-preserving blur (Morrone's smart denoise) smooths the
+    speckle where neighbours agree and leaves edges and printing alone. Its
+    reach falls with the noise, as 1/sqrt(samples), to almost nothing by the time
+    the photo is done, so a finished photo keeps its own fine detail. The
+    accumulated samples are untouched: only what is shown and saved is filtered. */
+ const denoise=new DenoiseMaterial({blending:NoBlending,premultipliedAlpha:renderer.getContextAttributes().premultipliedAlpha});
+ const dq=new FullScreenQuad(denoise);let denoiseOn=true;
+ pt.renderToCanvasCallback=(target,r,quad)=>{const auto=r.autoClear;r.autoClear=false;
+  const n=Math.max(1,pt.samples),sigma=denoiseOn?4.5*Math.sqrt(6/n):0;
+  if(sigma<.6)quad.render(r);
+  else{denoise.map=target.texture;denoise.sigma=sigma;denoise.kSigma=1.5;denoise.threshold=.06+.14*Math.min(1,sigma/4.5);denoise.opacity=1;dq.render(r)}
+  r.autoClear=auto};
 
  const scene=new Scene();env=env||studioEquirect();
  /* the room fills the shadows; the softbox makes them. The set (studio.js) is a
@@ -82,6 +96,9 @@ export function createPhoto(canvas,{textureSize=2048}={}){
   resize(w,h,dpr=1){renderer.setPixelRatio(dpr);renderer.setSize(w,h,false);
    camera.aspect=w/h;camera.updateProjectionMatrix();pt.updateCamera()},
   renderSample(){pt.renderSample()},
+  /* for comparing: show the frame with or without denoising */
+  set denoise(on){denoiseOn=!!on},
   reset(){pt.reset()},
   dispose(){if(watch)disposeHead(watch);if(surface){surface.geometry.dispose();surface.material.dispose()}
+   denoise.dispose();dq.dispose();
    backdrop.dispose();pt.dispose();renderer.dispose();renderer.forceContextLoss()}}}

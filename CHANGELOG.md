@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Changed — a photo is clean sooner**
+- A path traced photo is denoised as it converges (photo.js): an edge-preserving
+  blur (three-gpu-pathtracer's DenoiseMaterial) smooths the speckle of the
+  first few dozen samples where neighbouring pixels agree, and leaves edges and
+  printing alone. Its reach falls as 1/sqrt(samples), so a finished photo keeps
+  its fine detail; only what is shown and saved is filtered.
+
 **Changed — lume glows at night**
 - Lights out, the lume was a bright colour with a hard edge. Its light now
   spreads into a soft halo (view.js createGlow): the finished frame's bright
