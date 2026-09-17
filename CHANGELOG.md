@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Changed — lume glows at night**
+- Lights out, the lume was a bright colour with a hard edge. Its light now
+  spreads into a soft halo (view.js createGlow): the finished frame's bright
+  parts are blurred at a half and a quarter of its size and added back over it,
+  at night only, where what is bright is the lume.
+
 **Changed — the back of the watch in real light**
 - The back view lit the watch by turning the studio round the 12-6 axis, which
   put the overhead softbox straight behind the camera: every flat polished face

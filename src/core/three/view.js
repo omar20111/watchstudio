@@ -12,7 +12,8 @@
    bezel angle and the clock are applied to the built watch every frame. */
 import {WebGLRenderer,Scene,OrthographicCamera,PerspectiveCamera,DirectionalLight,Mesh,PlaneGeometry,
         ShadowMaterial,NeutralToneMapping,SRGBColorSpace,VSMShadowMap,Vector3,Vector2,Raycaster,Spherical,Box3,
-        ShaderMaterial,WebGLRenderTarget,FramebufferTexture,HalfFloatType,UnsignedByteType,NoBlending,NearestFilter} from 'three';
+        ShaderMaterial,WebGLRenderTarget,FramebufferTexture,HalfFloatType,UnsignedByteType,NoBlending,NearestFilter,
+        LinearFilter,CustomBlending,OneFactor,ZeroFactor,AddEquation} from 'three';
 import {FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js';
 import {CAN,PX} from '../constants.js';
 import {LIGHT} from '../render/material.js';
@@ -99,7 +100,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  let tilt=[0,0];
  const ao=createAO(renderer,scene,front);let aoOn=true;const buf=new Vector2();
  let onDirty=null;
- const aa=createAccumulator(renderer);
+ const aa=createAccumulator(renderer),glow=createGlow(renderer);
 
  const ortho=(cam,vw,vh,ppm,cx=0,cy=0)=>{const hw=vw/2/ppm,hh=vh/2/ppm;
   Object.assign(cam,{left:cx-hw,right:cx+hw,top:cy+hh,bottom:cy-hh});cam.updateProjectionMatrix()};
@@ -202,7 +203,8 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   render(clock){if(!watch)return;if(clock)poseHead(watch,clock);aa.reset();
    if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
     underside(camera==='back');renderer.render(scene,cam());
-    if(aoOn){renderer.getDrawingBufferSize(buf);ao.apply(cam(),buf.x,buf.y,aoScale)}
+    renderer.getDrawingBufferSize(buf);if(aoOn)ao.apply(cam(),buf.x,buf.y,aoScale);
+    if(night)glow.apply(buf.x,buf.y);
     underside(false);return}
    /* the profile is a measured technical drawing: no occlusion shading */
    const L=layout();renderer.setScissorTest(true);
@@ -225,6 +227,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     const auto=renderer.shadowMap.autoUpdate;renderer.shadowMap.autoUpdate=false;
     underside(camera==='back');renderer.render(scene,c);
     if(aoOn)ao.apply(c,buf.x,buf.y,aoScale);
+    if(night)glow.apply(buf.x,buf.y);
     underside(false);c.clearViewOffset();renderer.shadowMap.autoUpdate=auto});
    return !aa.done},
   /* is something moving in view that the clock does not tick once a second — the
@@ -255,8 +258,46 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     if(aoOn)ao.apply(c,x1-x0,y1-y0,1);
     put(renderer.domElement,tx-x0,ty-y0,tw,th,tx,ty)}
    c.clearViewOffset()},
-  dispose(){if(watch)disposeHead(watch);ao.dispose();aa.dispose();env.dispose();renderer.dispose();watch=null}};
+  dispose(){if(watch)disposeHead(watch);ao.dispose();aa.dispose();glow.dispose();env.dispose();renderer.dispose();watch=null}};
  return view}
+
+/* Lume in the dark glows: the light it gives off scatters in the crystal and
+   the eye, and a lit hand or index carries a soft halo, which an emissive
+   surface alone does not draw. At night only (the studio is all but dark, so
+   what is bright is the lume), the finished frame's bright parts are blurred at
+   a half and a quarter of its size and added back over it. The frame is read
+   from the canvas as the accumulator reads it; alpha grows with the halo, so it
+   shows over a transparent stage too. */
+function createGlow(renderer){
+ let bw=0,bh=0,frame=null,h1=null,h2=null,q1=null,q2=null;
+ const vert='varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+ const flat={depthTest:false,depthWrite:false,blending:NoBlending,toneMapped:false};
+ const bright=new ShaderMaterial({...flat,uniforms:{t:{value:null}},vertexShader:vert,
+  fragmentShader:'uniform sampler2D t;varying vec2 vUv;void main(){vec4 c=texture2D(t,vUv);float l=dot(c.rgb,vec3(.2126,.7152,.0722));gl_FragColor=vec4(c.rgb*smoothstep(.35,.75,l),1.);}'});
+ const blur=new ShaderMaterial({...flat,uniforms:{t:{value:null},step:{value:[0,0]}},vertexShader:vert,
+  fragmentShader:'uniform sampler2D t;uniform vec2 step;varying vec2 vUv;void main(){vec3 s=texture2D(t,vUv).rgb*.227;'+
+   's+=(texture2D(t,vUv+step*1.385).rgb+texture2D(t,vUv-step*1.385).rgb)*.316;s+=(texture2D(t,vUv+step*3.231).rgb+texture2D(t,vUv-step*3.231).rgb)*.07;gl_FragColor=vec4(s,1.);}'});
+ const mix=new ShaderMaterial({uniforms:{a:{value:null},b:{value:null}},vertexShader:vert,depthTest:false,depthWrite:false,transparent:true,toneMapped:false,
+  blending:CustomBlending,blendEquation:AddEquation,blendSrc:OneFactor,blendDst:OneFactor,blendEquationAlpha:AddEquation,blendSrcAlpha:OneFactor,blendDstAlpha:OneFactor,
+  fragmentShader:'uniform sampler2D a;uniform sampler2D b;varying vec2 vUv;void main(){vec3 g=texture2D(a,vUv).rgb*.55+texture2D(b,vUv).rgb*.8;gl_FragColor=vec4(g,max(g.r,max(g.g,g.b)));}'});
+ const quad=new FullScreenQuad(bright);
+ const rt=(x,y)=>new WebGLRenderTarget(Math.max(1,x),Math.max(1,y),{type:HalfFloatType,minFilter:LinearFilter,magFilter:LinearFilter,depthBuffer:false});
+ const size=(x,y)=>{if(x===bw&&y===bh&&frame)return;bw=x;bh=y;
+  for(const t of[frame,h1,h2,q1,q2])t&&t.dispose();
+  frame=new FramebufferTexture(x,y);frame.minFilter=frame.magFilter=LinearFilter;
+  h1=rt(x>>1,y>>1);h2=rt(x>>1,y>>1);q1=rt(x>>2,y>>2);q2=rt(x>>2,y>>2)};
+ const pass=(mat,to)=>{quad.material=mat;renderer.setRenderTarget(to);quad.render(renderer)};
+ const blurInto=(src,tmp,w,h,r)=>{blur.uniforms.t.value=src.texture;blur.uniforms.step.value=[r/w,0];pass(blur,tmp);
+  blur.uniforms.t.value=tmp.texture;blur.uniforms.step.value=[0,r/h];pass(blur,src)};
+ return{
+  apply(x,y){size(x,y);const auto=renderer.autoClear;
+   renderer.setRenderTarget(null);renderer.copyFramebufferToTexture(frame);
+   bright.uniforms.t.value=frame;pass(bright,h1);blurInto(h1,h2,h1.width,h1.height,1.5);
+   /* down to a quarter through the blur's taps, then wider still */
+   blur.uniforms.t.value=h1.texture;blur.uniforms.step.value=[.5/h1.width,.5/h1.height];pass(blur,q1);
+   blurInto(q1,q2,q1.width,q1.height,2.5);
+   renderer.autoClear=false;mix.uniforms.a.value=h1.texture;mix.uniforms.b.value=q1.texture;pass(mix,null);renderer.autoClear=auto},
+  dispose(){for(const t of[frame,h1,h2,q1,q2])t&&t.dispose();bright.dispose();blur.dispose();mix.dispose();quad.dispose()}}}
 
 /* Anti-aliasing by accumulation. The live view renders each frame once, with
    4x multisampling on its edges only: fine detail that is not an edge of a
