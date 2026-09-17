@@ -3,7 +3,6 @@ import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant,strapFinish} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit} from '../core/geometry.js';
-import {getThumb} from '../core/cache.js';
 import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
@@ -45,7 +44,7 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    {part==='markers'&&p.set&&<button title={`PartStudio: ${p.set.name||'marker set'}`} aria-label="Use the PartStudio marker set"
     onClick={()=>s.upd(n=>{n.parts.markers.variant='partstudio';n.active.markers=null},'ctl:markers')} className="flex flex-col items-center gap-0.5">
     <span className={`block rounded-lg overflow-hidden border-2 ${!d.active.markers&&p.variant==='partstudio'?'border-[#d4af37]':'border-white/10'} bg-[#1d1e23]`}>
-     <img src={getThumb('markers','partstudio',thumbD)} className="w-14 h-14 object-cover" alt=""/></span>
+     <PresetThumb part="markers" v="partstudio" d={thumbD}/></span>
     <span className="text-[9px] text-neutral-500">PartStudio</span></button>}
    {Object.entries(customs).map(([id,cu])=>
     <div key={id} className={`relative rounded-lg border-2 ${d.active[part]===id?'border-[#d4af37]':'border-white/10'}`}>
