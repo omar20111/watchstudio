@@ -177,7 +177,7 @@ export function applyWear(mesh,level){const mat=mesh.material;
  const k=(WEAR[level]||WEAR.light)[finish==='none'?'polished':finish]||WEAR.light.polished;
  const brushed=finish==='brushed';
  const u={uWearMap:{value:wearMap()},uGrainMap:{value:grainMap()},uWearTile:{value:WEAR_TILE_MM},
-  uWear:{value:k},uGrain:{value:brushed?.14:0},uGrainMm:{value:brushed?uvMillimetres(mesh.geometry):[1,1]},
+  uWear:{value:k},uGrain:{value:brushed&&!mat.anisotropyMap?.14:0},uGrainMm:{value:brushed?uvMillimetres(mesh.geometry):[1,1]},
   uGrainRot:{value:mat.anisotropyRotation||0},uGrainSize:{value:GRAIN_MM}};
  addShaderHook(mat,'ws-wear',sh=>{Object.assign(sh.uniforms,u);
   sh.vertexShader=VERT_HEAD+sh.vertexShader.replace('#include <begin_vertex>',

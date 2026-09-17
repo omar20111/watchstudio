@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**Changed — a caseback cut from metal**
+- A solid or engraved caseback was a painted picture laid on its face: dark bars
+  for the wrench notches, the engraving in soft dark ink, painted rings over the
+  real turned finish, and its centre in the old drawn metal colour. The face is
+  now turned metal (a circular anisotropy map) with six notches cut into it as
+  real pockets, shaded as the recesses they are, and the lettering cut into the
+  metal (watch.js engravedMetalMaps from a new 'shape' caseback bake at twice
+  the sheet's resolution): grooves with sloped walls, matte and darker than the
+  finish. The exhibition back is unchanged.
+- A GLB carries every generated map (drawableMaps), not only normal maps.
+
 **Changed — a leather strap is sewn with thread**
 - The stitching was a dashed line painted into the leather's texture, flat and
   soft up close. Each stitch is now a slim spindle of thread (watch.js

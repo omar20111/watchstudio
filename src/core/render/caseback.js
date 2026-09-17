@@ -9,7 +9,9 @@
      exhibition  (flat) the movement seen through the sapphire window;
                  the ring and window themselves are geometry
 
-   `flat` omits painted light; the 3D caseback is lit for real. */
+   `flat` omits painted light; the 3D caseback is lit for real. `shape` is the
+   engraving alone, white on nothing, which the 3D caseback cuts into its metal;
+   its notches there are geometry. */
 import {C,PX,METALS} from '../constants.js';
 import {tone,circGrain} from './material.js';
 
@@ -47,6 +49,8 @@ export function drCaseback(ctx,o){
  const m=METALS[o.metal]||METALS.steel;const R=o.g.R;const c=o.arch;
  const flat=o.mode==='flat';
  if(c.caseback==='exhibition'){movement(ctx,R);return}
+ if(o.mode==='shape'){ctx.save();ctx.beginPath();ctx.arc(C,C,R*.64,0,7);ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+  engraving(ctx,c,R,'#fff');return}
  /* brushed centre */
  ctx.save();ctx.beginPath();ctx.arc(C,C,R*.8,0,7);ctx.fillStyle=flat?(m.f0||m.base):tone(m,.62);ctx.fill();
  ctx.clip();ctx.globalCompositeOperation='overlay';ctx.fillStyle=circGrain(ctx,0,R*.8,.8);ctx.fillRect(C-R,C-R,R*2,R*2);ctx.restore();
@@ -54,8 +58,10 @@ export function drCaseback(ctx,o){
  ctx.save();for(let i=0;i<6;i++){const a=i/6*Math.PI*2;ctx.save();ctx.translate(C,C);ctx.rotate(a);
   ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(R*.66,-R*.03,R*.1,R*.06);ctx.restore()}ctx.restore();
  ctx.beginPath();ctx.arc(C,C,R*.64,0,7);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=2;ctx.stroke();
- /* engraving */
- ctx.save();ctx.translate(C,C);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(20,22,26,.72)';
+ engraving(ctx,c,R,'rgba(20,22,26,.72)')}
+
+function engraving(ctx,c,R,fill){
+ ctx.save();ctx.translate(C,C);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=fill;
  const big=c.caseback==='engraved';
  ctx.font=`600 ${R*(big?.14:.075)}px Georgia, serif`;
  ctx.fillText((c.engraving||'WATCHSTUDIO').toUpperCase(),0,big?-R*.08:-R*.34);

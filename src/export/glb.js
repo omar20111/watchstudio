@@ -66,7 +66,9 @@ export function drawableMaps(root){const twins=new Map();
   ct.repeat.copy(t.repeat);ct.offset.copy(t.offset);ct.center.copy(t.center);
   twins.set(t,ct);return ct};
  root.traverse(o=>{if(!o.isMesh)return;
-  for(const m of[].concat(o.material))if(m.normalMap)m.normalMap=twin(m.normalMap)});
+  /* every generated map, not only normal maps: an engraved caseback's shade and
+     roughness maps, a bezel insert's metal fill */
+  for(const m of[].concat(o.material))for(const k of['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','anisotropyMap'])if(m[k])m[k]=twin(m[k])});
  return()=>twins.forEach(t=>t.dispose())}
 
 /* Portable tangents. three derives a tangent frame per pixel for normal maps and

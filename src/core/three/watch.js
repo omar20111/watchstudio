@@ -229,6 +229,53 @@ function engravingMaps(cv,span=CAN){if(engravings.has(cv))return engravings.get(
  catch(e){out=null}
  engravings.set(cv,out);return out}
 
+/* Lettering cut into bare metal, as a caseback's engraving is: from the 'shape'
+   bake (white on nothing) a normal map of grooves with sloped walls, a roughness
+   map (the cut is matte against the finish: G is half on the surface and full in
+   a groove, against a material roughness doubled) and a shade map darkening the
+   groove's floor. On the sheet's uvs; `span` as engravingMaps. Cached per bake. */
+const engravedMetal=new WeakMap();
+function engravedMetalMaps(cv,span=CAN){if(engravedMetal.has(cv))return engravedMetal.get(cv);
+ let out=null;
+ try{const W=cv.width,k=W/span,px=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,W).data;
+  if(!px||px.length<W*W*4)throw new Error('no pixels');
+  const a=new Float32Array(W*W);for(let y=0;y<W;y++)for(let x=0;x<W;x++)a[y*W+x]=px[((W-1-y)*W+x)*4+3]/255;
+  let b=a;for(let pass=0;pass<1;pass++){const t=new Float32Array(W*W),o=new Float32Array(W*W),R=Math.max(1,Math.round(.8*k)),n=2*R+1;
+   for(let y=0;y<W;y++){let s=0;for(let x=-R;x<=R;x++)s+=b[y*W+Math.min(W-1,Math.max(0,x))];
+    for(let x=0;x<W;x++){t[y*W+x]=s/n;s+=b[y*W+Math.min(W-1,x+R+1)]-b[y*W+Math.max(0,x-R)]}}
+   for(let x=0;x<W;x++){let s=0;for(let y=-R;y<=R;y++)s+=t[Math.min(W-1,Math.max(0,y))*W+x];
+    for(let y=0;y<W;y++){o[y*W+x]=s/n;s+=t[Math.min(W-1,y+R+1)*W+x]-t[Math.max(0,y-R)*W+x]}}
+   b=o}
+  const normal=normalsFromHeight(W,(x,y)=>-b[y*W+x],1.4*k);
+  const rough=new Uint8Array(W*W*4),shadeMap=new Uint8Array(W*W*4);
+  for(let i=0;i<W*W;i++){const m=b[i];rough[i*4+1]=Math.round((.5+.5*m)*255);rough[i*4+3]=255;
+   const g=Math.round((1-.5*m)*255);shadeMap[i*4]=shadeMap[i*4+1]=shadeMap[i*4+2]=g;shadeMap[i*4+3]=255}
+  out={normal,rough:dataTexture(W,W,rough),shade:dataTexture(W,W,shadeMap)}}
+ catch(e){out=null}
+ engravedMetal.set(cv,out);return out}
+
+/* A screw-down caseback's face: a turned disc, radius `rc`, with the six notches
+   its wrench takes cut into it as pockets `depth` deep, where the 2D caseback
+   painted dark bars (render/caseback.js). Shape space, face +z; the caller turns
+   it face-down. Normals flat per face of each pocket. Returns the face and the
+   pockets apart, so the pockets can be shaded as the recesses they are. */
+function casebackFace(rc,R){
+ const shape=new Shape();shape.absarc(0,0,rc,0,Math.PI*2,false);
+ const r0=R*.66,r1=R*.76,hw=R*.03,depth=Math.min(.5,R*.025),rects=[];
+ for(let i=0;i<6;i++){const a=i/6*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a),P=(r,w)=>[ca*r-sa*w,sa*r+ca*w];
+  const pts=[P(r0,-hw),P(r1,-hw),P(r1,hw),P(r0,hw)];rects.push(pts);
+  const h=new Path();h.moveTo(...pts[0]);h.lineTo(...pts[3]);h.lineTo(...pts[2]);h.lineTo(...pts[1]);h.closePath();shape.holes.push(h)}
+ const face=new ShapeGeometry(shape,96);
+ const pos=[],idx=[];
+ for(const pts of rects){const b=pos.length/3;
+  for(const[x,y]of pts)pos.push(x,y,-depth);
+  idx.push(b,b+1,b+2,b,b+2,b+3);
+  for(let k=0;k<4;k++){const[x0,y0]=pts[k],[x1,y1]=pts[(k+1)%4],w=pos.length/3;
+   pos.push(x0,y0,0,x1,y1,0,x1,y1,-depth,x0,y0,-depth);idx.push(w,w+1,w+2,w,w+2,w+3)}}
+ const pockets=new BufferGeometry();pockets.setAttribute('position',new Float32BufferAttribute(pos,3));
+ pockets.setAttribute('uv',new Float32BufferAttribute(new Float32Array(pos.length/3*2),2));pockets.setIndex(idx);pockets.computeVertexNormals();
+ return{face,pockets}}
+
 /* the brand engraved on a clasp's cover: dark cut letters, one texture per text */
 const claspMarks=new Map();
 function claspMarkMaterial(text){let t=claspMarks.get(text);
@@ -706,7 +753,20 @@ export function buildHead(d,customs={},{aniso=8}={}){
  const OL=outlinesOf(d),shaped=OL.case.kind!=='round'||OL.bezel.kind!=='round';
  const prof=(pts,shapeAt)=>shaped?shapedProfile(pts,shapeAt,OL):lathe(pts);
  if(!uploaded('case',G.case,H.seat)){
-  add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
+  if(arch.caseback==='exhibition')add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
+  else{
+   /* turned in circles (an anisotropy map round the centre, as the plate's uvs
+      are the sheet's), notched, and engraved into the metal at twice the sheet */
+   const back=caseMat('turned'),bres=artRes(Rr.rCase*.8*PX),eres={...bres,k:Math.min(2,bres.k)};
+   back.anisotropyMap=anisotropyMap('circular');
+   const eng=engravedMetalMaps(getProc('caseback',d,undefined,'shape',eres),eres.box[2]);
+   if(eng){back.normalMap=eng.normal;back.roughnessMap=eng.rough;back.roughness=Math.min(1,back.roughness*2);back.map=eng.shade}
+   const{face,pockets}=casebackFace(Rr.rCase*.8,geoOf(d).R/PX);
+   for(const g of[face,pockets]){sheetUV(g,eres.box[2]);g.rotateX(Math.PI/2);g.rotateY(Math.PI)}
+   add(G.case,'caseback',face,back);
+   /* a slot's walls and floor see little of the room: the case metal, darker and blasted */
+   const slot=metalMaterial(cm.metal,'matte');slot.color.multiplyScalar(.45);
+   add(G.case,'casebackNotches',pockets,slot,{cast:false})}
   add(G.case,'casebackRim',lathe(P.casebackRim),caseMat('bevel'));
   add(G.case,'flank',prof(P.flank,i=>({from:i===0?'round':'case'})),caseMat('surface'));
   /* the broken edges either side of the chamfer (lathe.js headProfiles), polished */
@@ -739,10 +799,6 @@ export function buildHead(d,customs={},{aniso=8}={}){
    const glass=add(G.case,'backGlass',lathe([Vv(0,g0),Vv(rw,g0),Vv(rw,g1),Vv(0,g1)],96),
     crystalMaterial('polished',.5,{solid:g1-g0}),{cast:false,receive:false});
    glass.renderOrder=10}
-  else{const backTex=tex(getProc('caseback',d,undefined,'flat'));
-   const face=add(G.case,'backFace',faceDown(sheetUV(new CircleGeometry(Rr.rCase*.8,120))),
-    Object.assign(caseMat('turned'),{map:backTex,color:new Color(0xffffff)}),{cast:false});
-   face.position.y=-.003}
   /* pushers are part of the case band */
   for(const pu of cp.pushers){const grp=new Group();grp.position.y=cp.axisY;grp.rotation.y=-(pu.bearing-90)*Math.PI/180;G.case.add(grp);
    const sh=new CylinderGeometry(pu.shoulder.r,pu.shoulder.r,pu.shoulder.x1-pu.shoulder.x0,24);sh.rotateZ(Math.PI/2);sh.translate((pu.shoulder.x0+pu.shoulder.x1)/2,0,0);
