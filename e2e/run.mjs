@@ -79,6 +79,9 @@ for(const name of suites){
   if(!fails.length||attempt===2){
    console.log(`${fails.length?'FAIL':'ok  '}  ${name} (${secs} s${attempt>1?', second attempt':''})`);
    for(const n of notes)console.log(n);
+   /* on GitHub the job log needs a signed-in admin to read; annotations are
+      public, so each failed check is also written as one */
+   if(fails.length&&process.env.GITHUB_ACTIONS)for(const f of fails)console.log(`::error title=e2e ${name}::${String(f).replace(/[\r\n%]/g,' ').slice(0,400)}`);
    if(fails.length)failed++;break}
   console.log(`retry ${name}: ${fails[0]}`)}}
 
