@@ -48,7 +48,7 @@ export function drCaseback(ctx,o){
  const flat=o.mode==='flat';
  if(c.caseback==='exhibition'){movement(ctx,R);return}
  /* brushed centre */
- ctx.save();ctx.beginPath();ctx.arc(C,C,R*.8,0,7);ctx.fillStyle=flat?m.base:tone(m,.62);ctx.fill();
+ ctx.save();ctx.beginPath();ctx.arc(C,C,R*.8,0,7);ctx.fillStyle=flat?(m.f0||m.base):tone(m,.62);ctx.fill();
  ctx.clip();ctx.globalCompositeOperation='overlay';ctx.fillStyle=circGrain(ctx,0,R*.8,.8);ctx.fillRect(C-R,C-R,R*2,R*2);ctx.restore();
  /* screw-down ring notches */
  ctx.save();for(let i=0;i<6;i++){const a=i/6*Math.PI*2;ctx.save();ctx.translate(C,C);ctx.rotate(a);

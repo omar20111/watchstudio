@@ -149,7 +149,7 @@ function drBezelRound(ctx,o){const{rBezOut,rBezIn}=o.g;
   /* lume pip in a polished metal surround (in 3D a raised mesh: bezelPipOf) */
   if(engr)return;
   const[px,py]=posAt(0,rMid-(o.variant==='gmt'?W*0.02:W*0.06));
-  ctx.beginPath();ctx.arc(px,py,W*0.19,0,7);ctx.fillStyle=flat?m.base:tone(m,.86);ctx.fill();
+  ctx.beginPath();ctx.arc(px,py,W*0.19,0,7);ctx.fillStyle=flat?(m.f0||m.base):tone(m,.86);ctx.fill();
   if(!flat){ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1.4;ctx.stroke()}
   ctx.beginPath();ctx.arc(px,py,W*0.13,0,7);
   if(flat)ctx.fillStyle=o.lume||'#dff3e4';
