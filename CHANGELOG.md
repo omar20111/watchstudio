@@ -272,6 +272,8 @@
 - **Fixed:** adding, replacing or removing a background picture left the 3D
   dial as it was until some other setting changed. The picture is now part of
   what rebuilds the watch (`watch.js headKey`), checked in `smoke.mjs`.
+- **Reset** in the background settings puts the picture back to its original
+  size, angle and place (one undo step).
 
 **Changed — hands that stand over the dial**
 - **Soft shadows on the dial** (`three/contactShadow.js`): the key light's

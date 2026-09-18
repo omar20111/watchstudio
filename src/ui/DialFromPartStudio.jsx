@@ -60,6 +60,10 @@ export function DialFromPartStudio(){const s=useApp(),d=s.d;
       <div className="flex-1 min-w-0 text-[11px] text-neutral-300 truncate" title={bg.name}>{bg.name}</div>
       <button className="btn" onClick={()=>bgFile.current.click()}>Replace</button>
       <button className="btn text-red-400" aria-label="Remove the background picture" onClick={()=>s.delUpload('dialbg',bgId)}>✕</button></div>
+     {(()=>{const D=BG_DEF(),moved=['scale','rot','x','y'].some(k=>B[k]!==D[k]);
+      return<div className="flex justify-end"><button className="btn text-[11px]" disabled={!moved} style={moved?undefined:{opacity:.4}}
+       aria-label="Reset the background picture's placing" title="Back to its original size, angle and place"
+       onClick={()=>setBg(D,'bgReset')}>↺ Reset</button></div>})()}
      <Slider label="Zoom" min={.5} max={4} step={.01} val={B.scale} fmt={v=>v.toFixed(2)+'×'} onChange={v=>setBg({scale:v},'bgScale')}/>
      <Slider label="Turn" min={-180} max={180} step={1} val={B.rot} fmt={v=>v+'°'} onChange={v=>setBg({rot:v},'bgRot')}/>
      <Slider label="Move across" min={-.6} max={.6} step={.01} val={B.x} fmt={v=>v.toFixed(2)} onChange={v=>setBg({x:v},'bgX')}/>
