@@ -18,11 +18,10 @@
 
    No WebGL needed: geometry is built on the CPU and textures are 2D canvases,
    so this works in the flat-drawing fallback too. */
-import {Group,CanvasTexture} from 'three';
+import {Group,CanvasTexture,MeshBasicMaterial,PlaneGeometry} from 'three';
 import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter.js';
 import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {buildHead,applyPose,poseHead,disposeHead,PARTS3D} from '../core/three/watch.js';
-import {solidGlass} from '../core/three/materials.js';
 import {sceneClock,marketingClock} from '../core/time.js';
 import {store} from '../state/store.js';
 import {toast} from '../core/utils.js';
@@ -30,15 +29,16 @@ import {specData} from './layered.js';
 
 export const MM_TO_M=.001;
 
-/* the posed watch, with any uploaded images loaded into it */
-export async function exportWatch(d,customs={}){
+/* the posed watch, with any uploaded images loaded into it. `keepShadows`: leave
+   the dial's contact shadows in (a glTF file: see portableShadows) */
+export async function exportWatch(d,customs={},{keepShadows=false}={}){
  let w=buildHead(d,customs);
  for(let i=0;w.userData.pending&&i<3;i++){await w.userData.pending;disposeHead(w);w=buildHead(d,customs)}
  applyPose(w,d);
  poseHead(w,d.time&&d.time.mode==='set'?sceneClock(d,Date.now()):marketingClock(d));
  /* the dial's contact shadows stand in for light a rasteriser cannot resolve at
     that scale; a path tracer and a glTF viewer light the real thing */
- const drop=[];w.traverse(o=>{if(o.userData&&o.userData.contactShadow)drop.push(o)});
+ const drop=[];if(!keepShadows)w.traverse(o=>{if(o.userData&&o.userData.contactShadow)drop.push(o)});
  for(const o of drop)if(o.parent){o.parent.remove(o);o.traverse(m=>{if(m.isMesh){m.geometry.dispose();m.material.dispose()}})}
  return w}
 
@@ -98,12 +98,36 @@ function portableTangents(root){
     if(k>1e-8&&Number.isFinite(k)){x/=k;y/=k;z/=k}else{x=1;y=0;z=0}}
    t.setXYZW(i,x,y,z,t.getW(i)<0?-1:1)}})}
 
-/* The crystal and the cyclops are closed solids and export with
-   KHR_materials_volume, so a glTF viewer refracts through them. A double-sided
-   pane (the caseback window) is thin-walled glass: volume on a double-sided
-   shell is exactly what the validator warns about. */
+/* Glass exports thin-walled: transmission with no KHR_materials_volume. With
+   its real thickness a viewer bent the dial through the crystal by an offset,
+   and with the glass also blended (fallbackGlass) the dial showed twice, the
+   bent copy over the straight one — doubled hands and blurred printing. A real
+   sapphire's offset is too small to see from the front; the website bends it by
+   a fraction for the same reason (materials.js crystalMaterial). */
 function thinWalledGlass(root){
- root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0)m.thickness=solidGlass.get(m)||0})}
+ root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0)m.thickness=0})}
+
+/* The contact shadows under the hands and the applied indices, for a viewer.
+   Most glTF viewers light a model with an environment map alone and draw no
+   shadows, so without them the hands lie on the dial like a print. Each decal
+   (contactShadow.js) is a dark picture on a plane the size of the sheet, blended
+   with a custom blend that a file cannot carry: here it is cropped to where the
+   shadow is, and made a plain unlit, alpha-blended sheet. */
+function portableShadows(root){const out=[];
+ root.traverse(o=>{if(o.isMesh&&o.userData&&o.userData.contactShadow)out.push(o)});
+ for(const o of out){const m=o.material,cv=m.map&&m.map.image;
+  let box=null;
+  try{const W=cv.width,H=cv.height,a=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;let x0=W,y0=H,x1=-1,y1=-1;
+   for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(a[(y*W+x)*4+3]>2){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+   if(x1>=0)box=[x0/W,y0/H,(x1+1)/W,(y1+1)/H]}catch(e){box=null}
+  if(!box){o.parent&&o.parent.remove(o);continue}
+  /* the plane faces up, its uv the sheet's: u across toward 3, v up toward 12 */
+  o.geometry.computeBoundingBox();const bb=o.geometry.boundingBox,sw=bb.max.x-bb.min.x,sd=bb.max.z-bb.min.z;
+  const[u0,t0,u1,t1]=box,w=(u1-u0)*sw,h=(t1-t0)*sd;
+  const g=new PlaneGeometry(w,h);g.rotateX(-Math.PI/2);g.translate(bb.min.x+(u0+u1)/2*sw,bb.min.y,bb.min.z+(t0+t1)/2*sd);
+  const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,u0+uv.getX(i)*(u1-u0),1-(t0+(1-uv.getY(i))*(t1-t0)));
+  o.geometry.dispose();o.geometry=g;
+  o.material=new MeshBasicMaterial({map:m.map,color:0x000000,transparent:true,opacity:m.opacity,depthWrite:false,name:'contact shadow'});m.dispose()}}
 
 /* Glass for viewers without transmission. KHR_materials_transmission is an
    optional extension, and a viewer that skips it (Windows 3D Viewer, many web
@@ -117,7 +141,8 @@ function fallbackGlass(root){
 
 /* glTF (JSON) or GLB (ArrayBuffer) of a design */
 export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary=true,maxTextureSize=2048}={}){
- const watch=await exportWatch(d,customs);
+ const watch=await exportWatch(d,customs,{keepShadows:true});
+ portableShadows(watch);
  stripBookkeeping(watch);
  const releaseMaps=drawableMaps(watch);
  portableTangents(watch);thinWalledGlass(watch);fallbackGlass(watch);

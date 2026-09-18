@@ -3,6 +3,11 @@
 ## Unreleased
 
 **Fixed — the 3D download showed no watch face in some viewers**
+- The GLB keeps the hands' and indices' soft shadows (glb.js portableShadows),
+  cropped to where they fall and written as plain alpha-blended sheets: most
+  viewers draw no shadows, and without them the hands lay on the dial like a
+  print. Its glass is thin-walled (no volume): with the blend below, a
+  refracting viewer showed the dial twice, doubled hands and blurred printing.
 - The sapphire exports with KHR_materials_transmission, which is optional: a
   viewer that skips it (Windows 3D Viewer, many web and AR viewers) drew the
   crystal as an opaque white disc over the dial. The glass is now also blended
