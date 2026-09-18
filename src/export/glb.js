@@ -71,6 +71,34 @@ export function drawableMaps(root){const twins=new Map();
   for(const m of[].concat(o.material))for(const k of['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','anisotropyMap'])if(m[k])m[k]=twin(m[k])});
  return()=>twins.forEach(t=>t.dispose())}
 
+/* A strap as the website shows it. The website lights the watch in a dark studio
+   with a few bright lights; a viewer lights it with its own environment, and the
+   usual one is a bright, even room (measured here against three's
+   RoomEnvironment with ACES, the setup most web viewers share). Leather, rubber
+   and webbing take all their colour from that light, so in a viewer they came out
+   far lighter and paler than on the website — a black rubber strap grey, a brown
+   leather tan — while polished metal, which mirrors whatever room it is in, looks
+   right in either. Only the strap's own materials are dimmed for the file:
+   colour, specular reflection and sheen together, which is the same as the strap
+   seeing the website's darker studio. */
+const STRAP_LIGHT=.25,STRAP_SAT=1.3;
+/* a colour texture's copy with its colours pushed away from grey: each channel's
+   ratio to the pixel's mean, in linear light, raised to `p` */
+function saturated(t,p){const cv=t.image;if(!cv||!cv.getContext)return t;
+ const c=document.createElement('canvas');c.width=cv.width;c.height=cv.height;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(cv,0,0);
+ const img=x.getImageData(0,0,c.width,c.height),a=img.data,lin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)},enc=v=>{v=Math.max(0,Math.min(1,v));return Math.round(255*(v<=.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-.055))};
+ for(let i=0;i<a.length;i+=4){if(!a[i+3])continue;const r=lin(a[i]),g=lin(a[i+1]),b=lin(a[i+2]),l=(r+g+b)/3;if(l<=0)continue;
+  a[i]=enc(l*Math.pow(r/l,p));a[i+1]=enc(l*Math.pow(g/l,p));a[i+2]=enc(l*Math.pow(b/l,p))}
+ x.putImageData(img,0,0);const n=new CanvasTexture(c);for(const k of['wrapS','wrapT','magFilter','minFilter','colorSpace','flipY','channel'])n[k]=t[k];
+ n.repeat.copy(t.repeat);n.offset.copy(t.offset);return n}
+function strapAsOnSite(root){const done=new Set();
+ root.traverse(o=>{if(!o.isMesh)return;let q=o,inStrap=false;while(q){if(q.name==='strap')inStrap=true;q=q.parent}
+  if(!inStrap)return;
+  for(const m of[].concat(o.material)){if(done.has(m)||!(m.metalness<.5)||m.transmission>0)continue;done.add(m);
+   m.color.multiplyScalar(STRAP_LIGHT);
+   if(STRAP_SAT!==1){if(m.map)m.map=saturated(m.map,STRAP_SAT);else{const c=m.color,l=(c.r+c.g+c.b)/3||1;c.setRGB(l*Math.pow(c.r/l,STRAP_SAT),l*Math.pow(c.g/l,STRAP_SAT),l*Math.pow(c.b/l,STRAP_SAT))}}
+   if(m.isMeshPhysicalMaterial){m.specularIntensity*=STRAP_LIGHT;m.clearcoat*=STRAP_LIGHT;if(m.sheen>0)m.sheenColor.multiplyScalar(STRAP_LIGHT)}}})}
+
 /* Tiling without the extension. The strap's grain, the Milanese weave, a NATO's
    webbing and a tapisserie dial are small normal maps repeated many times over
    their part's uv, and the repeat travelled as KHR_texture_transform — which a
@@ -162,7 +190,7 @@ function fallbackGlass(root){
 /* glTF (JSON) or GLB (ArrayBuffer) of a design */
 export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary=true,maxTextureSize=2048}={}){
  const watch=await exportWatch(d,customs,{keepShadows:true});
- portableShadows(watch);
+ portableShadows(watch);strapAsOnSite(watch);
  stripBookkeeping(watch);
  bakedTiling(watch);
  const releaseMaps=drawableMaps(watch);

@@ -3,6 +3,15 @@
 ## Unreleased
 
 **Fixed — the 3D download showed no watch face in some viewers**
+- In the GLB a strap is coloured for a viewer's light (glb.js strapAsOnSite).
+  Viewers light a model with a bright, even room; leather, rubber and webbing
+  take their colour from it and came out far lighter and paler than on the
+  website (a black rubber strap grey, brown leather tan). The strap's own
+  materials are dimmed to a quarter — colour, specular, sheen and clearcoat
+  together — and their colour pushed a little from grey (ratio to the mean,
+  linear, to the power 1.3), calibrated against three's RoomEnvironment with
+  ACES: over six strap colours the mean difference from the website fell from
+  about 100 levels of 255 to 8. Metal, which mirrors any room, is left alone.
 - In the GLB a strap's grain, a Milanese weave, a NATO's webbing and a tapisserie
   dial repeat through a second uv set (glb.js bakedTiling, TEXCOORD_1, core
   glTF) instead of KHR_texture_transform, which a viewer may skip: one that did
