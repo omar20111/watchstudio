@@ -91,6 +91,14 @@ expect(miss===null,`click in the corner should pick nothing, got ${miss}`);
  const minHolder=G.hands.children.find(h=>h.name==='hand:min');
  expect(minHolder&&Math.abs(minHolder.rotation.y+Math.PI/2)<1e-9,'the minute hand transform must turn only the minute hand');
  d.case.thicknessMm=14;expect(M.headKey(d,{})!==k0,'a dimension change must rebuild')}
+/* a picture under the dial's printing is not a part: adding, replacing or
+   removing it must still redraw the plate */
+{const d=M.clone(M.DEF),k0=M.headKey(d,{});d.active.dialbg='b1';
+ const cu=url=>({dialbg:{b1:{url,name:'bg'}}});
+ const k1=M.headKey(d,cu('data:image/png;base64,AA'));
+ expect(k1!==k0,'adding a dial background picture must rebuild');
+ expect(M.headKey(d,cu('data:image/png;base64,BB'))!==k1,'replacing it must rebuild');
+ d.active.dialbg=null;expect(M.headKey(d,cu('data:image/png;base64,AA'))===k0,'removing it must rebuild')}
 /* artwork presets bake a thumbnail; the case, crown and crystal are solids (ui/PresetThumb.jsx) */
 const ART=Object.keys(M.VARIANTS).filter(p=>!['case','crown','crystal'].includes(p));
 let thumbs=0;const want=ART.reduce((a,p)=>a+M.VARIANTS[p].length,0);

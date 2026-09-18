@@ -38,7 +38,7 @@ import {bezelPipOf} from '../render/bezel.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
-import {dialPlateCanvas} from '../dialbg.js';
+import {dialPlateCanvas,activeDialBg} from '../dialbg.js';
 import {buildMovement} from './movement.js';
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
@@ -173,6 +173,8 @@ export function headKey(d,customs){
  const parts={};for(const k in d.parts){const{t,tH,tM,tS,rot,...rest}=d.parts[k];parts[k]=rest}
  const up={};for(const p of PARTS3D){const u=activeUpload(d,customs,p);if(u)up[p]=u.url}
  const lg=activeLogo(d,customs);if(lg)up.logo=lg.url;
+ /* a picture under the dial's printing: adding, replacing or removing it redraws the plate */
+ const bg=activeDialBg(d,customs);if(bg)up.dialbg=bg.url;
  return JSON.stringify([d.caseMm,d.strapMm,d.bezelMm,d.crownMm,d.case,parts,up])}
 
 /* ---------------------------------------------------------------- materials */

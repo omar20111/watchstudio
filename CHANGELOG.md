@@ -269,6 +269,9 @@
   which a whole-dial upload cannot do. Zoom, turn and move it on the dial.
 - Checked in `e2e/tests/partstudio.mjs` (a dial file brings its picture, its
   applied logo and its markers; the plate wears them).
+- **Fixed:** adding, replacing or removing a background picture left the 3D
+  dial as it was until some other setting changed. The picture is now part of
+  what rebuilds the watch (`watch.js headKey`), checked in `smoke.mjs`.
 
 **Changed — hands that stand over the dial**
 - **Soft shadows on the dial** (`three/contactShadow.js`): the key light's
