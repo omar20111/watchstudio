@@ -61,7 +61,7 @@ export function drawableMaps(root){const twins=new Map();
   const{data,width,height}=t.image,c=document.createElement('canvas');c.width=width;c.height=height;
   c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),width,height),0,0);
   const ct=new CanvasTexture(c);
-  for(const k of['wrapS','wrapT','magFilter','minFilter','colorSpace','flipY','rotation'])ct[k]=t[k];
+  for(const k of['wrapS','wrapT','magFilter','minFilter','colorSpace','flipY','rotation','channel'])ct[k]=t[k];
   /* a tiled map (the strap grain) keeps its tiling: written as KHR_texture_transform */
   ct.repeat.copy(t.repeat);ct.offset.copy(t.offset);ct.center.copy(t.center);
   twins.set(t,ct);return ct};
@@ -70,6 +70,26 @@ export function drawableMaps(root){const twins=new Map();
      roughness maps, a bezel insert's metal fill */
   for(const m of[].concat(o.material))for(const k of['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','anisotropyMap'])if(m[k])m[k]=twin(m[k])});
  return()=>twins.forEach(t=>t.dispose())}
+
+/* Tiling without the extension. The strap's grain, the Milanese weave, a NATO's
+   webbing and a tapisserie dial are small normal maps repeated many times over
+   their part's uv, and the repeat travelled as KHR_texture_transform — which a
+   viewer is free to skip. One that did (Meshy's, seen here) stretched a single
+   tile over the whole strap: leather read as blotchy wet hide. The repeat is
+   written into the geometry instead, as a second uv set scaled and shifted just
+   as the transform did (TEXCOORD_1, core glTF), with the map sampled from it and
+   repeating by its wrap mode, which every viewer honours. Positive scales keep
+   the tangents computed from the first uv set valid for the second. */
+function bakedTiling(root){const twins=new Map();
+ root.traverse(o=>{if(!o.isMesh)return;const g=o.geometry,uv=g.attributes.uv;
+  for(const m of[].concat(o.material)){const t=m.normalMap;
+   if(!t||!uv||t.channel!==0||(t.repeat.x===1&&t.repeat.y===1&&t.offset.x===0&&t.offset.y===0)||t.rotation!==0)continue;
+   if(t.repeat.x<=0||t.repeat.y<=0)continue;
+   const a=new Float32Array(uv.count*2);
+   for(let i=0;i<uv.count;i++){a[i*2]=uv.getX(i)*t.repeat.x+t.offset.x;a[i*2+1]=uv.getY(i)*t.repeat.y+t.offset.y}
+   g.setAttribute('uv1',new g.attributes.uv.constructor(a,2));
+   let tw=twins.get(t);if(!tw){tw=t.clone();tw.repeat.set(1,1);tw.offset.set(0,0);tw.channel=1;tw.needsUpdate=true;twins.set(t,tw)}
+   m.normalMap=tw}})}
 
 /* Portable tangents. three derives a tangent frame per pixel for normal maps and
    anisotropy (brushed metal, the sunburst dial); glTF viewers expect the file to
@@ -144,6 +164,7 @@ export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary
  const watch=await exportWatch(d,customs,{keepShadows:true});
  portableShadows(watch);
  stripBookkeeping(watch);
+ bakedTiling(watch);
  const releaseMaps=drawableMaps(watch);
  portableTangents(watch);thinWalledGlass(watch);fallbackGlass(watch);
  const root=new Group();root.name=name;root.scale.setScalar(MM_TO_M);root.add(watch);

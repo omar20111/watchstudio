@@ -3,6 +3,10 @@
 ## Unreleased
 
 **Fixed — the 3D download showed no watch face in some viewers**
+- In the GLB a strap's grain, a Milanese weave, a NATO's webbing and a tapisserie
+  dial repeat through a second uv set (glb.js bakedTiling, TEXCOORD_1, core
+  glTF) instead of KHR_texture_transform, which a viewer may skip: one that did
+  stretched a single tile of grain over the whole strap.
 - The GLB keeps the hands' and indices' soft shadows (glb.js portableShadows),
   cropped to where they fall and written as plain alpha-blended sheets: most
   viewers draw no shadows, and without them the hands lay on the dial like a
