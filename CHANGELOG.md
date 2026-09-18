@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Fixed — Arabic numerals set round the dial**
+- Arabic and Eastern Arabic numerals were each pushed out until their farthest
+  ink touched the ring, so glyphs as unlike as ٠, ١ and ٣ stood at different
+  distances and a two-digit 12 sat off the 12 o'clock line. Each numeral is now
+  centred by its ink on one circle (markers.js numeralCircle), still ending on
+  the hour ring every index style shares.
+- Eastern Arabic hours are set as one figure: ١٠ and ١١ with their digits close
+  instead of a text face's gap, and at an applied numeral's weight.
+
 **Fixed — the 3D download showed no watch face in some viewers**
 - In the GLB a strap is coloured for a viewer's light (glb.js strapAsOnSite).
   Viewers light a model with a bright, even room; leather, rubber and webbing

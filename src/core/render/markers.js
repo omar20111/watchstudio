@@ -49,22 +49,68 @@ export function printedIndexInk(variant,frameMetal,dialColor){const m=METALS[fra
    (0.915 r), so numerals no longer need moving in there. */
 export {INDEX_OUTER};
 
+/* Eastern Arabic numerals as a dial sets them. The faces that carry the digits
+   are text faces: set as text, a two-digit hour stood apart — ١٠ a stroke with
+   the zero's small dot floating well clear of it, ١١ two strokes a gap apart —
+   and at a text weight the strokes were hairlines. On the dial each hour is set
+   as one figure: its digits a tenth of the type size apart, ink to ink, and
+   thickened by an outline in their own colour, as applied numerals are cut. */
+const isEastern=font=>font.includes('Geeza Pro');
+function paintNumeral(ctx,txt,x,y,font=ctx.font){
+ if(!isEastern(font)){ctx.fillText(txt,x,y);return}
+ /* the size in px: the font string may lead with a weight (700 88px ...) */
+ const fs=+(/([\d.]+)px/.exec(font)||[])[1]||40,chars=[...txt];
+ ctx.save();ctx.lineJoin='round';ctx.lineWidth=fs*.055;ctx.strokeStyle=ctx.fillStyle;
+ const one=(c,cx)=>{ctx.strokeText(c,cx,y);ctx.fillText(c,cx,y)};
+ if(chars.length<2){one(txt,x);ctx.restore();return}
+ /* each digit's ink width and centre, then side by side a gap apart */
+ const gap=fs*.1,boxes=chars.map(c=>{const p=glyphInk(font,c);if(!p)return[fs*.4,0];let a=1e9,b=-1e9;for(const[px]of p){if(px<a)a=px;if(px>b)b=px}return[b-a,(a+b)/2]});
+ const total=boxes.reduce((t,[w])=>t+w,0)+gap*(chars.length-1);let at=x-total/2;
+ chars.forEach((c,i)=>{const[w,mid]=boxes[i];one(c,at+w/2-mid);at+=w+gap});
+ ctx.restore()}
+
 /* The inked pixels of a numeral drawn centred on the origin (textAlign center,
-   baseline middle), sampled every other pixel; null where nothing can be read
-   back (a mocked canvas). Cached per font and text. */
+   baseline middle) as paintNumeral draws it, sampled every other pixel; null
+   where nothing can be read back (a mocked canvas). Cached per font and text. */
 const inks=new Map();
 function glyphInk(font,txt){const key=font+'|'+txt;if(inks.has(key))return inks.get(key);
  let pts=null;
  try{const probe=document.createElement('canvas').getContext('2d');probe.font=font;
-  const fs=parseFloat(font.replace(/^\D*?(\d)/,'$1'))||40,w=Math.ceil((probe.measureText(txt).width||fs*2)+fs),h=Math.ceil(fs*2.2);
+  const fs=+(/([\d.]+)px/.exec(font)||[])[1]||40,w=Math.ceil((probe.measureText(txt).width||fs*2)+fs),h=Math.ceil(fs*2.2);
   const cv=document.createElement('canvas');cv.width=w;cv.height=h;const x=cv.getContext('2d',{willReadFrequently:true});
   x.font=font;x.textAlign='center';x.textBaseline='middle';if('direction'in x)x.direction='ltr';
-  x.fillStyle='#fff';x.fillText(txt,w/2,h/2);
+  x.fillStyle='#fff';paintNumeral(x,txt,w/2,h/2,font);
   const data=x.getImageData(0,0,w,h).data;pts=[];
   for(let j=0;j<h;j+=2)for(let i=0;i<w;i+=2)if(data[(j*w+i)*4+3]>110)pts.push([i-w/2,j-h/2]);
   if(!pts.length)pts=null}catch(e){pts=null}
  inks.set(key,pts);if(inks.size>80)inks.delete(inks.keys().next().value);
  return pts}
+
+/* Arabic and Eastern Arabic numerals sit with their centres on one circle.
+   Placed each by its farthest ink touching the ring, glyphs as unlike as Eastern
+   digits — ٠ a dot, ١ a thin stroke, ٢ and ٣ wide — came to rest at different
+   distances from the centre, and the hours read as scattered rather than set
+   round the dial. Each glyph's ink box is found (glyphInk), and the distance at
+   which its box centre would put its farthest ink on the ring. The circle is at
+   the `CIRCLE_RANK` of those distances: most numerals sit on it with their
+   outer ends at or just inside the ring every index style shares, and the few
+   wider ones (a two-digit 10 or 11 at the diagonals) come in only as far as
+   they must to stay inside it. Roman numerals keep their outer edges on the
+   ring, as a Roman dial is set. */
+const CIRCLE_RANK=.6;
+const inkBox=pts=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const[x,y]of pts){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}return[(x0+x1)/2,(y0+y1)/2]};
+function numeralCircle(font,texts,rOut){const touch=new Map();
+ for(const[deg,txt]of texts){const pts=glyphInk(font,txt);if(!pts)return null;
+  const a=deg*Math.PI/180,ux=Math.sin(a),uy=-Math.cos(a),[cx,cy]=inkBox(pts);
+  const far=d=>{let m=0;for(const[vx,vy]of pts){const e=Math.hypot(d*ux+vx-cx,d*uy+vy-cy);if(e>m)m=e}return m};
+  let lo=0,hi=rOut;for(let i=0;i<22;i++){const mid=(lo+hi)/2;if(far(mid)>rOut)hi=mid;else lo=mid}
+  touch.set(deg,lo)}
+ const all=[...touch.values()].sort((a,b)=>a-b),c=all[Math.min(all.length-1,Math.floor(CIRCLE_RANK*(all.length-1)))];
+ /* each hour's distance: on the circle, or inside it where its glyph needs */
+ return deg=>Math.min(c,touch.get(deg)??c)}
+/* the text anchor that puts a glyph's ink box centre on the circle at `c` */
+function centredAnchor(font,txt,deg,c){const pts=glyphInk(font,txt);if(!pts)return null;
+ const[cx,cy]=inkBox(pts),[x,y]=posAt(deg,c);return[x-cx,y-cy]}
 
 /* where to anchor a numeral so its farthest ink sits on the ring at rOut */
 function numeralAnchor(ctx,txt,deg,rOut,r){const a=deg*Math.PI/180,ux=Math.sin(a),uy=-Math.cos(a);
@@ -92,6 +138,11 @@ export function drMarkers(ctx,o){
  /* a date window takes the place of the index at its hour */
  /* the hours a date window or a register takes (geometry.js dialLayoutOf) */
  const skip=new Set(o.layout?o.layout.skipHours||[]:[]);
+ /* Arabic numerals: one circle for every hour shown (numeralCircle) */
+ const numFont=o.variant==='eastern'?`700 ${r*0.21}px ${EASTERN_FONT}`:`700 ${r*0.19}px system-ui`;
+ const numText=h=>o.variant==='eastern'?easternDigits(h||12):String(h||12);
+ const circle=o.variant==='arabic'||o.variant==='eastern'
+  ?numeralCircle(numFont,[...Array(12).keys()].filter(h=>!skip.has(h)).map(h=>[h*30,numText(h)]),rOut):null;
  for(let h=0;h<12;h++){if(skip.has(h))continue;const deg=h*30,rad0=deg*Math.PI/180;
 
   if(o.variant==='batons'||o.variant==='minimal'){
@@ -181,12 +232,12 @@ export function drMarkers(ctx,o){
       direction until its farthest inked pixel touches the ring. A numeral's box
       is no guide at the diagonals — VIII's corners are empty — so the ink
       itself is sampled; without pixels to read, the box stands in. */
-   const[x,y]=numeralAnchor(ctx,txt,deg,rOut,r);
-   if(shape){ctx.fillStyle='#fff';ctx.fillText(txt,x,y);continue}
+   const[x,y]=(circle&&centredAnchor(ctx.font,txt,deg,circle(deg)))||numeralAnchor(ctx,txt,deg,rOut,r);
+   if(shape){ctx.fillStyle='#fff';paintNumeral(ctx,txt,x,y);continue}
    /* applied numerals: a dark impression, then the metal face slightly proud */
    ctx.fillStyle='rgba(0,0,0,.34)';
-   ctx.fillText(txt,x+SHADOW.dx*r*0.012,y+SHADOW.dy*r*0.012);
+   paintNumeral(ctx,txt,x+SHADOW.dx*r*0.012,y+SHADOW.dy*r*0.012);
    ctx.fillStyle=printed||(o.frameMetal?tone(m,litFace(rad0-Math.PI/2)*0.5+0.42):ink);
-   ctx.fillText(txt,x,y);
+   paintNumeral(ctx,txt,x,y);
    ctx.fillStyle='rgba(255,255,255,.22)';
-   ctx.fillText(txt,x-SHADOW.dx*r*0.004,y-SHADOW.dy*r*0.004)}}}
+   paintNumeral(ctx,txt,x-SHADOW.dx*r*0.004,y-SHADOW.dy*r*0.004)}}}
