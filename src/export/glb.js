@@ -105,12 +105,22 @@ function portableTangents(root){
 function thinWalledGlass(root){
  root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0)m.thickness=solidGlass.get(m)||0})}
 
+/* Glass for viewers without transmission. KHR_materials_transmission is an
+   optional extension, and a viewer that skips it (Windows 3D Viewer, many web
+   and AR viewers) draws the sapphire as what is left: an opaque white solid, a
+   disc over the dial that hides the whole face. So the glass is also blended at
+   a fifth of its colour: such a viewer shows a faint clear film with the dial
+   under it, and one that refracts shows the refraction, faded the same way. */
+const GLASS_ALPHA=.2;
+function fallbackGlass(root){
+ root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0){m.transparent=true;m.opacity=GLASS_ALPHA}})}
+
 /* glTF (JSON) or GLB (ArrayBuffer) of a design */
 export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary=true,maxTextureSize=2048}={}){
  const watch=await exportWatch(d,customs);
  stripBookkeeping(watch);
  const releaseMaps=drawableMaps(watch);
- portableTangents(watch);thinWalledGlass(watch);
+ portableTangents(watch);thinWalledGlass(watch);fallbackGlass(watch);
  const root=new Group();root.name=name;root.scale.setScalar(MM_TO_M);root.add(watch);
  root.userData={generator:'WatchStudio',units:'metres (modelled in millimetres)',parts:PARTS3D,spec:specData(d,name)};
  /* trs: separate translation/rotation/scale rather than one matrix, so a hand's

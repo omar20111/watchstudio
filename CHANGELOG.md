@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Fixed — the 3D download showed no watch face in some viewers**
+- The sapphire exports with KHR_materials_transmission, which is optional: a
+  viewer that skips it (Windows 3D Viewer, many web and AR viewers) drew the
+  crystal as an opaque white disc over the dial. The glass is now also blended
+  at a fifth of its colour (glb.js fallbackGlass), so such a viewer shows a
+  faint clear film with the dial under it; the Khronos validator still finds
+  no errors.
+
 **Changed — a photo is clean sooner**
 - A path traced photo is denoised as it converges (photo.js): an edge-preserving
   blur (three-gpu-pathtracer's DenoiseMaterial) smooths the speckle of the
