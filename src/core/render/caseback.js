@@ -60,12 +60,28 @@ export function drCaseback(ctx,o){
  ctx.beginPath();ctx.arc(C,C,R*.64,0,7);ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=2;ctx.stroke();
  engraving(ctx,c,R,'rgba(20,22,26,.72)')}
 
+/* The engraving, up to four lines of it: a name, then a dedication, a material,
+   a limited edition's number — what a caseback carries. The first line is the
+   title, cut larger; the rest follow in a smaller face, and the watch's own
+   line (movement, size, depth) sits under them all. */
+export const ENGRAVING_LINES=4;
+export const engravingLines=c=>{const l=String(c.engraving==null?'WATCHSTUDIO':c.engraving)
+  .split(/\r?\n/).map(x=>x.trim().toUpperCase().slice(0,24)).filter(Boolean).slice(0,ENGRAVING_LINES);
+ return l.length?l:['WATCHSTUDIO']};
 function engraving(ctx,c,R,fill){
  ctx.save();ctx.translate(C,C);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=fill;
- const big=c.caseback==='engraved';
- ctx.font=`600 ${R*(big?.14:.075)}px Georgia, serif`;
- ctx.fillText((c.engraving||'WATCHSTUDIO').toUpperCase(),0,big?-R*.08:-R*.34);
+ const big=c.caseback==='engraved',lines=engravingLines(c),rest=lines.length-1;
+ const title=R*(big?.14:.075),small=R*(big?.062:.05);
+ /* the block sits about the middle: the more lines, the higher it starts */
+ let y=(big?-R*.08:-R*.34)-rest*small*.7;
+ /* a line longer than the back is wide is cut smaller, not run off the edge */
+ const fit=(txt,size,font)=>{let px=size;for(let i=0;i<6;i++){ctx.font=font(px);
+   if(ctx.measureText(txt).width<=R*1.15)break;px*=.86}
+  ctx.fillText(txt,0,y)};
+ fit(lines[0],title,px=>`600 ${px}px Georgia, serif`);
+ for(const l of lines.slice(1)){y+=title*.62+small*.5;fit(l,small,px=>`500 ${px}px system-ui`)}
+ y+=small*1.9;
  ctx.font=`500 ${R*.055}px system-ui`;
- ctx.fillText(`${c.movement.toUpperCase()} · ${(R*2/PX).toFixed(0)} MM · ${c.wrM} M`,0,big?R*.14:R*.34);
- if(!big){ctx.font=`500 ${R*.045}px system-ui`;ctx.fillText('SAPPHIRE CRYSTAL · STAINLESS',0,R*.44)}
+ ctx.fillText(`${c.movement.toUpperCase()} · ${(R*2/PX).toFixed(0)} MM · ${c.wrM} M`,0,Math.max(y,big?R*.14:R*.34));
+ if(!big&&!rest){ctx.font=`500 ${R*.045}px system-ui`;ctx.fillText('SAPPHIRE CRYSTAL · STAINLESS',0,R*.44)}
  ctx.restore()}

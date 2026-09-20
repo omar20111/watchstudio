@@ -1,5 +1,5 @@
 /* Dial renderer: sunburst / matte / chrono / guilloché / fumé / enamel /
-   tapisserie + track + text. */
+   tapisserie / sculpted + track + text. */
 import {C,PX} from '../constants.js';
 import {lumOf,lighten,shade} from '../utils.js';
 import {posAt,MINUTE_TRACK_R,TRACK_TICK_PX,DIAL_MM} from '../geometry.js';
@@ -24,6 +24,43 @@ function drDateWheel(ctx,o){const L=o.layout,win=L&&L.win;if(!win)return;
  ctx.restore()}
 
 const roundRect=(ctx,x,y,w,h,rr)=>{ctx.beginPath();ctx.roundRect(x-w/2,y-h/2,w,h,rr)};
+
+/* A sculpted dial's plates. Bands sweeping across the face, all struck on one
+   centre well outside it, each standing over the plate below with a channel of
+   fine ribs along its upper edge — an architect's dial rather than a printed
+   one. The bands are described once, in sheet px, and used twice: the artwork
+   paints them, and the shape bake raises the same outlines into real plates
+   (three/watch.js), so the metal and the picture on it cannot drift apart. */
+export function sculptedPlates(r){
+ const P={x:C-r*1.28,y:C+r*1.62};                  /* the centre they curve about */
+ return[0,1,2].map(i=>({P,R:r*(1.42+i*.74),w:r*(.52-i*.05),rib:r*.105}))}
+const plateRing=(ctx,P,Ro,Ri)=>{ctx.beginPath();ctx.arc(P.x,P.y,Ro,0,Math.PI*2);
+ ctx.arc(P.x,P.y,Math.max(0,Ri),0,Math.PI*2,true);ctx.closePath()};
+/* the ribs across a channel: struck from the same centre, so they stand square
+   to the band however it curves */
+function ribs(ctx,P,Ro,Ri,col,r){const mid=(Ro+Ri)/2,step=Math.max(.5,DIAL_MM.rib)*PX/mid;
+ ctx.save();ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,DIAL_MM.rib*PX*.52);ctx.lineCap='butt';
+ for(let a=0;a<Math.PI*2;a+=step){const c=Math.cos(a),si=Math.sin(a);
+  ctx.beginPath();ctx.moveTo(P.x+c*Ri,P.y+si*Ri);ctx.lineTo(P.x+c*Ro,P.y+si*Ro);ctx.stroke()}
+ ctx.restore()}
+
+/* the apertures a plate must not cover: a date window and any register */
+function cutApertures(ctx,L){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';
+ for(const sd of (L&&L.subdials)||[]){ctx.beginPath();ctx.arc(sd.x,sd.y,sd.r+2,0,Math.PI*2);ctx.fill()}
+ if(L&&L.win){const w=L.win;roundRect(ctx,w.x,w.y,w.w+2*w.frame+4,w.h+2*w.frame+4,w.rad+w.frame);ctx.fill()}
+ ctx.restore()}
+
+/* the plates as a white silhouette for tracing: each band solid, its rib
+   channel cut back out of it, and the ribs themselves standing in the channel */
+function sculptedShape(ctx,o,r){const L=o.layout;
+ ctx.save();ctx.beginPath();ctx.arc(C,C,r,0,7);ctx.clip();
+ for(const b of sculptedPlates(r)){
+  ctx.fillStyle='#fff';plateRing(ctx,b.P,b.R,b.R-b.w);ctx.fill('evenodd');
+  ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';
+  plateRing(ctx,b.P,b.R,b.R-b.rib);ctx.fill('evenodd');ctx.restore();
+  ribs(ctx,b.P,b.R-PX*.06,b.R-b.rib+PX*.06,'#fff',r)}
+ cutApertures(ctx,L);
+ ctx.restore()}
 
 /* one tapisserie pyramid, in sheet px: a little over a millimetre on a 40 mm
    watch. Shared with the 3D dial, whose normal map is laid on the same grid. */
@@ -69,6 +106,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  /* ink: one printed layer alone, in solid white on nothing, to be traced into
     vector artwork (export/artwork.js): o.ink is 'text' (the brand and the model
     line) or 'track' (the minute track and the registers' scales) */
+ if(o.mode==='shape'){if(o.variant==='sculpted')sculptedShape(ctx,o,r);return}
  if(o.mode==='ink'){
   if(o.ink==='text')printText(ctx,o,r,col,'ink');
   else if(o.ink==='track'){printTrack(ctx,r,L.stepped?L.stepR+3:0,'#fff');for(const sd of L.subdials||[])registerScale(ctx,sd,'#fff')}
@@ -125,6 +163,23 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   ctx.strokeStyle=flat?'rgba(0,0,0,.2)':'rgba(0,0,0,.28)';ctx.lineWidth=Math.max(1,cell*.1);
   for(let i=-n;i<=n;i++){ctx.beginPath();ctx.moveTo(C+i*cell,C-r);ctx.lineTo(C+i*cell,C+r);ctx.stroke();
    ctx.beginPath();ctx.moveTo(C-r,C+i*cell);ctx.lineTo(C+r,C+i*cell);ctx.stroke()}}
+
+ /* sculpted: the plates in their own shades of the dial's colour, their ribbed
+    channels in the accent metal. The plate edges' light and shadow are painted
+    only for the 2D drawing; in 3D the plates are real and the studio lights
+    them. */
+ if(ground&&o.variant==='sculpted'){const A=o.accent||'#b5a24a';
+  for(let i=0;i<3;i++){const b=sculptedPlates(r)[i];
+   ctx.fillStyle=i===1?shade(col,.14):lighten(col,.07+i*.10);plateRing(ctx,b.P,b.R,b.R-b.w);ctx.fill('evenodd');
+   if(!flat){ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=Math.max(1,PX*.06);
+    ctx.beginPath();ctx.arc(b.P.x,b.P.y,b.R-b.w,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=Math.max(1,PX*.10);
+    ctx.beginPath();ctx.arc(b.P.x,b.P.y,b.R-b.w-PX*.09,0,Math.PI*2);ctx.stroke()}
+   /* the channel floor, then the ribs standing in it */
+   ctx.fillStyle=shade(col,.45);plateRing(ctx,b.P,b.R,b.R-b.rib);ctx.fill('evenodd');
+   ribs(ctx,b.P,b.R-PX*.06,b.R-b.rib+PX*.06,A,r);
+   if(!flat){ctx.save();ctx.globalCompositeOperation='multiply';
+    plateRing(ctx,b.P,b.R,b.R-b.rib);ctx.fillStyle='rgba(0,0,0,.18)';ctx.fill('evenodd');ctx.restore()}}}
 
  if(ground&&(o.variant==='matte'||o.variant==='chrono'))noiseFill(ctx,.07,'overlay');
  if(o.finish==='brushed'&&!flat){ctx.save();ctx.globalCompositeOperation='overlay';

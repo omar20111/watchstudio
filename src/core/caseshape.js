@@ -8,6 +8,9 @@
      square   a square with tight corners
      tonneau  a barrel: longer from 12 to 6 than across, its sides bowed out,
               its ends narrower and gently domed, its corners rounded
+     pebble   an asymmetric oval after the sculpted buildings it is drawn from:
+              the same from 12 to 6 as a round case, sweeping wider toward the
+              crown and narrowing toward 9, with no straight side anywhere
 
    It is sized by A0, how far it reaches toward 3 o'clock, so a cushion case
    "40 mm" is 40 mm across its flats, as a round one is across its diameter. A
@@ -24,7 +27,10 @@
    its whole length, so the sample list carries each flat's normal twice, once
    for each end (side -1 and +1). */
 
-export const CASE_SHAPES=['round','cushion','octagon','square','tonneau'], BEZEL_SHAPES=['round','octagon','square'];
+/* 'case': the bezel takes the case's own shape, and keeps it all the way in —
+   its opening, the flange under it and the crystal follow the case instead of
+   coming back to a circle, as a shaped watch's do. */
+export const CASE_SHAPES=['round','cushion','octagon','square','tonneau','pebble'], BEZEL_SHAPES=['round','octagon','square','case'];
 export const TONNEAU_LENGTH=1.2;
 const TAU=Math.PI*2;
 const wrap=a=>((a%TAU)+TAU)%TAU;
@@ -55,8 +61,36 @@ function tonneau(){const cf=.18,w=1-cf,l=TONNEAU_LENGTH-cf,we=.62,lc=l-.06;
  for(let i=0;i<E;i++){const t=1.5*Math.PI-b+2*b*i/E;v.push([Re*Math.cos(t),-yc+Re*Math.sin(t)])}
  return spec('tonneau',v,cf,{curved:true})}
 
+/* The pebble. A squarish oval — a superellipse, so its top and bottom run
+   nearly straight before turning — swelled toward the crown and drawn out to a
+   nose at 9, the sculpted mass this case is named for. The nose is a corner of
+   the core, so it comes out as tight as the corner radius; everything else is
+   sampled curve. It is scaled so its narrowest reach is exactly A0: a case is
+   never smaller than the size it states, or a round bezel would stand out past
+   it. */
+function pebble(){const cf=.12,N=240,n=3.1,k=.13,nose=1.1;
+ const pts=[];
+ for(let i=0;i<N;i++){const t=i/N*TAU,c=Math.cos(t),si=Math.sin(t);
+  const base=Math.pow(Math.pow(Math.abs(c),n)+Math.pow(Math.abs(si),n),-1/n);
+  const r=base*(1+k*c)*.86;pts.push([r*c,r*si])}
+ pts.push([-nose*.86,0]);
+ const core=hull(pts);
+ /* measured on the outline itself, the narrowest it comes to the centre, scaled
+    to 1: the support of the core is a hair further out than the ray meets */
+ const probe=spec('pebble',core,cf,{curved:true});
+ let min=Infinity;for(let i=0;i<720;i++)min=Math.min(min,extentAlong(probe,1,i/720*TAU));
+ const d=1.0002/min;
+ return spec('pebble',core.map(p=>[d*p[0],d*p[1]]),cf*d,{curved:true})}
+
+/* the convex hull of a point set (monotone chain), anticlockwise */
+function hull(pts){const p=[...pts].sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+ const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+ const lo=[];for(const q of p){while(lo.length>1&&cross(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q)}
+ const up=[];for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>1&&cross(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q)}
+ return lo.slice(0,-1).concat(up.slice(0,-1))}
+
 const SPECS={round:spec('round',[[0,0]],1),cushion:regular('cushion',4,.42),octagon:regular('octagon',8,.07),
- square:regular('square',4,.12),tonneau:tonneau()};
+ square:regular('square',4,.12),tonneau:tonneau(),pebble:pebble()};
 export const shapeSpec=kind=>SPECS[kind]||SPECS.round;
 
 /* the A0 that puts a shape's farthest corner (not its flats) on radius R */
@@ -123,6 +157,16 @@ export function insetOf(spec,A0,x,z){
    const t=Math.max(0,Math.min(1,((x-ax)*ex+(z-az)*ez)/(ex*ex+ez*ez)));
    sd=Math.min(sd,Math.hypot(x-ax-ex*t,z-az-ez*t))}}
  return rc-sd}
+
+/* How far the outline reaches in the direction `ang`, measured along that
+   direction — its support, not the ray through the centre. On a shape that is
+   not symmetric about that axis the farthest point lies off it: a pebble case's
+   widest point toward 12 is not at 12 o'clock, so the ray would read short. */
+export function supportAlong(spec,A0,ang){const ux=Math.cos(ang),uz=Math.sin(ang);
+ const rc=spec.cf*A0;
+ if(!spec.N)return rc;
+ let m=-Infinity;for(const v of spec.v)m=Math.max(m,(v[0]*ux+v[1]*uz)*A0);
+ return m+rc}
 
 /* distance from the centre to the outline along the direction at angle `ang` */
 export function extentAlong(spec,A0,ang,inset=0){

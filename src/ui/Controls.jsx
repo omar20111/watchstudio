@@ -94,12 +94,12 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugLenMm:v},'lug')}/>
     <Slider label="Lug drop" min={0} max={6} step={0.1} val={c.lugDrop}
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugDropMm:v},'drop')}/>
-    <Pick label="Case shape" val={c.shape} opts={[['round','Round'],['cushion','Cushion'],['octagon','Octagon'],['square','Square'],['tonneau','Tonneau']]}
+    <Pick label="Case shape" val={c.shape} opts={[['round','Round'],['cushion','Cushion'],['octagon','Octagon'],['square','Square'],['tonneau','Tonneau'],['pebble','Pebble']]}
      onPick={v=>setc({shape:v},'shape')}/>
     {c.shape==='tonneau'&&<p className="text-[10px] text-neutral-500">{(+d.caseMm).toFixed(1)} mm across, {caseLengthMm(d).toFixed(1)} mm from 12 to 6.</p>}
     {(()=>{const why=k=>bezelFit(d,k).fits?null:`A ${k} bezel this size would cut into the crystal opening on a ${c.shape} case`;
      const off={octagon:why('octagon'),square:why('square')};
-     return<><Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon'],['square','Square']]} off={off}
+     return<><Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon'],['square','Square'],['case','Follow case']]} off={off}
       onPick={v=>setc({bezelShape:v},'bshape')}/>
       {off[c.bezelShape]&&<p className="text-[10px] text-amber-400/90">{off[c.bezelShape]}, so it is built round. A square or cushion case, or a wider bezel, makes room for it.</p>}</>})()}
     <Pick label="Case side" val={c.side} opts={[['straight','Straight'],['drum','Drum'],['sloped','Sloped'],['stepped','Stepped']]}
@@ -128,8 +128,9 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
     <label className="flex items-center gap-2 text-[11px] text-neutral-400">
      <input type="checkbox" checked={c.pushers} onChange={e=>setc({pushers:e.target.checked},'push')}/>
      Chronograph pushers at 2 and 4</label>
-    <input className="tin" placeholder="Caseback engraving" value={c.engraving}
-     aria-label="Caseback engraving" onChange={e=>setc({engraving:e.target.value},'eng')}/>
+    <textarea className="tin resize-none" rows={2} placeholder="Caseback engraving (one per line)" value={c.engraving}
+     aria-label="Caseback engraving" onChange={e=>setc({engraving:e.target.value.split(/\r?\n/).slice(0,4).join('\n')},'eng')}/>
+    <div className="text-[10px] text-neutral-500">Up to four lines: a name, a dedication, a limited number.</div>
     <div className="text-[10px] text-neutral-500">Lug-to-lug {lugToLugMm(d).toFixed(1)} mm · derived from lug length, not assumed.</div>
    </Section>})()}
   {part==='case'&&<Section title="Case Dimensions">
@@ -147,7 +148,15 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
     <select className="bg-[#1b1c21] border border-white/10 rounded px-1 py-0.5" value={d.strapMm} onChange={e=>s.upd(n=>{n.strapMm=e.target.value==='auto'?'auto':+e.target.value},'sw')}>
      <option value="auto">Auto ({strapMmOf(d)} mm)</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="22">22 mm</option></select></div>
    <ColorField label="Strap color" val={p.color} onChange={v=>up({color:v},'col')}/>
-   <ColorField label="Stitching" val={p.stitch} onChange={v=>up({stitch:v},'st')}/></Section>}
+   <ColorField label="Stitching" val={p.stitch} onChange={v=>up({stitch:v},'st')}/>
+   {(p.variant==='leather'||p.variant==='rubber')&&<div className="flex items-center justify-between text-[11px] text-neutral-400">
+    <span>Centre stripe</span><div className="flex gap-1 items-center">
+     <button className={`chip ${p.stripe?'':'on'}`} aria-label="No centre stripe" onClick={()=>up({stripe:null},'sp')}>None</button>
+     {['#b5a24a','#b0413c','#25467e','#e8e6e0'].map(c=>
+      <button key={c} className={`w-5 h-5 rounded-full border ${p.stripe===c?'border-amber-300':'border-white/20'}`} style={{background:c}}
+       aria-label={'Stripe '+c} onClick={()=>up({stripe:c},'sp')}/>)}
+     <input type="color" className="w-6 h-6 bg-transparent" aria-label="Stripe colour" value={p.stripe||'#b5a24a'} onChange={e=>up({stripe:e.target.value},'sp')}/>
+    </div></div>}</Section>}
   {part==='bezel'&&(p.variant==='diver'||p.variant==='gmt')&&!d.active.bezel&&
    <Section title="Bezel Insert"><ColorField label="Insert" val={p.insertColor} onChange={v=>up({insertColor:v},'ins')}/>
     <div className="flex items-center justify-between text-[11px] text-neutral-400">
@@ -193,7 +202,12 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
   </Section>}
   {part==='dial'&&<Section title="Dial Color"><div className="flex gap-1.5 mb-1">{['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66'].map(c=>
    <button key={c} className="w-6 h-6 rounded-full border border-white/20" style={{background:c}} onClick={()=>up({color:c})}/>)}</div>
-   <ColorField label="Custom" val={p.color} onChange={v=>up({color:v},'dc')}/></Section>}
+   <ColorField label="Custom" val={p.color} onChange={v=>up({color:v},'dc')}/>
+   {p.variant==='sculpted'&&<>
+    <div className="flex gap-1.5 mt-2 mb-1">{['#b5a24a','#9aa2a8','#c08a4e','#7f8c5a','#2b2d31','#d8d5cc'].map(c=>
+     <button key={c} className="w-6 h-6 rounded-full border border-white/20" style={{background:c}} aria-label={'Rib colour '+c} onClick={()=>up({accent:c})}/>)}</div>
+    <ColorField label="Ribs" val={p.accent||'#b5a24a'} onChange={v=>up({accent:v},'da')}/>
+    <p className="text-[10px] text-neutral-500">The plates are raised off the dial; the ribs fill the channel along each one.</p></>}</Section>}
   {part==='dial'&&!d.active.dial&&<DialFromPartStudio/>}
   {part==='dial'&&!d.active.dial&&<Section title="Logo"><LogoControls/></Section>}
   {part==='dial'&&<Section title="Dial Text / Branding">

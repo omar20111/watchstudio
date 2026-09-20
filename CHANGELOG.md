@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+**Added — a sculptural watch: pebble case, shaped opening, sculpted dial**
+- A new case shape, the pebble (caseshape.js): a squarish oval swelled toward
+  the crown and drawn out to a nose at 9 o'clock — one continuous curve, after
+  the sculpted buildings it is drawn from. It is scaled so its narrowest reach
+  is exactly the size it states, as every shape is, so a round bezel still fits
+  inside it.
+- A bezel can follow the case (Case > Bezel shape > Follow case). It takes the
+  case's own outline and keeps it inward: the opening, the flange under it and
+  the sapphire in it are the case's shape set in, instead of coming back to a
+  circle. A bezel carrying an insert — a dive or GMT ring, an engraved
+  tachymeter — keeps its round seat, which a flat insert needs.
+- A new dial, Sculpted: three plates curve across the face, each standing
+  0.34 mm over the one below with a bevelled edge, and a channel of fine ribs
+  runs along each plate in an accent colour of your choosing (Dial > Ribs).
+  They are real plates, traced from the dial's own artwork (render/dial.js
+  sculptedShape, three/watch.js), so they catch the light and shade each other;
+  the indices, the logo and the hands' shadows now stand on them.
+- Leather and rubber straps can wear a 2.4 mm stripe down the middle
+  (Strap > Centre stripe), pressed into the leather as an inlay.
+- The caseback engraving takes up to four lines of 24 — a name, a dedication,
+  a material, a limited edition's number — the first cut larger, each shrunk to
+  fit the back. It was one line, cut off at 24 characters.
+- Fixed: a case's length from 12 to 6 was measured along the ray through the
+  centre, which is the width only when the case is symmetric about that axis.
+  It is now the outline's true width there (caseshape.js supportAlong), which a
+  pebble case reaches beside 12 rather than at it. No other shape changes.
+
 **Fixed — Arabic numerals set round the dial**
 - Arabic and Eastern Arabic numerals were each pushed out until their farthest
   ink touched the ring, so glyphs as unlike as ٠, ١ and ٣ stood at different

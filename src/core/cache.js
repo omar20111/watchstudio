@@ -19,7 +19,7 @@ const dimsKey=d=>{const c=d.case||{};
 const cache=new Map();
 /* everything procOpts feeds a renderer, so the key moves whenever the bake would */
 const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
- return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
+ return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,p.accent,p.stripe,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
   part==='hands'?d.parts.hands.secColor:0,part==='markers'?d.parts.hands.metal:0,part==='markers'?d.parts.dial.color:0,
   /* the caseback prints the engraving and the water resistance, which no other bake reads */
   part==='caseback'?[(d.case||{}).engraving,(d.case||{}).wrM]:0,

@@ -16,7 +16,7 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,outlinesOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,
+import {caseOf,geoOf,outlinesOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM} from '../geometry.js';
 import {shade} from '../utils.js';
@@ -216,6 +216,10 @@ function dialMaterial(map,p,dialR=null,span=CAN){
  else if(p.variant==='fume'){mat.roughness=.28;mat.clearcoat=.6;mat.clearcoatRoughness=.08}
  /* enamel: a glassy glaze fired over the colour */
  else if(p.variant==='enamel'){mat.roughness=.07;mat.clearcoat=1;mat.clearcoatRoughness=.03}
+ /* sculpted: machined plate, satin rather than glassy, so an edge reads */
+ else if(p.variant==='sculpted'){mat.roughness=.4;mat.clearcoat=.2;mat.clearcoatRoughness=.25;
+  /* the plates are grained, as a machined dial plate is */
+  mat.anisotropy=.55;mat.anisotropyMap=anisotropyMap('radial')}
  else if(p.variant==='tapisserie'&&dialR){mat.roughness=.42;
   /* the painting's grid starts at the centre in sheet px; the map's UVs run
      .5 + px/span, so a tile of 8 cells repeats span/(8 cells) times, shifted to land
@@ -799,6 +803,13 @@ function buildWatch(d,customs,aniso){
     a round one turns them. The caseback, the rehaut and the crystal stay round,
     and the seat and the bezel's top morph from the outline to the round opening. */
  const OL=outlinesOf(d),shaped=OL.case.kind!=='round'||OL.bezel.kind!=='round';
+ /* A bezel shaped after the case keeps that shape inward: its opening, the
+    flange under it and the sapphire in it are the case's outline set in, not a
+    circle. Any other shaped bezel comes back to a round opening at its inner
+    chamfer, as a round-dialled watch in a shaped case does. */
+ /* An insert — a dive scale, a GMT ring, an engraved tachymeter — is a flat
+    ring: it needs a round seat, so a bezel carrying one keeps its round opening. */
+ const openShaped=OL.bezel.kind==='case'&&OL.bezel.spec.N>1&&!Rr.rotating&&parts.bezel.variant!=='tachy';
  const prof=(pts,shapeAt)=>shaped?shapedProfile(pts,shapeAt,OL):lathe(pts);
  if(!uploaded('case',G.case,H.seat)){
   if(arch.caseback==='exhibition')add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
@@ -824,7 +835,8 @@ function buildWatch(d,customs,aniso){
   /* round a turned case the seat is a narrow polished step; on a shaped case it is
      the broad top between the outline and the bezel, and takes the case's finish */
   add(G.case,'seat',prof(P.seat,i=>({from:i===0?'case':'bezel'})),caseMat(OL.case.kind==='round'?'bevel':'surface'));
-  add(G.case,'rehaut',lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
+  /* the flange falls from the opening's shape to the dial's circle */
+  add(G.case,'rehaut',openShaped?prof(P.rehaut,i=>({from:i===0?'bezel':'round'})):lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
   /* the lugs and crown guards grow out of the case (casebody.js): each is one
      solid with its bevels as their own faces, merged into one mesh per zone */
   const zoneMesh=(parts,zone)=>mergeGeometries(parts.map(p=>zonePart(p.geometry,p[zone])).filter(g=>g.index.count));
@@ -883,8 +895,9 @@ function buildWatch(d,customs,aniso){
   const topMat=bezelMat('surface');
   if(bz.variant==='fluted'){topMat.normalMap=stripeNormalMap(84,'flute');topMat.normalScale=new Vector2(1.4,1.4)}
   /* an octagonal bezel's top runs from its octagon at the grip to the round insert or opening */
-  add(G.bezel,'bezelTop',prof(P.bezelTop,(i,p)=>({from:'bezel',to:'round',t:Math.min(1,Math.max(0,(Rr.rGripIn-p.x)/Math.max(1e-6,Rr.rGripIn-Rr.rInCham)))})),topMat);
-  add(G.bezel,'bezelInner',lathe(P.bezelInner),bezelMat('bevel'));
+  add(G.bezel,'bezelTop',prof(P.bezelTop,openShaped?()=>({from:'bezel'})
+   :(i,p)=>({from:'bezel',to:'round',t:Math.min(1,Math.max(0,(Rr.rGripIn-p.x)/Math.max(1e-6,Rr.rGripIn-Rr.rInCham)))})),topMat);
+  add(G.bezel,'bezelInner',openShaped?prof(P.bezelInner,()=>({from:'bezel'})):lathe(P.bezelInner),bezelMat('bevel'));
   const bres=artRes(Math.max(Rr.rInsOut||0,Rr.rGripIn||0,Rr.rInCham||0)*PX);
   const ring=(r0,r1)=>faceUp(sheetUV(new RingGeometry(r0,r1,180,1),bres.box[2]));
   if(bezelRotatable(d)){
@@ -919,6 +932,10 @@ function buildWatch(d,customs,aniso){
  const DL=dialLayoutOf(d),dialUpload=!!activeUpload(d,customs,'dial');
  /* the plate's centre height: indices and registers are measured from it */
  const Hc=H.dial-(!dialUpload&&DL.stepped?DIAL_STEP_MM:0);
+ /* A sculpted dial's plates stand over its centre, so what is applied to the
+    dial — the indices, the logo, the hands' shadows — stands on the plates, not
+    under them. */
+ const Hs=Hc+(parts.dial.variant==='sculpted'&&!dialUpload?DIAL_PLATE_MM:0);
  const mmX=px=>(px-C)/PX,mmY=py=>-(py-C)/PX;         /* sheet px -> shape xy (y toward 12) */
  {const du=activeUpload(d,customs,'dial');let src=du&&uploadCanvas('dial',du,parts.dial);
   if(src instanceof Promise){pending.push(src);src=null}
@@ -956,6 +973,18 @@ function buildWatch(d,customs,aniso){
     const f=add(G.dial,'register:'+sd.key,faceUp(floor),fm,{cast:false});f.position.y=Hc-SUBDIAL_DEPTH_MM;
     const wall=lathe([new Vector2(rs,Hc),new Vector2(rs,Hc-SUBDIAL_DEPTH_MM)],96);wall.translate(x,0,-y);
     add(G.dial,'registerWall:'+sd.key,wall,wallMat(),{cast:false})}
+   /* Sculpted: the bands of the dial's own artwork raised into real plates.
+      The silhouette (render/dial.js sculptedShape) is traced like an applied
+      index, and the plates wear the dial's flat artwork — the sheet's own uv,
+      so the paint on a plate is the paint that was under it. Each plate throws
+      a short shadow on the plate below, which is what makes the dial read as
+      layers rather than a picture of layers. */
+   if(parts.dial.variant==='sculpted'){
+    const rel=fineRelief('dial',d,undefined,false,{profile:'bevel',height:DIAL_PLATE_MM,edge:.05,bevel:.3});
+    if(rel){const pm=dialMaterial(tex(getProc('dial',d,undefined,'flat')),parts.dial);
+     const pl=add(G.dial,'dialPlates',rel.geometry,pm,{cast:false});pl.position.y=Hc+.004;
+     const sd=shadowDecal(getProc('dial',d,undefined,'shape'),{heightMm:DIAL_PLATE_MM,sheetMm:SHEET,opacity:.42}),[dx,dz]=shadowOffset(DIAL_PLATE_MM);
+     sd.position.set(dx,Hc+.002,dz);G.dial.add(sd)}}
    /* date: a polished frame lining the aperture, and the wheel turning below */
    if(DL.win){const w=DL.win,wx=mmX(w.x),wy=mmY(w.y),ww=w.w/PX,wh=w.h/PX,wr=w.rad/PX,b=w.frame/PX;
     const wheelY=Hc-DATE_WHEEL_DROP_MM;
@@ -988,23 +1017,23 @@ function buildWatch(d,customs,aniso){
  const mk=parts.markers,frame=parts.hands.metal,mset=markerSetOf(d);
  if(!uploaded('markers',G.markers,H.dial+.05,mk.glow?{emissive:new Color(mk.lume),emissiveIntensity:.5}:{})){
   /* a set designed in PartStudio, ground from its own millimetre outlines */
-  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hc,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,skipHours:DL.skipHours,glow:mk.glow,
+  if(mset)addMarkerSet(mset,{group:G.markers,add,y:Hs,dialRmm:Rr.dialR,skipHour:DL.win?DL.win.skipHour:null,skipHours:DL.skipHours,glow:mk.glow,
    /* no taller than the hands passing over it allow, measured from where it stands */
-   heightLimitAt:(lim=>rho=>lim(rho)+(H.dial-Hc))(appliedHeightLimitOf(d))});
+   heightLimitAt:(lim=>rho=>lim(rho)+(H.dial-Hs))(appliedHeightLimitOf(d))});
   else{
   const form=INDEX_FORM[mk.variant]||INDEX_FORM.batons,lumed=form.pocket!=null;
   const lumeCv=lumed?getProc('markers',d,undefined,'lume'):null;
   const rel=fineRelief('markers',d,undefined,lumed,form);
   const printed=printedIndexInk(mk.variant,frame,parts.dial.color);
   if(rel){const m=add(G.markers,'indices',rel.geometry,printed?new MeshPhysicalMaterial({color:new Color(printed),metalness:0,roughness:.5,clearcoat:.35,clearcoatRoughness:.3})
-   :metalMaterial(frame,'polished'));m.position.y=Hc;
+   :metalMaterial(frame,'polished'));m.position.y=Hs;
    /* an applied index stands on the dial, so it throws a short soft shadow (contactShadow.js) */
    if(!printed){const h=form.height*.75,sd=shadowDecal(getProc('markers',d,undefined,'shape'),{heightMm:h,sheetMm:SHEET,opacity:.5}),[dx,dz]=shadowOffset(h);
-    sd.position.set(dx,Hc+.008,dz);G.markers.add(sd)}}
+    sd.position.set(dx,Hs+.008,dz);G.markers.add(sd)}}
   if(lumed){
    const lf=fineDecal(lumeCv,res=>getProc('markers',d,undefined,'lume',res));
    const lm=add(G.markers,'indicesLume',lf.geo,lumeMaterial(tex(lf.cv),mk.lume,mk.glow),{cast:false,noPick:true});
-   lm.position.y=Hc+form.pocket+.004}}}
+   lm.position.y=Hs+form.pocket+.004}}}
 
  /* ---- the user's logo (logo.js): printed as a decal on the dial, or traced
     and raised in the hands' metal like an applied index ---- */
@@ -1016,10 +1045,10 @@ function buildWatch(d,customs,aniso){
    const lres=(k)=>{const b=alphaBox(ls);return b&&{box:b,k}};
    if(L.style==='applied'){const r=lres(2),src=r&&logoSheet(d,customs,r);
     const rel=src&&!(src instanceof Promise)?reliefFromSilhouette(src,{profile:'bevel',height:.16,edge:.05,bevel:.5,res:r}):reliefFromSilhouette(ls,{profile:'bevel',height:.16,edge:.05,bevel:.5});
-    if(rel){const m=add(G.dial,'logo',rel.geometry,metalMaterial(parts.hands.metal,'polished'));m.position.y=Hc}}
+    if(rel){const m=add(G.dial,'logo',rel.geometry,metalMaterial(parts.hands.metal,'polished'));m.position.y=Hs}}
    else{const lf=fineDecal(ls,res=>{const c=logoSheet(d,customs,res);return c instanceof Promise||!c?ls:c},{k:3});
     const m=add(G.dial,'logo',lf.cv===ls?sheet():lf.geo,paintedMaterial(tex(lf.cv),{alphaTest:.4,roughness:.45}),{cast:false,noPick:true});
-    m.position.y=Hc+.006}}}
+    m.position.y=Hs+.006}}}
 
  /* ---- hands: each on its own arbor height; `hand:*` carries its transform,
     the arbor inside it turns with the clock ---- */
@@ -1045,7 +1074,7 @@ function buildWatch(d,customs,aniso){
     {const h=lift[k]+form.height*.6,sArbor=new Group();sArbor.name=k+'Shadow';
      sArbor.userData={spin:k,shadowOf:h,contactShadow:true};hold.add(sArbor);
      const sd=shadowDecal(getProc('hands',d,k,'shape'),{heightMm:h,sheetMm:SHEET,opacity:k==='sec'?.52:.68});
-     sd.position.y=Hc+.012;sArbor.add(sd)}
+     sd.position.y=Hs+.012;sArbor.add(sd)}
     if(lumed){
      /* the lume rides the hand's curve — the body's, measured to its tip — so its
         decal has rows to bend */
@@ -1059,7 +1088,8 @@ function buildWatch(d,customs,aniso){
 
  /* ---- crystal ---- */
  if(!uploaded('crystal',G.crystal,H.top+.02,{transparent:true,opacity:parts.crystal.opacity,alphaTest:0,depthWrite:false})){
-  const faces=CR.faces.filter(f=>f.some((p,i)=>i&&p.distanceTo(f[i-1])>1e-6)).map(f=>lathe(f,180));
+  const faces=CR.faces.filter(f=>f.some((p,i)=>i&&p.distanceTo(f[i-1])>1e-6))
+   .map(f=>openShaped?prof(f,()=>({from:'bezel'})):lathe(f,180));
   const cr=add(G.crystal,'crystal',mergeGeometries(faces),
    crystalMaterial(parts.crystal.finish,parts.crystal.opacity,{solid:CR.thickness}),{cast:false,receive:false});
   faces.forEach(f=>f.dispose());

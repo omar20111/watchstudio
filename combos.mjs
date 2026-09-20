@@ -739,7 +739,17 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
   /* the innermost ring of the bezel's top: the vertices at the height of its closest point */
   const top=pts(w,'bezelTop'),rOf=p=>Math.hypot(p[0],p[2]),pin=top.reduce((a,p)=>rOf(p)<rOf(a)?p:a),ring=top.filter(p=>Math.abs(p[1]-pin[1])<1e-4&&rOf(p)<rOf(pin)+1);
   const inner=Math.min(...ring.map(rOf)),innerMax=Math.max(...ring.map(rOf));
-  if(innerMax-inner>.05)bad(tag,`the bezel's top is not round where it meets the insert (${inner.toFixed(2)}..${innerMax.toFixed(2)}mm)`);
+  /* A bezel that follows the case keeps the case's shape at the opening, so
+     its innermost ring is not round: it stands an even distance inside the
+     case's outline instead. Every other bezel comes back to a circle there,
+     which is what a flat insert and a turned crystal need. */
+  /* an insert (a dive or GMT ring, an engraved tachymeter) is flat, and needs
+     its round seat whatever the bezel's shape */
+  const insert=G.bezelRotatable(d)||d.parts.bezel.variant==='tachy';
+  if(O.bezel.kind==='case'&&!insert){const ins=ring.map(p=>CS.insetOf(O.bezel.spec,O.bezel.A0,p[0],p[2]));
+   const wander=Math.max(...ins)-Math.min(...ins);
+   if(wander>.08)bad(tag,`the opening wanders ${wander.toFixed(2)}mm from the bezel's outline`)}
+  else if(insert&&innerMax-inner>.05)bad(tag,`the bezel's top is not round where it meets the insert (${inner.toFixed(2)}..${innerMax.toFixed(2)}mm)`);
   const cp=L3.crownParts(d),reach=CS.extentAlong(O.case.spec,O.case.A0,(cp.bearing-90)*Math.PI/180);
   if(!(cp.barrelX>reach))bad(tag,`the crown's barrel at ${cp.barrelX.toFixed(2)}mm is inside the case's outline (${reach.toFixed(2)}mm) along its bearing`);
   /* (a round case's profiles are three's own lathes; the swept ones are checked) */

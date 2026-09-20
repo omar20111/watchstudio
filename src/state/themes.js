@@ -151,7 +151,8 @@ export function shuffleInto(n){const P=n.parts;const metal=pick(['steel','steel'
  P.hands.finish=pick(['polished','brushed']);P.dial.finish=pick(['none','polished','matte']);
  P.bezel.variant=pick(['smooth','fluted','coin','diver','gmt','tachy']);
  P.bezel.insertColor=pick(['#101318','#16324f','#4a1f24','#1d3a2a','#1c3f66']);
- P.dial.variant=pick(['sunburst','sunburst','matte','chrono','guilloche','fume','enamel','tapisserie']);
+ P.dial.variant=pick(['sunburst','sunburst','matte','chrono','guilloche','fume','enamel','tapisserie','sculpted']);
+ P.dial.accent=pick(['#b5a24a','#9aa2a8','#c08a4e','#7f8c5a']);
  P.dial.color=pick(['#16324f','#101214','#e8e6e0','#1d3a2a','#4a1f24','#d9c6a5','#0d3a2b','#1c3f66']);
  P.dial.date=pick(['none','none','3','3','430','6']);P.dial.step=pick(['flat','stepped','stepped']);
  P.markers.variant=pick(['batons','dots','roman','arabic','eastern','wedges','minimal']);

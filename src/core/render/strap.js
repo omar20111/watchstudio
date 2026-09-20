@@ -6,7 +6,7 @@
 import {C,CAN,PX,METALS,STRAP_REACH_2D,STRAP_REACH_3D} from '../constants.js';
 import {shade,lighten} from '../utils.js';
 import {noiseFill} from '../textures.js';
-import {strapEndFactor,strapTaperEnd,STRAP_TAIL_MM,STRAP_HOLES_MM} from '../geometry.js';
+import {strapEndFactor,strapTaperEnd,STRAP_TAIL_MM,STRAP_HOLES_MM,STRAP_STRIPE_MM} from '../geometry.js';
 import {axisGrad,lineGrain,envLevel,tone} from './material.js';
 
 export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';const col=o.color||'#6b4a2f',st=o.stitch||'#e0cfa6',m=METALS[o.metal]||METALS.steel;
@@ -123,6 +123,14 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
    /* the tall flat canvas starts above the sheet, so stripe the strap's own span */
    for(const s of[-1,1]){ctx.fillStyle=st;if(flat)ctx.fillRect(C+s*sw*0.2-sw*0.065,yA-40,sw*0.13,yB-yA+80);else ctx.fillRect(C+s*sw*0.2-sw*0.065,0,sw*0.13,CAN)}
    for(const off of[36,74]){const y=top?y0-dir*off:y0+dir*off-14;ctx.fillStyle=flat?(m.f0||m.base):axisGrad(ctx,m,0,y,0,y+14);ctx.fillRect(C-sw/2-6,y,sw+12,14)}}
+  /* A stripe down the middle of a leather or rubber strap, as a racing strap
+     wears one; NATO webbing has its own pair above. It is dye, not light, so
+     the 3D strap takes it from this same bake. */
+  if(o.stripe&&(o.variant==='leather'||o.variant==='rubber')){const w=STRAP_STRIPE_MM*PX;
+   ctx.fillStyle=o.stripe;
+   if(flat)ctx.fillRect(C-w/2,yA-40,w,yB-yA+80);else ctx.fillRect(C-w/2,0,w,CAN);
+   /* the edge of the inlay, pressed into the leather */
+   if(!flat){ctx.fillStyle='rgba(0,0,0,.30)';ctx.fillRect(C-w/2-1.5,0,1.5,CAN);ctx.fillRect(C+w/2,0,1.5,CAN)}}
   /* the holes down the 6 o'clock strap: dark wells with a pressed rim, painted
      through both faces as a punched hole would show. A NATO's are eyelets. For
      the 3D strap the hole is cut out of the bake (alpha, which the strap's alpha
