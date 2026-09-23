@@ -266,6 +266,43 @@ export function crownParts(d){
    away, a second back to level, then lying flat on the table — a watch resting
    on its strap. Returns positions along arc length s (mm past the spring bar)
    in the strap's own (along, up) plane; `dir` is -1 toward 12, +1 toward 6. */
+/* A wrist, as the strap wraps it: an oval across the arm — the watch's 12 to 6
+   runs across the arm, so the oval lies in that plane — whose circumference is
+   the wrist size, about three-quarters as deep as it is wide. The caseback rests
+   on its top. Sizes in mm, the oval centred under the watch. */
+export const WRIST_DEPTH=.72,WRIST_CM=[14,22];
+export function wristOval(cm){const k=WRIST_DEPTH,C=Math.min(WRIST_CM[1],Math.max(WRIST_CM[0],+cm||17))*10;
+ /* Ramanujan's perimeter of an ellipse, for a half-width of 1 */
+ const per=Math.PI*(3*(1+k)-Math.sqrt((3+k)*(1+3*k)));
+ const a=C/per,b=k*a;return{a,b,yc:-b,cm:C/10}}
+
+/* The strap's path on a wrist. From the spring bar (after an integrated
+   bracelet's level lead) it runs straight to where its line first touches the
+   wrist — the pivot at the bar takes the angle, as a real strap's does — and
+   from there follows the wrist round, its middle a half-thickness off the skin.
+   A polyline, walked by arc length. */
+function wristPath(start,y0,lead,T,W){
+ const A=W.a+T/2,B=W.b+T/2,zc=-start,yc=W.yc;
+ const E=f=>[zc+A*Math.sin(f),yc+B*Math.cos(f)];
+ const P=[lead,y0];
+ /* the tangent from the lead's end to the oval: the first root, going round,
+    that lies below and beyond it */
+ let f1=null;const N=1440,cross=f=>{const e=E(f),tz=A*Math.cos(f),ty=-B*Math.sin(f);return(e[0]-P[0])*ty-(e[1]-P[1])*tz};
+ let prev=cross(0);
+ for(let i=1;i<=N;i++){const f=i/N*Math.PI,c=cross(f);
+  if(prev*c<=0){const e=E(f);if(e[1]<=P[1]+1e-6&&e[0]>=P[0]-1e-6){f1=f;break}}prev=c}
+ /* no tangent (the bar already on the skin): join the oval where it passes under the bar */
+ if(f1==null)f1=Math.asin(Math.min(1,Math.max(0,(P[0]-zc)/A)));
+ const pts=[[0,y0]];if(lead>0)pts.push([lead,y0]);
+ for(let i=0;i<=720;i++){pts.push(E(f1+i/720*Math.PI*1.9))}
+ const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+ const pos=s=>{if(s<=0)return[s,y0,0];
+  let lo=0,hi=L.length-1;if(s>=L[hi]){const p=pts[hi],q=pts[hi-1];return[p[0],p[1],Math.atan2(p[1]-q[1],p[0]-q[0])]}
+  while(hi-lo>1){const m=(lo+hi)>>1;if(L[m]<=s)lo=m;else hi=m}
+  const t=(s-L[lo])/Math.max(1e-9,L[hi]-L[lo]),p=pts[lo],q=pts[hi];
+  return[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,Math.atan2(q[1]-p[1],q[0]-p[0])]};
+ return{pos,groundY:yc-B-T/2}}
+
 export function strapPath(d){
  const lp=lugParts(d),v=d.parts.strap.variant;
  const T=v==='nato'?1.3:v==='steel'?3.4:v==='rubber'?3.6:v==='mesh'?2.2:3.1;
@@ -289,5 +326,8 @@ export function strapPath(d){
    return[lead+zA+r2*(Math.sin(th)-Math.sin(a)),yA-r2*(Math.cos(a)-Math.cos(th)),-a]}
   const zB=zA+r2*Math.sin(th),yB=yA-r2*(1-Math.cos(th));
   return[lead+zB+(s-s2),yB,0]};
+ /* worn: the strap wraps a wrist (view.js setWrist) instead of lying on a table */
+ if(d.onWrist){const W=wristOval(d.onWrist),w=wristPath(lp.springZ,y0,lead,T,W);
+  return{T,start:lp.springZ,pos:w.pos,groundY:w.groundY,width:strapMmOf(d),wrist:W}}
  const groundY=pos(lead+s2+1)[1]-T/2;
  return{T,start:lp.springZ,pos,groundY,width:strapMmOf(d)}}

@@ -18,6 +18,8 @@ import {useWebgl} from '../core/three/support.js';
 import {useTwoFingers,useMedia} from './gestures.js';
 import {PhotoOverlay} from './Photo.jsx';
 import {SURFACES} from '../core/three/surfaces.js';
+import {SKIN_TONES} from '../core/three/wrist.js';
+import {WRIST_CM} from '../core/three/lathe.js';
 const {useEffect,useRef,useState}=React;
 
 /* ---------------------------------------------------------------- product */
@@ -33,7 +35,12 @@ export function ProductRender(){const s=useApp();const d=s.d;
  const touchUI=useMedia('(pointer: coarse)');
  /* staging: the surface shows live; the blur is a lens, so only a photo has it */
  const pr=d.product||{surface:'studio',blur:'soft'};
+ /* worn on a wrist of the viewer's size: the strap wraps it, and it takes the surface's place */
+ const wr={on:false,cm:17,tone:'medium',...(pr.wrist||{})};
  useEffect(()=>{if(view.current){view.current.setSurface(pr.surface);redraw()}},[pr.surface,gen]);
+ useEffect(()=>{if(view.current){view.current.setWrist(wr.on?wr.cm:0,wr.tone);redraw()}},[wr.on,wr.cm,wr.tone,gen]);
+ /* worn, the watch is seen with the wrist around it: stand back far enough to show it */
+ useEffect(()=>{setZoom(wr.on?.62:1)},[wr.on]);
  const[photo,setPhoto]=useState(false);
  const setProduct=patch=>s.setD(n=>{n.product={...(n.product||{}),...patch}});
  return<div ref={host} className="flex-1 min-h-0 relative overflow-hidden"
@@ -42,10 +49,20 @@ export function ProductRender(){const s=useApp();const d=s.d;
    :<canvas ref={canvas} className="absolute inset-0 w-full h-full block" aria-label="Product render of the watch"/>}
   {lost&&<RestoringNotice/>}
   {!noGL&&!photo&&<div className="absolute top-3 right-3 left-3 sm:left-auto flex flex-wrap justify-end items-center gap-1.5" style={{zIndex:50}}>
-   <div role="group" aria-label="Surface" className="flex flex-wrap items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1">
+   {!wr.on&&<div role="group" aria-label="Surface" className="flex flex-wrap items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1">
     <span className="text-[10px] text-neutral-400 px-1">Surface</span>
     {SURFACES.map(([id,label])=><button key={id} className={`chip ${pr.surface===id?'on':''}`} aria-pressed={pr.surface===id}
-     onClick={()=>setProduct({surface:id})}>{label}</button>)}</div>
+     onClick={()=>setProduct({surface:id})}>{label}</button>)}</div>}
+   <div role="group" aria-label="On wrist" className="flex flex-wrap items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1"
+    title="Wear the watch on a wrist of your size, to judge how big it is">
+    <button className={`chip ${wr.on?'on':''}`} aria-pressed={wr.on} onClick={()=>setProduct({wrist:{...wr,on:!wr.on}})}>On wrist</button>
+    {wr.on&&<>
+     <button className="chip" aria-label="Smaller wrist" disabled={wr.cm<=WRIST_CM[0]} onClick={()=>setProduct({wrist:{...wr,cm:Math.max(WRIST_CM[0],wr.cm-.5)}})}>−</button>
+     <span className="text-[11px] text-neutral-200 tabular-nums w-[44px] text-center" aria-label="Wrist size">{wr.cm.toFixed(1)} cm</span>
+     <button className="chip" aria-label="Larger wrist" disabled={wr.cm>=WRIST_CM[1]} onClick={()=>setProduct({wrist:{...wr,cm:Math.min(WRIST_CM[1],wr.cm+.5)}})}>+</button>
+     {SKIN_TONES.map(([id,c])=><button key={id} aria-label={`Skin tone ${id}`} aria-pressed={wr.tone===id}
+      className={`w-5 h-5 rounded-full border ${wr.tone===id?'border-amber-300':'border-white/25'}`} style={{background:c}}
+      onClick={()=>setProduct({wrist:{...wr,tone:id}})}/>)}</>}</div>
    <div role="group" aria-label="Lens blur" className="flex items-center gap-1 rounded-full bg-black/55 backdrop-blur border border-white/10 px-2 py-1"
     title="How much of the watch falls out of focus in a photo">
     <span className="text-[10px] text-neutral-400 px-1">Blur</span>

@@ -26,6 +26,7 @@ import {studioEnvironment} from './studio.js';
 import {createAO} from './ao.js';
 import {webglState,markWebglFailed} from './support.js';
 import {surfaceMesh} from './surfaces.js';
+import {wristMesh} from './wrist.js';
 import {renderLines} from '../../export/lineart.js';
 
 export const SHEET=CAN/PX;
@@ -82,9 +83,14 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  /* the product render's surface (surfaces.js): when there is one it takes the
     shadow, and the shadow-only ground steps aside */
  let surface=null,surfaceId='none';
+ /* worn on a wrist (setWrist): the strap wraps it, and it stands in for the surface */
+ let wristCm=0,wristTone='medium',wrist=null;
+ const worn=d=>wristCm?{...d,onWrist:wristCm}:d;
  const placeSurface=()=>{if(surface){scene.remove(surface);surface.geometry.dispose();surface.material.dispose();surface=null}
+  if(wrist){scene.remove(wrist);wrist.geometry.dispose();wrist.material.dispose();wrist=null}
+  if(watch&&wristCm){wrist=wristMesh(wristCm,wristTone);scene.add(wrist);return}
   if(watch&&surfaceId!=='none'){surface=surfaceMesh(surfaceId,watch.userData.groundY-.03);if(surface)scene.add(surface)}};
- const groundOn=d=>d.shadow!==false&&!surface;
+ const groundOn=d=>d.shadow!==false&&!surface&&!wristCm;
 
  const front=new OrthographicCamera(-1,1,1,-1,.1,2000);   /* placed by aim() */
  const TQ_FOV=19,tq=new PerspectiveCamera(TQ_FOV,1,1,4000);
@@ -159,10 +165,10 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   onDirty(fn){onDirty=fn},
   /* `lite`: the watch at the sheet's own resolution (a preset picture) */
   setDesign(d,customs={},{lite=false}={}){lastD=d;lastCustoms=customs;
-   const k=headKey(d,customs)+(lite?'|lite':'');
+   const k=headKey(worn(d),customs)+(lite?'|lite':'');
    if(k!==built){built=k;
     if(watch){scene.remove(watch);disposeHead(watch)}
-    watch=buildHead(d,customs,{aniso:renderer.capabilities.getMaxAnisotropy(),lite});scene.add(watch);
+    watch=buildHead(worn(d),customs,{aniso:renderer.capabilities.getMaxAnisotropy(),lite});scene.add(watch);
     /* the watch rests on its strap, so the table is wherever the strap lands */
     ground.position.y=watch.userData.groundY-.02;placeSurface();
     target.set(0,watch.userData.heights.dial,0);aim();
@@ -173,10 +179,17 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
    applyPose(watch,d);ground.visible=groundOn(d);
    return watch.userData.pending},
   /* would setDesign rebuild? (lets a caller throttle rebuilds but not poses) */
-  stale(d,customs={}){return headKey(d,customs)!==built},
+  stale(d,customs={}){return headKey(worn(d),customs)!==built},
   pose(d){if(watch){applyPose(watch,d);ground.visible=groundOn(d)}},
   /* 'none' or a surface id; only the product render sets one */
   setSurface(id='none'){if(id===surfaceId)return;surfaceId=id;placeSurface();if(lastD)ground.visible=groundOn(lastD)},
+  /* wear the watch on a wrist of this size in cm (0 or null: off it), in a skin
+     tone (wrist.js SKIN_TONES). The strap is rebuilt to wrap it. */
+  setWrist(cm,tone='medium'){cm=+cm||0;if(cm===wristCm&&tone===wristTone)return;
+   const rebuild=cm!==wristCm;wristCm=cm;wristTone=tone;
+   if(rebuild&&lastD)this.setDesign(lastD,lastCustoms);else placeSurface();
+   if(lastD)ground.visible=groundOn(lastD)},
+  get wrist(){return wrist},
   get surface(){return surface},
   setCamera(c){if(c===camera)return;camera=c;aim()},
   /* front: an explicit px-per-mm keeps the stage's overlay aligned; zoom scales

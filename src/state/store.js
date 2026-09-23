@@ -23,7 +23,7 @@ export const DEF={caseMm:40,strapMm:'auto',
  view:'edit',camera:'front',zoom:1,night:false,shadow:true,bg:'studio',bgCustom:null,active:{},
  /* the product render's staging: the surface the watch lies on, and how much a
     photo's lens blurs what is out of focus */
- product:{surface:'studio',blur:'soft'},
+ product:{surface:'studio',blur:'soft',wrist:{on:false,cm:17,tone:'medium'}},
  chrono:{running:false,elapsed:0,start:0},
  time:{mode:'live',sweep:true,h:10,m:8,s:36,date:28,gmtOffsetH:0},
  parts:{

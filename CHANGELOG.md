@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+**Added — the watch on a wrist**
+- Product render > On wrist wears the watch on a wrist of the viewer's own size,
+  14 to 22 cm round, in four skin tones: the way to judge how large a case is,
+  which a watch lying on a table does not show. The strap or bracelet wraps the
+  wrist (lathe.js wristPath): straight from the lug, pivoting at the spring bar,
+  to where it first touches the skin, then round the wrist a half-thickness off
+  it. The wrist is an oval across the arm whose circumference is the size given,
+  about three-quarters as deep as it is wide (lathe.js wristOval), and the arm
+  under the strap is built from the same oval (wrist.js). It stands in for the
+  surface, and a photo is taken on it too. The saved design never changes: the
+  view passes the wrist to the build (view.js setWrist).
+
 **Added — a shaped case is finished front and back**
 - A shaped case's back is now cut to the case's own outline and held by four
   slotted screws at its widest points, which is how a shaped watch is built: a

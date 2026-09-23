@@ -39,7 +39,8 @@ export function PhotoOverlay({view,box,onClose}){
     p.resize(box.w,box.h,density);
     /* let the status paint before the scene build blocks the thread */
     await new Promise(r=>setTimeout(r,30));if(dead)return;
-    await p.setDesign(d,st.customs,{surface:(d.product||{}).surface||'studio'});if(dead)return;
+    const pr=d.product||{},wr=pr.wrist||{};
+    await p.setDesign(d,st.customs,{surface:pr.surface||'studio',wrist:wr.on?wr.cm||17:0,tone:wr.tone||'medium'});if(dead)return;
     const cam=live.camera();
     p.setView({position:cam.position,target:live.target(),fov:cam.fov,aspect:box.w/box.h,fStop:BLUR_FSTOP[(d.product||{}).blur]??null});
     setStatus('rendering');

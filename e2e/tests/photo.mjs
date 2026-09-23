@@ -11,6 +11,14 @@ export async function run({page,ready,until,press,present,expect,url}){
  expect(await until(p,()=>window.__watchView.surface&&window.__watchView.surface.userData.surface==='marble'),'Marble lays a marble surface under the live watch');
  await press(p,'None',{within:'[aria-label="Surface"]'});
  expect(await until(p,()=>!window.__watchView.surface),'None removes it');
+ /* worn: the watch goes onto a wrist, which takes the surface's place, and comes off again */
+ await press(p,'Marble',{within:'[aria-label="Surface"]'});
+ await until(p,()=>!!window.__watchView.surface);
+ await press(p,'On wrist',{within:'[aria-label="On wrist"]'});
+ expect(await until(p,()=>!!window.__watchView.wrist,null,60000),'On wrist wears the watch on a wrist');
+ expect(await p.evaluate(()=>!window.__watchView.surface),'the wrist takes the place of the surface');
+ await press(p,'On wrist',{within:'[aria-label="On wrist"]'});
+ expect(await until(p,()=>!window.__watchView.wrist&&!!window.__watchView.surface,null,60000),'taken off, the watch is back on its surface');
  await press(p,'Strong',{within:'[aria-label="Lens blur"]'});
  expect(await until(p,()=>/"product":\{[^}]*"blur":"strong"/.test(localStorage.getItem('ws:auto')||''),null,20000),'staging is saved with the design');
  await press(p,'📷 Photo');
