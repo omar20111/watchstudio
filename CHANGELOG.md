@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+**Added — a model to 3D print**
+- 3D print (toolbar) downloads a 3MF, the format PrusaSlicer, Bambu Studio,
+  OrcaSlicer and Cura read, in millimetres, one named, coloured object per part
+  (export/print3mf.js). The model on screen is built to be looked at — sheets,
+  decals, surfaces standing open — so the print model is built to be closed:
+  the head (case, bezel, flange and dial) and the crown with its tube are each
+  one outline turned, or swept round a shaped case, into a solid closed by
+  construction; the other parts are welded, their T-junctions split (where a
+  crown's knurling meets its plain end), their flat openings capped — outlines
+  together with the holes inside them — and ring openings joined as an
+  underside rather than capped over the dial. Decals, printing and lume are left
+  out. A cap that would leave an edge shared by three faces is taken back out
+  and its opening reported, so a part never comes out worse than it went in.
+  On the default watch every part is a closed solid; the browser test checks
+  the head, crown, hands and crystal in the downloaded file.
+
 **Changed — a shaped dial is set round its own shape**
 - With the bezel following the case, the dial was still a circle inside a
   shaped opening, the flange widening round it, and the minute track and the

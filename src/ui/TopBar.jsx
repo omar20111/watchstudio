@@ -37,6 +37,9 @@ export function TopBar({onModal}){const s=useApp();
    title:'See it in your room at real size — on a phone, or scan a QR code from here'},
   {tier:'mid',label:'3D model',icon:'⤓',run:exportGLB,aria:'Export a 3D model (GLB) for Blender, AR and other 3D apps',
    title:'3D model (.glb) at real size, for Blender, AR viewers and product renderers'},
+  {tier:'mid',label:'3D print',icon:'⤓',run:()=>import('../export/print3mf.js').then(m=>m.exportPrint()),
+   aria:'Export a 3D print model (3MF) for a slicer',
+   title:'3D print model (.3mf) in millimetres: each part a closed solid, ready for PrusaSlicer, Bambu Studio, OrcaSlicer or Cura'},
   {tier:'mid',label:'PNG 2×',icon:'⤓',run:()=>exportPNG(2),cls:'text-[#d4af37]',aria:'Export a 2x PNG'},
   {tier:'mid',label:'PNG 4×',icon:'⤓',run:()=>exportPNG(4),cls:'text-[#d4af37]',aria:'Export a 4x PNG'}];
  const inRow=a=>a.tier==='menu'?false:a.tier==='narrow'?!narrow:a.tier==='mid'?mid:wide;
