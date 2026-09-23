@@ -20,7 +20,7 @@
    face-up, underside at y = 0, with sheet UVs for texturing and tangents.
    `res` (cache.js getProc): the bake covers only box [x0,y0,w,h] of the sheet,
    drawn finer — the lume bake likewise. */
-import {BufferGeometry,Float32BufferAttribute} from 'three';
+import {BufferGeometry,BufferAttribute,Float32BufferAttribute} from 'three';
 import {C,PX,CAN} from '../constants.js';
 import {traceLoops,simplifyLoop} from './tracer.js';
 
@@ -29,8 +29,18 @@ const TH=.5,INF=1e20,SHEET=CAN/PX;
 const alphaOf=cv=>cv?cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data:null;
 
 const cache=new WeakMap();
+/* The traced solids are simplified once meshoptimizer's simplifier (bundled with
+   three) is ready; until then they are built at full density, and a solid built
+   before is built again, simplified, the next time it is asked for. */
+let simplifier=null;
+export const reliefReady=import('three/examples/jsm/libs/meshopt_simplifier.module.js')
+ .then(m=>m.MeshoptSimplifier.ready.then(()=>{simplifier=m.MeshoptSimplifier})).catch(()=>{});
+/* how far a simplified solid may stray from the traced one, mm (two microns),
+   and how much a vertex normal's change weighs against it */
+export const SIMPLIFY_MM=.002,NORMAL_WEIGHT=.02;
+
 export function reliefFromSilhouette(cv,opts={}){
- const key=JSON.stringify([opts.height,opts.edge,opts.profile,opts.bevel,opts.pocket,opts.res&&opts.res.box]);
+ const key=JSON.stringify([opts.height,opts.edge,opts.profile,opts.bevel,opts.pocket,opts.res&&opts.res.box,!!simplifier]);
  let per=cache.get(cv);if(!per){per=new Map();cache.set(cv,per)}
  const lumeKey=opts.lume||null;
  let hit=per.get(key);
@@ -181,9 +191,28 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
   for(const v of[pt,qt,pb,qb]){acc[v][0]+=nx*len;acc[v][1]+=nz*len}}
  for(const v of wallV.values()){const[ax,az]=acc[v],l=Math.hypot(ax,az)||1;nrm[v*3]=ax/l;nrm[v*3+1]=0;nrm[v*3+2]=az/l}
 
+ /* Simplified. The grid spends a triangle on every half pixel of a part, flat
+    top and long straight bevel alike: twelve batons came to 78 000 triangles and
+    1.9 MB of a 10 MB model. Collapsing edges while the surface stays within two
+    microns of the traced one, and each normal close to its own (meshoptimizer's
+    quadric simplifier), keeps a bevel's many rows across its width and few along
+    its length, which is how the light sees it. Vertices are only removed, never
+    moved, so the uv — the sheet's, from the position — stays exact; the rim, where
+    the top's and the wall's vertices meet with different normals, is a seam the
+    simplifier leaves in place. */
+ let P=new Float32Array(pos),Nm=new Float32Array(nrm),UV=new Float32Array(uv),I=new Uint32Array(idx);
+ if(simplifier&&I.length>600){
+  const[out]=simplifier.simplifyWithAttributes(I,P,3,Nm,3,[NORMAL_WEIGHT,NORMAL_WEIGHT,NORMAL_WEIGHT],null,0,SIMPLIFY_MM,['ErrorAbsolute']);
+  /* keep only the vertices still used */
+  const map=new Int32Array(P.length/3).fill(-1);let n=0;
+  for(let q=0;q<out.length;q++){const v=out[q];if(map[v]<0)map[v]=n++;out[q]=map[v]}
+  const P2=new Float32Array(n*3),N2=new Float32Array(n*3),U2=new Float32Array(n*2);
+  for(let v=0;v<map.length;v++){const m=map[v];if(m<0)continue;
+   P2.set(P.subarray(v*3,v*3+3),m*3);N2.set(Nm.subarray(v*3,v*3+3),m*3);U2.set(UV.subarray(v*2,v*2+2),m*2)}
+  P=P2;Nm=N2;UV=U2;I=out}
  const geo=new BufferGeometry();
- geo.setAttribute('position',new Float32BufferAttribute(pos,3));
- geo.setAttribute('normal',new Float32BufferAttribute(nrm,3));
- geo.setAttribute('uv',new Float32BufferAttribute(uv,2));
- geo.setIndex(idx);geo.computeBoundingSphere();
+ geo.setAttribute('position',new Float32BufferAttribute(P,3));
+ geo.setAttribute('normal',new Float32BufferAttribute(Nm,3));
+ geo.setAttribute('uv',new Float32BufferAttribute(UV,2));
+ geo.setIndex(new BufferAttribute(I,1));geo.computeBoundingSphere();
  return{geometry:geo,maxDmm:maxD/(PX*K),pocket}}

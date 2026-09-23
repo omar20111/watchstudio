@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+**Changed — a lighter 3D model, the same watch**
+- The traced parts — hands, applied indices and numerals, a logo, a sculpted
+  dial's plates — are simplified (relief.js, with the meshoptimizer simplifier
+  three ships): the grid spent a triangle on every half pixel, flat top and long
+  straight bevel alike, and twelve batons came to 78 000 triangles, the largest
+  single item in a 3D download. Edges are collapsed only while the surface stays
+  within two microns of the traced one and each normal close to its own; the
+  rim's seam is kept, and no vertex moves, so the sheet uv stays exact. The
+  default watch went from 299 000 triangles to 151 000, and its hands from about
+  100 000 to under 10 000, with renders side by side at up to 16x the same.
+- A 3D download (GLB) went from 10.2 MB to 6.9 MB: the simplified parts above;
+  colour and roughness maps on opaque surfaces written as JPEG (glb.js
+  compactImages) — alpha-tested straps, blended decals and every normal map keep
+  PNG; and a picture shared by two textures (the strap's grain, tiled for each
+  strap) written once instead of twice.
+- Removed three exports nothing used (view.js CAMERAS, lineart.js DRAWING_VIEWS,
+  artwork.js loopsArea). three, three-gpu-pathtracer and three-mesh-bvh are
+  already the latest published versions.
+
 **Added — the watch on a wrist**
 - Product render > On wrist wears the watch on a wrist of the viewer's own size,
   14 to 22 cm round, in four skin tones: the way to judge how large a case is,

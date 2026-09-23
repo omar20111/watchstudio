@@ -26,12 +26,15 @@ import {sceneClock,marketingClock} from '../core/time.js';
 import {store} from '../state/store.js';
 import {toast} from '../core/utils.js';
 import {specData} from './layered.js';
+import {reliefReady} from '../core/three/relief.js';
 
 export const MM_TO_M=.001;
 
 /* the posed watch, with any uploaded images loaded into it. `keepShadows`: leave
    the dial's contact shadows in (a glTF file: see portableShadows) */
 export async function exportWatch(d,customs={},{keepShadows=false}={}){
+ /* a model leaves simplified (relief.js): wait for the simplifier if it is still loading */
+ await reliefReady;
  let w=buildHead(d,customs);
  for(let i=0;w.userData.pending&&i<3;i++){await w.userData.pending;disposeHead(w);w=buildHead(d,customs)}
  applyPose(w,d);
@@ -55,11 +58,15 @@ function stripBookkeeping(root){
    DataTextures, and every crown has knurling, so without this every export
    threw. Swap in a canvas copy with the same pixels and sampler, on the export's
    own materials only. */
-export function drawableMaps(root){const twins=new Map();
+export function drawableMaps(root){const twins=new Map(),canvases=new Map();
  const twin=t=>{if(!t||!t.image||t.image.data===undefined)return t;
   if(twins.has(t))return twins.get(t);
-  const{data,width,height}=t.image,c=document.createElement('canvas');c.width=width;c.height=height;
-  c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),width,height),0,0);
+  /* Two textures over one image — the strap's grain, tiled differently for the
+     top and the bottom strap — share one canvas, which the exporter writes once:
+     a canvas each wrote the same 560 KB picture into the file twice. */
+  let c=canvases.get(t.image);
+  if(!c){const{data,width,height}=t.image;c=document.createElement('canvas');c.width=width;c.height=height;
+   c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data),width,height),0,0);canvases.set(t.image,c)}
   const ct=new CanvasTexture(c);
   for(const k of['wrapS','wrapT','magFilter','minFilter','colorSpace','flipY','rotation','channel'])ct[k]=t[k];
   /* a tiled map (the strap grain) keeps its tiling: written as KHR_texture_transform */
@@ -187,6 +194,18 @@ const GLASS_ALPHA=.2;
 function fallbackGlass(root){
  root.traverse(o=>{if(o.isMesh)for(const m of[].concat(o.material))if(m.transmission>0){m.transparent=true;m.opacity=GLASS_ALPHA}})}
 
+/* Pictures as JPEG where nothing is lost by it. Every texture went into the
+   file as a PNG, which for a dial's artwork or a strap's grain is several times
+   the size of a JPEG that looks the same: of a 10 MB model, 3.8 MB was pictures.
+   A colour or roughness map on an opaque surface is written as JPEG (the
+   exporter's quality, 0.92). A map whose alpha matters — an alpha-tested strap
+   with its holes punched, a blended decal, a contact shadow — keeps PNG, and so
+   does every normal map, whose small errors a polished surface shows. */
+function compactImages(root){
+ root.traverse(o=>{if(!o.isMesh)return;
+  for(const m of[].concat(o.material)){if(m.transparent||m.alphaTest>0)continue;
+   for(const k of['map','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(m[k])m[k].userData={...m[k].userData,mimeType:'image/jpeg'}}})}
+
 /* glTF (JSON) or GLB (ArrayBuffer) of a design */
 export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary=true,maxTextureSize=2048}={}){
  const watch=await exportWatch(d,customs,{keepShadows:true});
@@ -194,7 +213,7 @@ export async function designToGLTF(d,customs={},{name='WatchStudio watch',binary
  stripBookkeeping(watch);
  bakedTiling(watch);
  const releaseMaps=drawableMaps(watch);
- portableTangents(watch);thinWalledGlass(watch);fallbackGlass(watch);
+ portableTangents(watch);thinWalledGlass(watch);fallbackGlass(watch);compactImages(watch);
  const root=new Group();root.name=name;root.scale.setScalar(MM_TO_M);root.add(watch);
  root.userData={generator:'WatchStudio',units:'metres (modelled in millimetres)',parts:PARTS3D,spec:specData(d,name)};
  /* trs: separate translation/rotation/scale rather than one matrix, so a hand's

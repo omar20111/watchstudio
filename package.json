@@ -3,7 +3,7 @@
   "private": true,
   "version": "3.0.0",
   "type": "module",
-  "description": "WatchStudio — 2D wrist watch designer (modular build, ships as a single HTML file)",
+  "description": "WatchStudio — 3D wrist watch designer (modular build, ships as a single HTML file)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

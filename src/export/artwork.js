@@ -38,8 +38,6 @@ function traced(draw,half){
  cv.width=cv.height=0;                             /* release the backing store now */
  return loops.filter(l=>l.length>=3).map(l=>l.map(([x,y])=>[+((x/K+C-half-C)/PX).toFixed(4),+((y/K+C-half-C)/PX).toFixed(4)]))}
 
-/* the area of loops (even-odd), mm² — a layer that traced to nothing is empty */
-export const loopsArea=loops=>loops.reduce((a,l)=>{let s=0;for(let i=0;i<l.length;i++){const[x0,y0]=l[i],[x1,y1]=l[(i+1)%l.length];s+=x0*y1-x1*y0}return a+Math.abs(s)/2},0);
 export const loopsBox=loops=>{let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
  for(const l of loops)for(const[x,y]of l){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
  return x1<x0?null:{x0,y0,x1,y1}};

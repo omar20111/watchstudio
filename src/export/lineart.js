@@ -26,7 +26,6 @@ import {WebGLRenderTarget,DepthTexture,UnsignedIntType,NearestFilter,Scene,Ortho
         ShaderMaterial,Mesh,PlaneGeometry,Vector3,Box3,Color} from 'three';
 import {poseHead} from '../core/three/watch.js';
 
-export const DRAWING_VIEWS=['front','side','back'];
 
 /* world [x,y,z] -> drawing [u,v] */
 export function toDrawing(view,[x,y,z]){

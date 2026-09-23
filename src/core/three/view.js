@@ -27,10 +27,10 @@ import {createAO} from './ao.js';
 import {webglState,markWebglFailed} from './support.js';
 import {surfaceMesh} from './surfaces.js';
 import {wristMesh} from './wrist.js';
+import {reliefReady} from './relief.js';
 import {renderLines} from '../../export/lineart.js';
 
 export const SHEET=CAN/PX;
-export const CAMERAS=['front','three-quarter','back','profile'];
 
 /* The profile layout: side elevation above the caseback, each at its own scale.
    Pure, so the stage can draw dimension callouts on exactly what is rendered.
@@ -106,6 +106,9 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  let tilt=[0,0];
  const ao=createAO(renderer,scene,front);let aoOn=true;const buf=new Vector2();
  let onDirty=null;
+ /* a watch built before the simplifier was ready carries its traced parts at
+    full density (relief.js): build it again, lighter, once it is */
+ reliefReady.then(()=>{if(watch){built='';if(onDirty)onDirty()}});
  const aa=createAccumulator(renderer),glow=createGlow(renderer);
 
  const ortho=(cam,vw,vh,ppm,cx=0,cy=0)=>{const hw=vw/2/ppm,hh=vh/2/ppm;
