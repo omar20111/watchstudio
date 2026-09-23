@@ -23,7 +23,7 @@ import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,knurledLathe,crownParts,strapPath,smoothstep} from './lathe.js';
 import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
-import {crossingAt} from '../caseshape.js';
+import {crossingAt,outlinePoly,outlinePoint} from '../caseshape.js';
 import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents,filteredNormals,brushedReflection} from './materials.js';
 import {strapFinish} from '../parts.js';
 import {reliefFromSilhouette} from './relief.js';
@@ -32,7 +32,7 @@ import {tapisserieCell} from '../render/dial.js';
 import {printedIndexInk} from '../render/markers.js';
 import {markerSetOf} from '../markerset/index.js';
 import {addMarkerSet} from './markerset.js';
-import {logoSheet,logoOf,activeLogo} from '../logo.js';
+import {logoSheet,logoOf,activeLogo,logoMark} from '../logo.js';
 import {applyWear,strapGrainMap,STRAP_GRAIN_MM,normalsFromHeight,dataTexture,engravedMetalMaps} from './wear.js';
 import {bezelPipOf} from '../render/bezel.js';
 import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
@@ -175,7 +175,7 @@ export function headKey(d,customs){
  const lg=activeLogo(d,customs);if(lg)up.logo=lg.url;
  /* a picture under the dial's printing: adding, replacing or removing it redraws the plate */
  const bg=activeDialBg(d,customs);if(bg)up.dialbg=bg.url;
- return JSON.stringify([d.caseMm,d.strapMm,d.bezelMm,d.crownMm,d.case,parts,up])}
+ return JSON.stringify([d.caseMm,d.strapMm,d.bezelMm,d.crownMm,d.case,parts,up,d.onWrist||0])}
 
 /* ---------------------------------------------------------------- materials */
 
@@ -265,22 +265,75 @@ function engravingMaps(cv,span=CAN){if(engravings.has(cv))return engravings.get(
    painted dark bars (render/caseback.js). Shape space, face +z; the caller turns
    it face-down. Normals flat per face of each pocket. Returns the face and the
    pockets apart, so the pockets can be shaded as the recesses they are. */
-function casebackFace(rc,R){
+/* a flat-bottomed recess cut into a face: its floor and its walls, from a ring
+   of points running anticlockwise */
+function sunkPocket(rings,depth){const pos=[],idx=[];
+ for(const pts of rings){const b=pos.length/3;
+  for(const[x,y]of pts)pos.push(x,y,-depth);
+  for(let k=1;k<pts.length-1;k++)idx.push(b,b+k,b+k+1);
+  for(let k=0;k<pts.length;k++){const[x0,y0]=pts[k],[x1,y1]=pts[(k+1)%pts.length],w=pos.length/3;
+   pos.push(x0,y0,0,x1,y1,0,x1,y1,-depth,x0,y0,-depth);idx.push(w,w+1,w+2,w,w+2,w+3)}}
+ const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(pos,3));
+ g.setAttribute('uv',new Float32BufferAttribute(new Float32Array(pos.length/3*2),2));g.setIndex(idx);g.computeVertexNormals();
+ return g}
+
+/* One case screw: a slotted head standing a little proud of the back, its slot
+   cut across it. Built in the caseback's own xy, so it takes the same turn onto
+   the watch as the plate does. */
+function caseScrew(x,y,r,ang){const head=new Shape();head.absarc(x,y,r,0,Math.PI*2,false);
+ const ca=Math.cos(ang),sa=Math.sin(ang),hw=r*.17,hl=r*.86,P=(u,v)=>[x+ca*u-sa*v,y+sa*u+ca*v];
+ const slot=[P(-hl,-hw),P(hl,-hw),P(hl,hw),P(-hl,hw)];
+ const h=new Path();h.moveTo(...slot[0]);h.lineTo(...slot[3]);h.lineTo(...slot[2]);h.lineTo(...slot[1]);h.closePath();
+ head.holes.push(h);
+ const stand=r*.16,top=new ShapeGeometry(head,32);top.translate(0,0,stand);
+ const cut=sunkPocket([slot],r*.42);cut.translate(0,0,stand);
+ /* the head's own edge, standing off the plate */
+ const wall=[],wi=[],N=32;
+ for(let i=0;i<N;i++){const a=i/N*Math.PI*2,b=(i+1)/N*Math.PI*2,w=wall.length/3;
+  wall.push(x+r*Math.cos(a),y+r*Math.sin(a),0, x+r*Math.cos(b),y+r*Math.sin(b),0,
+   x+r*Math.cos(b),y+r*Math.sin(b),stand, x+r*Math.cos(a),y+r*Math.sin(a),stand);
+  wi.push(w,w+2,w+1,w,w+3,w+2)}
+ const side=new BufferGeometry();side.setAttribute('position',new Float32BufferAttribute(wall,3));
+ side.setAttribute('uv',new Float32BufferAttribute(new Float32Array(wall.length/3*2),2));side.setIndex(wi);side.computeVertexNormals();
+ /* the head is turned steel; the slot is a cut, which sees almost no light */
+ return{head:mergeGeometries([top,side]),slot:cut}}
+
+/* The caseback's face.
+
+   A round case takes a screw-down back: a turned plate wound into the case, so
+   it carries six notches for the wrench that winds it. A shaped case cannot be
+   wound in — it would come to rest crooked — so its back is cut to the case's
+   own outline and held down by screws at its widest points, which is how a
+   shaped watch is actually built. The plate follows the outline set in to the
+   same reach the round one has. */
+function casebackFace(rc,R,outline){
+ const depth=Math.min(.5,R*.025);
+ if(outline&&outline.spec.N>1){
+  const poly=outlinePoly(outline.spec,outline.A0,outline.A0-rc,220).map(q=>q.p);
+  const shape=new Shape();shape.moveTo(poly[0][0],-poly[0][1]);
+  for(let i=1;i<poly.length;i++)shape.lineTo(poly[i][0],-poly[i][1]);
+  shape.closePath();
+  /* four screws, set in from the outline where it stands widest */
+  const rs=Math.max(.65,Math.min(1.05,R*.055)),inset=rs*1.9;
+  const seats=[45,135,225,315].map(deg=>{const a=deg*Math.PI/180;
+   const p=outlinePoint(outline.spec,outline.A0,outline.A0-rc+inset,a,1);
+   return{x:p[0],y:-p[1],ang:a}});
+  const holes=[];
+  for(const st of seats){const h=new Path();h.absarc(st.x,st.y,rs*1.04,0,Math.PI*2,true);shape.holes.push(h);
+   const ring=[];for(let i=0;i<32;i++){const a=-i/32*Math.PI*2;ring.push([st.x+rs*1.04*Math.cos(a),st.y+rs*1.04*Math.sin(a)])}
+   holes.push(ring)}
+  const face=new ShapeGeometry(shape,4);
+  const pockets=sunkPocket(holes,depth*.6);
+  const cut=seats.map(st=>caseScrew(st.x,st.y,rs,st.ang));
+  const screws=mergeGeometries(cut.map(c=>c.head)),slots=mergeGeometries(cut.map(c=>c.slot));
+  return{face,pockets:mergeGeometries([pockets,slots]),screws}}
  const shape=new Shape();shape.absarc(0,0,rc,0,Math.PI*2,false);
- const r0=R*.66,r1=R*.76,hw=R*.03,depth=Math.min(.5,R*.025),rects=[];
+ const r0=R*.66,r1=R*.76,hw=R*.03,rects=[];
  for(let i=0;i<6;i++){const a=i/6*Math.PI*2,ca=Math.cos(a),sa=Math.sin(a),P=(r,w)=>[ca*r-sa*w,sa*r+ca*w];
   const pts=[P(r0,-hw),P(r1,-hw),P(r1,hw),P(r0,hw)];rects.push(pts);
   const h=new Path();h.moveTo(...pts[0]);h.lineTo(...pts[3]);h.lineTo(...pts[2]);h.lineTo(...pts[1]);h.closePath();shape.holes.push(h)}
  const face=new ShapeGeometry(shape,96);
- const pos=[],idx=[];
- for(const pts of rects){const b=pos.length/3;
-  for(const[x,y]of pts)pos.push(x,y,-depth);
-  idx.push(b,b+1,b+2,b,b+2,b+3);
-  for(let k=0;k<4;k++){const[x0,y0]=pts[k],[x1,y1]=pts[(k+1)%4],w=pos.length/3;
-   pos.push(x0,y0,0,x1,y1,0,x1,y1,-depth,x0,y0,-depth);idx.push(w,w+1,w+2,w,w+2,w+3)}}
- const pockets=new BufferGeometry();pockets.setAttribute('position',new Float32BufferAttribute(pos,3));
- pockets.setAttribute('uv',new Float32BufferAttribute(new Float32Array(pos.length/3*2),2));pockets.setIndex(idx);pockets.computeVertexNormals();
- return{face,pockets}}
+ return{face,pockets:sunkPocket(rects,depth),screws:null}}
 
 /* the brand engraved on a clasp's cover: dark cut letters, one texture per text */
 const claspMarks=new Map();
@@ -475,15 +528,23 @@ function strapHoles(d){
 
 /* Two keepers round the buckle strap: loops hugging its section with rounded
    rims, the fixed one just behind the fold and the floating one beyond it. */
+/* Two keepers — and, kept apart, the one nearer the buckle with the panel along
+   its crown: where a logo is set that keeper is made a metal band with the
+   maker's mark engraved into it (logo.js logoMark), as a signed strap wears. */
 function strapKeepers(d){
- const{sp,sEnd,at}=strapForm(d,'top'),out=[];
+ const{sp,sEnd,at}=strapForm(d,'top'),out=[];let mark=null,band=null;
  for(const back of[8,17.5]){const s=sEnd-back,sec=at(s,'top'),len=3.6,g=.6,b=.28;
   const grow=k=>strapRing({a:sec.a+k,c:sec.c+2*k,e:sec.e+2*k,r:sec.r+k,k0:sec.k0-k}).map(([x,y])=>new Vector2(x,y));
   const sh=new Shape(grow(g));sh.holes.push(new Path(grow(.05)));
   const geo=new ExtrudeGeometry(sh,{depth:len-2*b,bevelEnabled:true,bevelThickness:b,bevelSize:.2,bevelOffset:-.2,bevelSegments:3,curveSegments:1});
   geo.translate(0,0,-(len-2*b)/2);
-  const m=smooth(geo);m.applyMatrix4(pathMatrix(pathFrame(sp,s,-1),-1));out.push(m)}
- const k=mergeGeometries(out);out.forEach(g=>g.dispose());return k}
+  const m=smooth(geo);const M=pathMatrix(pathFrame(sp,s,-1),-1);m.applyMatrix4(M);
+  if(back===17.5)band=m;else out.push(m);
+  if(back===17.5){/* the panel lies along the keeper's crown, a hair proud of it */
+   const ring=grow(g),top=Math.max(...ring.map(p=>p.y)),across=Math.min(3.4,sec.c*.5);
+   const pl=new PlaneGeometry(across,len-2*b-.5);pl.rotateX(-Math.PI/2);pl.translate(0,top+.06,0);
+   pl.applyMatrix4(M);mark=pl}}
+ const k=mergeGeometries(out);out.forEach(g=>g.dispose());return{keepers:k,band,mark}}
 
 /* A tongue buckle on the 12 o'clock strap, lying unfastened: the frame's near
    bar hides in the strap's fold, the tongue hinges there and rests across the
@@ -787,10 +848,21 @@ function buildWatch(d,customs,aniso){
       (withTangents) falls back to satin. */
    const hf=strapFinish(st).hardware;
    const hwMat=(polishedRough)=>hf==='polished'?Object.assign(metalMaterial(hw,'polished'),{roughness:polishedRough}):metalMaterial(hw,hf);
-   add(G.strap,'strap:keepers',strapKeepers(d),st.variant==='nato'||st.variant==='mesh'?hwMat(.34)
+   const KP=strapKeepers(d);
+   /* a metal keeper on a NATO or a mesh; on leather or rubber the strap's own */
+   const keeperMat=()=>st.variant==='nato'||st.variant==='mesh'?hwMat(.34)
     :new MeshPhysicalMaterial({color:new Color(st.variant==='leather'?shade(col,.18):col),metalness:0,
       roughness:st.variant==='rubber'?.5:.62,sheen:st.variant==='rubber'?0:.6,sheenRoughness:.7,
-      sheenColor:new Color(col).multiplyScalar(.6),clearcoat:st.variant==='rubber'?.25:0,clearcoatRoughness:.4}));
+      sheenColor:new Color(col).multiplyScalar(.6),clearcoat:st.variant==='rubber'?.25:0,clearcoatRoughness:.4});
+   /* the signed keeper is metal; without a logo it is another of the strap's own */
+   const mark=logoMark(d,customs,256),eng=mark&&engravedMetalMaps(mark,mark.width),signed=!!(eng&&KP.band&&KP.mark);
+   add(G.strap,'strap:keepers',signed?KP.keepers:mergeGeometries([KP.keepers,KP.band].filter(Boolean)),keeperMat());
+   if(signed)add(G.strap,'strap:keeperBand',KP.band,hwMat(.3));
+   /* the maker's mark on the keeper nearer the buckle, cut into its metal */
+   {if(signed){const mm=hwMat(.3);
+     mm.normalMap=eng.normal;mm.roughnessMap=eng.rough;mm.map=eng.shade;mm.roughness=Math.min(1,mm.roughness*2);
+     add(G.strap,'strap:keeperMark',KP.mark,mm,{cast:false,noPick:true})}
+    else if(KP.mark)KP.mark.dispose()}
    const bk=strapBuckle(d),rough=Math.max(.16,(METALS[hw]||METALS.steel).rough??0);
    add(G.strap,'strap:buckle',bk.frame,hwMat(rough));
    add(G.strap,'strap:tongue',bk.tongue,hwMat(rough))}
@@ -820,13 +892,15 @@ function buildWatch(d,customs,aniso){
    back.anisotropyMap=anisotropyMap('circular');
    const eng=engravedMetalMaps(getProc('caseback',d,undefined,'shape',eres),eres.box[2]);
    if(eng){back.normalMap=eng.normal;back.roughnessMap=eng.rough;back.roughness=Math.min(1,back.roughness*2);back.map=eng.shade}
-   const{face,pockets}=casebackFace(Rr.rCase*.8,geoOf(d).R/PX);
-   for(const g of[face,pockets]){sheetUV(g,eres.box[2]);g.rotateX(Math.PI/2);g.rotateY(Math.PI)}
+   const{face,pockets,screws}=casebackFace(Rr.rCase*.8,geoOf(d).R/PX,OL.case.kind==='round'?null:OL.case);
+   for(const g of[face,pockets,screws].filter(Boolean)){sheetUV(g,eres.box[2]);g.rotateX(Math.PI/2);g.rotateY(Math.PI)}
    add(G.case,'caseback',face,back);
    /* a slot's walls and floor see little of the room: the case metal, darker and blasted */
    const slot=metalMaterial(cm.metal,'matte');slot.color.multiplyScalar(.45);
-   add(G.case,'casebackNotches',pockets,slot,{cast:false})}
-  add(G.case,'casebackRim',lathe(P.casebackRim),caseMat('bevel'));
+   add(G.case,'casebackNotches',pockets,slot,{cast:false});
+   /* the screws are turned steel whatever the case is made of */
+   if(screws)add(G.case,'casebackScrews',screws,metalMaterial('steel','polished'),{cast:false})}
+  add(G.case,'casebackRim',OL.case.kind==='round'?lathe(P.casebackRim):prof(P.casebackRim,()=>({from:'case'})),caseMat('bevel'));
   add(G.case,'flank',prof(P.flank,i=>({from:i===0?'round':'case'})),caseMat('surface'));
   /* the broken edges either side of the chamfer (lathe.js headProfiles), polished */
   add(G.case,'flankEdge',prof(P.flankEdge,()=>({from:'case'})),caseMat('bevel'));
@@ -878,7 +952,16 @@ function buildWatch(d,customs,aniso){
   /* knurled: teeth cut into the barrel, a little under a third of their pitch deep */
   const side=knurledLathe(cp.side,cp.teeth,Math.PI*2*cp.side[0].x/cp.teeth*.3);side.rotateZ(-Math.PI/2);side.translate(cp.barrelX,0,0);
   add(grp,'crownSide',side,crownMat('surface'));
-  add(grp,'crownEnd',along(cp.end),crownMat('bevel'))}
+  /* the maker's mark cut into the crown's face, as a signed crown carries it */
+  const end=along(cp.end),endMat=crownMat('bevel'),mark=logoMark(d,customs,256);
+  if(mark){const eng=engravedMetalMaps(mark,mark.width);
+   if(eng){/* the lathe's uv runs round the turn; the mark needs the face itself */
+    const p=end.attributes.position,uv=end.attributes.uv,R=Math.max(1e-6,cp.end[0].x);
+    for(let i=0;i<p.count;i++)uv.setXY(i,.5+p.getZ(i)/(2*R),.5-p.getY(i)/(2*R));
+    uv.needsUpdate=true;
+    endMat.normalMap=eng.normal;endMat.roughnessMap=eng.rough;endMat.map=eng.shade;
+    endMat.roughness=Math.min(1,endMat.roughness*2)}}
+  add(grp,'crownEnd',end,endMat)}
 
  /* ---- bezel ---- */
  const bz=parts.bezel,bezelMat=zone=>metalMaterial(bz.metal,zoneFinish(bz.finish,zone));

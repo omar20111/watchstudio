@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+**Added — a shaped case is finished front and back**
+- A shaped case's back is now cut to the case's own outline and held by four
+  slotted screws at its widest points, which is how a shaped watch is built: a
+  back that is not round cannot be wound in, it would come to rest crooked. A
+  round case keeps its screw-down back and its six wrench notches.
+- A curve set in past its corner radius (caseshape.js outlinePoint) is set in by
+  scaling now, not by offsetting its core: offsetting turned the curve back into
+  the polygon it was sampled as, and the facets showed as a crinkle along a
+  caseback's rim, where the inset is deepest. A shape with real flats — a square,
+  an octagon — still offsets, which is what holds a band's width constant round
+  its corners.
+- The maker's mark goes on the metal, where a logo is set: engraved into the
+  crown's face, and into the keeper nearest the buckle, which becomes a metal
+  band to carry it (logo.js logoMark).
+
 **Added — a sculptural watch: pebble case, shaped opening, sculpted dial**
 - A new case shape, the pebble (caseshape.js): a squarish oval swelled toward
   the crown and drawn out to a nose at 9 o'clock — one continuous curve, after

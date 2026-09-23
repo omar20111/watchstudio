@@ -71,6 +71,25 @@ export function logoFitOf(d,customs){const u=activeLogo(d,customs);if(!u)return 
 const sheets=new Map();
 /* `res` ({box:[x0,y0,w,h],k}, as cache.js getProc): only that rectangle of the
    sheet, drawn k times finer — the 3D logo is traced and printed from it */
+/* The logo as a mark to cut into metal: square, white on nothing, fitted with a
+   margin — what a crown's face and a strap keeper wear. Its colour is the
+   metal's, so only its shape is kept. Null until the picture has loaded, and
+   null when there is no logo. */
+const marks=new Map();
+export function logoMark(d,customs,px=256){const u=activeLogo(d,customs);if(!u)return null;
+ const e=image(u.url);
+ if(!e.ready)return null;
+ const key=u.url+'|'+px;if(marks.has(key))return marks.get(key);
+ const iw=e.img.naturalWidth||e.img.width||300,ih=e.img.naturalHeight||e.img.height||150;
+ const fit=px*.72/Math.max(iw,ih),w=iw*fit,h=ih*fit;
+ const cv=document.createElement('canvas');cv.width=cv.height=px;
+ const x=cv.getContext('2d',{willReadFrequently:true});
+ x.drawImage(e.img,(px-w)/2,(px-h)/2,w,h);
+ /* the picture's own colours mean nothing in metal: keep its shape alone */
+ x.globalCompositeOperation='source-in';x.fillStyle='#fff';x.fillRect(0,0,px,px);
+ marks.set(key,cv);if(marks.size>6)marks.delete(marks.keys().next().value);
+ return cv}
+
 export function logoSheet(d,customs,res=null){const u=activeLogo(d,customs);if(!u)return null;
  const L=logoOf(d),ink=L.color==='ink'?logoInk(d):null;
  const e=image(u.url);

@@ -127,6 +127,14 @@ export function outlinePath(ctx,spec,A0,inset,cx,cy,n=96){
 export function outlinePoint(spec,A0,inset,phi,side=0){
  const rc=spec.cf*A0-inset,nx=Math.cos(phi),nz=Math.sin(phi);
  if(rc>=0){const u=support(spec.v,phi,side);return[u[0]*A0+rc*nx,u[1]*A0+rc*nz]}
+ /* A curve set in past its corner radius. Offsetting its core exactly turns the
+    curve back into the polygon it was sampled as — the facets show as a crinkle
+    along a caseback's rim, where the inset is deepest. A curve is set in by
+    scaling instead: smooth, still convex, and within a hair of the true offset
+    on shapes as round as these. A shape with real flats keeps the offset, which
+    is what holds a band's width constant round an octagon. */
+ if(spec.curved){const k=Math.max(0,(A0-inset)/A0),u=support(spec.v,phi,side),r=spec.cf*A0*k;
+  return[u[0]*A0*k+r*nx,u[1]*A0*k+r*nz]}
  return support(shrunkCore(spec,A0,-rc),phi,side).slice()}
 
 /* The normal angles to sample an outline (or several, for a loft between shapes)
