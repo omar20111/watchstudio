@@ -5,7 +5,7 @@
    solids, and as the per-part files of the layered export and the tech pack.
    The case, crown and crystal are solids, drawn only in 3D. */
 import {clone} from '../utils.js';
-import {geoOf,caseOf,outlinesOf,dialLayoutOf,dialDayOf,handLengthsOf,strapReachPx,dialTextOf} from '../geometry.js';
+import {geoOf,caseOf,outlinesOf,dialLayoutOf,dialDayOf,handLengthsOf,strapReachPx,dialTextOf,dialEdgeOf} from '../geometry.js';
 import {srcOf} from '../parts.js';
 import {drStrap} from './strap.js';
 import {drBezel} from './bezel.js';
@@ -39,6 +39,8 @@ export function procOpts(part,d,sub,mode){const src=srcOf(part);const arch=caseO
   printing:src==='dial'?dialTextOf(d):null,
   /* a background picture stands in for the plate's own ground (core/dialbg.js) */
   bgOn:src==='dial'&&!!(d.active&&d.active.dialbg),
+  /* a dial of the case's shape: its edge by hour angle (geometry.js dialEdgeOf) */
+  edge:src==='dial'||src==='markers'?dialEdgeOf(d):null,
   /* the bezel's outline as built: its shape, and how far it reaches toward 3 in mm */
   bezelOutline:src==='bezel'?(B=>({kind:B.kind,A0:B.A0}))(outlinesOf(d).bezel):null,
   secColor:d.parts.hands.secColor,dialColor:d.parts.dial.color,

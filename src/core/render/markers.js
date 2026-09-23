@@ -141,9 +141,13 @@ export function drMarkers(ctx,o){
  /* Arabic numerals: one circle for every hour shown (numeralCircle) */
  const numFont=o.variant==='eastern'?`700 ${r*0.21}px ${EASTERN_FONT}`:`700 ${r*0.19}px system-ui`;
  const numText=h=>o.variant==='eastern'?easternDigits(h||12):String(h||12);
- const circle=o.variant==='arabic'||o.variant==='eastern'
+ /* on a dial of the case's shape the ring follows the edge (geometry.js
+    dialEdgeOf), hour by hour, and each numeral sits on its own stretch of it */
+ const rOutAt=deg=>o.edge?o.edge(deg)*INDEX_OUTER:rOut;
+ const circle=!o.edge&&(o.variant==='arabic'||o.variant==='eastern')
   ?numeralCircle(numFont,[...Array(12).keys()].filter(h=>!skip.has(h)).map(h=>[h*30,numText(h)]),rOut):null;
  for(let h=0;h<12;h++){if(skip.has(h))continue;const deg=h*30,rad0=deg*Math.PI/180;
+  const rOut=rOutAt(deg);
 
   if(o.variant==='batons'||o.variant==='minimal'){
    const mini=o.variant==='minimal';

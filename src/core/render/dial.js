@@ -53,7 +53,7 @@ function cutApertures(ctx,L){ctx.save();ctx.globalCompositeOperation='destinatio
 /* the plates as a white silhouette for tracing: each band solid, its rib
    channel cut back out of it, and the ribs themselves standing in the channel */
 function sculptedShape(ctx,o,r){const L=o.layout;
- ctx.save();ctx.beginPath();ctx.arc(C,C,r,0,7);ctx.clip();
+ ctx.save();dialClip(ctx,r,o.edge);
  for(const b of sculptedPlates(r)){
   ctx.fillStyle='#fff';plateRing(ctx,b.P,b.R,b.R-b.w);ctx.fill('evenodd');
   ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';
@@ -72,8 +72,17 @@ function registerScale(ctx,sd,ink){const{x,y,r:rs}=sd;
 
 /* The minute track: 60 ticks ending on the track ring, the fives longer. `ink`
    overrides the printed tint (null keeps it). */
-function printTrack(ctx,r,trackIn,ink){
- for(let i=0;i<60;i++){const a=i*6;const len=Math.min(i%5?TRACK_TICK_PX.minor:TRACK_TICK_PX.major,r*MINUTE_TRACK_R-trackIn);const[x0,y0]=posAt(a,r*MINUTE_TRACK_R),[x1,y1]=posAt(a,r*MINUTE_TRACK_R-len);
+/* the dial as a clip: its circle, or on a dial of the case's shape (geometry.js
+   dialEdgeOf) its edge, a hair beyond so the flange's foot meets painted ground */
+const dialClip=(ctx,r,edge)=>{ctx.beginPath();
+ if(!edge)ctx.arc(C,C,r,0,7);
+ else{for(let i=0;i<=180;i++){const[x,y]=posAt(i*2,edge(i*2)+3);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath()}
+ ctx.clip()};
+
+/* the minute track: on a shaped dial each tick keeps its place relative to the
+   edge at its own angle, so the track runs round the dial's shape */
+function printTrack(ctx,r,trackIn,ink,edge=null){
+ for(let i=0;i<60;i++){const a=i*6,R=(edge?edge(a):r)*MINUTE_TRACK_R;const len=Math.min(i%5?TRACK_TICK_PX.minor:TRACK_TICK_PX.major,R-trackIn);const[x0,y0]=posAt(a,R),[x1,y1]=posAt(a,R-len);
   ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.strokeStyle=ink||`rgba(235,236,240,${i%5?0.55:0.85})`;ctx.lineWidth=i%5?1.5:2.5;ctx.stroke()}}
 
 /* The brand and the model line. style: 'lit' pad printing with its hairline
@@ -109,7 +118,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  if(o.mode==='shape'){if(o.variant==='sculpted')sculptedShape(ctx,o,r);return}
  if(o.mode==='ink'){
   if(o.ink==='text')printText(ctx,o,r,col,'ink');
-  else if(o.ink==='track'){printTrack(ctx,r,L.stepped?L.stepR+3:0,'#fff');for(const sd of L.subdials||[])registerScale(ctx,sd,'#fff')}
+  else if(o.ink==='track'){printTrack(ctx,r,L.stepped?L.stepR+3:0,'#fff',o.edge);for(const sd of L.subdials||[])registerScale(ctx,sd,'#fff')}
   return}
  /* flat: pigment and printing only. The sunburst sweep and its spokes, the
     guilloché's rings, a brushed grain, the highlight, the edge vignette and the
@@ -120,7 +129,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  /* a background picture (core/dialbg.js) is the plate's ground in the 3D
     texture: the colour and the pattern are left out, the printing stays */
  const ground=!(flat&&o.bgOn);
- ctx.save();ctx.beginPath();ctx.arc(C,C,r,0,7);ctx.clip();
+ ctx.save();dialClip(ctx,r,o.edge);
  if(ground){ctx.fillStyle=col;ctx.fillRect(0,0,W,H)}
 
  if(ground&&o.variant==='sunburst'){if(!flat&&ctx.createConicGradient){const g=ctx.createConicGradient(0.8,C,C);
@@ -221,7 +230,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
  if(L.stepped&&!flat){/* 2D: the step's shadowed wall and lit lip */
   ctx.beginPath();ctx.arc(C,C,L.stepR,0,7);ctx.strokeStyle='rgba(0,0,0,.30)';ctx.lineWidth=3;ctx.stroke();
   ctx.beginPath();ctx.arc(C,C,L.stepR+2,0,7);ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=1.2;ctx.stroke()}
- printTrack(ctx,r,trackIn,null);
+ printTrack(ctx,r,trackIn,null,o.edge);
  /* the date window, painted: in 3D it is an aperture onto a real wheel */
  if(L.win&&!flat){const w=L.win,dark=lumOf(col)<.5;
   roundRect(ctx,w.x,w.y,w.w+w.frame*2,w.h+w.frame*2,w.rad+w.frame);ctx.fillStyle='rgba(205,208,214,.95)';ctx.fill();

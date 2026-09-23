@@ -354,6 +354,38 @@ export function outlinesOf(d){const g=geoOf(d),c=caseOf(d);
  const bf=bezelFit(d,c.bezelShape),bk=bf.fits?c.bezelShape:'round',A0=bf.fits?bf.A0:g.rBezOut/PX;
  return{case:{kind:c.shape,spec:shapeSpec(c.shape),A0:g.rCase/PX,scale:1},
   bezel:{kind:bk,spec:shapeSpec(bezelSpecKind(bk,c)),A0,scale:A0/(g.rBezOut/PX)}}}
+/* Does the dial take the case's shape? A bezel shaped after the case keeps that
+   shape inward (three/watch.js): the opening, and the flange under it at an even
+   width, so the dial shows the case's outline — unless it carries an insert (a
+   dive or GMT ring, an engraved tachymeter), which needs a round seat. */
+export function openingShaped(d){const O=outlinesOf(d),v=d.parts.bezel.variant;
+ return O.bezel.kind==='case'&&O.bezel.spec.N>1&&v!=='diver'&&v!=='gmt'&&v!=='tachy'}
+
+/* The dial's visible edge, as a function of the hour angle (degrees clockwise
+   from 12) giving its distance from the centre in sheet px — the flange's foot,
+   the bezel's outline set in to the dial's reach — or null where the dial is
+   round. The minute track and the indices keep their places relative to it, so
+   on a shaped dial they run round its shape as a shaped watch's do. */
+const edgeCache=new Map();
+export function dialEdgeOf(d){if(!openingShaped(d))return null;
+ const O=outlinesOf(d).bezel,g=geoOf(d),inset=O.A0-(g.dialR/PX)*O.scale;
+ const key=[caseOf(d).shape,O.A0,O.scale,g.dialR].join('|');let f=edgeCache.get(key);
+ if(!f){/* the outline sampled, as hour angle and radius, sorted to interpolate */
+  /* A flat is sampled only at its two ends, and between them its radius is not
+     straight in angle: walk along each straight stretch, a fifth of a millimetre
+     at a time, as the geometry built from the same points runs */
+  const poly=outlinePoly(O.spec,O.A0,inset,720).map(q=>q.p),pts=[];
+  for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length],n=Math.max(1,Math.ceil(Math.hypot(q[0]-p[0],q[1]-p[1])/.2));
+   for(let k=0;k<n;k++)pts.push([p[0]+(q[0]-p[0])*k/n,p[1]+(q[1]-p[1])*k/n])}
+  const T=pts.map(p=>[(Math.atan2(p[0],-p[1])*180/Math.PI+360)%360,Math.hypot(p[0],p[1])*PX]).sort((a,b)=>a[0]-b[0]);
+  f=deg=>{deg=((deg%360)+360)%360;let lo=0,hi=T.length-1;
+   if(deg<=T[0][0]||deg>=T[hi][0]){const a=T[hi],b=T[0],span=b[0]+360-a[0],t=((deg-a[0]+360)%360)/(span||1);return a[1]+(b[1]-a[1])*t}
+   while(hi-lo>1){const m=(lo+hi)>>1;if(T[m][0]<=deg)lo=m;else hi=m}
+   const t=(deg-T[lo][0])/((T[hi][0]-T[lo][0])||1);return T[lo][1]+(T[hi][1]-T[lo][1])*t};
+  f.max=Math.max(...T.map(t=>t[1]));
+  edgeCache.set(key,f);if(edgeCache.size>16)edgeCache.delete(edgeCache.keys().next().value)}
+ return f}
+
 /* A tonneau's ends are narrower than its middle. Where a pair of lugs (or an
    integrated shoulder) stands wider than the end's flat run, it sits out on the
    rounded corners: {ok, endMm: the end's width where it still faces 12, needMm}. */

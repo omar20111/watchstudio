@@ -16,7 +16,7 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,outlinesOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
+import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM} from '../geometry.js';
 import {shade} from '../utils.js';
@@ -881,7 +881,7 @@ function buildWatch(d,customs,aniso){
     chamfer, as a round-dialled watch in a shaped case does. */
  /* An insert — a dive scale, a GMT ring, an engraved tachymeter — is a flat
     ring: it needs a round seat, so a bezel carrying one keeps its round opening. */
- const openShaped=OL.bezel.kind==='case'&&OL.bezel.spec.N>1&&!Rr.rotating&&parts.bezel.variant!=='tachy';
+ const openShaped=openingShaped(d);
  const prof=(pts,shapeAt)=>shaped?shapedProfile(pts,shapeAt,OL):lathe(pts);
  if(!uploaded('case',G.case,H.seat)){
   if(arch.caseback==='exhibition')add(G.case,'caseback',lathe(P.caseback),caseMat('turned'));
@@ -909,8 +909,9 @@ function buildWatch(d,customs,aniso){
   /* round a turned case the seat is a narrow polished step; on a shaped case it is
      the broad top between the outline and the bezel, and takes the case's finish */
   add(G.case,'seat',prof(P.seat,i=>({from:i===0?'case':'bezel'})),caseMat(OL.case.kind==='round'?'bevel':'surface'));
-  /* the flange falls from the opening's shape to the dial's circle */
-  add(G.case,'rehaut',openShaped?prof(P.rehaut,i=>({from:i===0?'bezel':'round'})):lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
+  /* the flange falls at an even width round the opening, so the dial it meets
+     is the case's shape too (geometry.js dialEdgeOf) */
+  add(G.case,'rehaut',openShaped?prof(P.rehaut,()=>({from:'bezel'})):lathe(P.rehaut),metalMaterial(cm.metal,'brushed'));
   /* the lugs and crown guards grow out of the case (casebody.js): each is one
      solid with its bevels as their own faces, merged into one mesh per zone */
   const zoneMesh=(parts,zone)=>mergeGeometries(parts.map(p=>zonePart(p.geometry,p[zone])).filter(g=>g.index.count));
@@ -1023,15 +1024,18 @@ function buildWatch(d,customs,aniso){
  {const du=activeUpload(d,customs,'dial');let src=du&&uploadCanvas('dial',du,parts.dial);
   if(src instanceof Promise){pending.push(src);src=null}
   /* the plate wears its artwork, over a background picture where one is set */
-  const dres=artRes(Rr.dialR*PX),dspan=dres.box[2];
+  /* a dial of the case's shape reaches past the round dial's radius: the plate,
+     the chapter ring and the artwork's bake reach its furthest edge */
+  const edge=dialEdgeOf(d),dialOut=edge?Math.max(Rr.dialR,edge.max/PX+.15):Rr.dialR;
+  const dres=artRes(dialOut*PX),dspan=dres.box[2];
   let plateArt=dialPlateCanvas(d,customs,'flat',dres);
   if(plateArt instanceof Promise){pending.push(plateArt);plateArt=getProc('dial',d,undefined,'flat',dres)}
   if(dialUpload||src){
    const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX,dspan);
-   const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(Rr.dialR,180),src?CAN:dspan)),mat,{cast:false});
+   const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(dialOut,180),src?CAN:dspan)),mat,{cast:false});
    dial.position.y=H.dial}
   else{const mat=dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX,dspan);
-   const plateR=DL.stepped?DL.stepR/PX:Rr.dialR;
+   const plateR=DL.stepped?DL.stepR/PX:dialOut;
    const outline=new Shape();outline.absarc(0,0,plateR,0,Math.PI*2,false);
    for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
    if(DL.win)outline.holes.push(roundRectPath(new Path(),mmX(DL.win.x),mmY(DL.win.y),DL.win.w/PX,DL.win.h/PX,DL.win.rad/PX));
@@ -1040,7 +1044,7 @@ function buildWatch(d,customs,aniso){
    /* the wall of any recess is the plate's own metal, seen in its own shade */
    const wallMat=()=>new MeshPhysicalMaterial({color:new Color(shade(parts.dial.color||'#16324f',.35)),roughness:.6});
    if(DL.stepped){
-    const ring=add(G.dial,'chapterRing',faceUp(sheetUV(new RingGeometry(plateR,Rr.dialR,180,1),dspan)),mat,{cast:false});
+    const ring=add(G.dial,'chapterRing',faceUp(sheetUV(new RingGeometry(plateR,dialOut,180,1),dspan)),mat,{cast:false});
     ring.position.y=H.dial;
     /* the step faces the centre: top to bottom, so the lathe's normals point in */
     add(G.dial,'chapterStep',lathe([new Vector2(plateR,H.dial),new Vector2(plateR,Hc)],180),wallMat(),{cast:false})}

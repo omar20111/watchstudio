@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Changed — a shaped dial is set round its own shape**
+- With the bezel following the case, the dial was still a circle inside a
+  shaped opening, the flange widening round it, and the minute track and the
+  indices ran round that circle. The flange now falls at an even width all the
+  way round (three/watch.js), so the dial is the case's shape, and the minute
+  track, the indices and numerals keep their places relative to its edge at
+  their own angle (geometry.js dialEdgeOf): on a cushion they run round its
+  squared sides, on a pebble round its sweep. A round dial is unchanged.
+
 **Changed — a lighter 3D model, the same watch**
 - The traced parts — hands, applied indices and numerals, a logo, a sculpted
   dial's plates — are simplified (relief.js, with the meshoptimizer simplifier
