@@ -4,7 +4,7 @@
    hands sweep and a dragged part follows the pointer without re-rendering the
    component tree. Part transforms are applied every frame they change; the
    watch itself is only rebuilt when something that changes its geometry or
-   materials changes, and at most every ~90 ms while a slider is dragged.
+   materials changes, and while a slider is dragged only once it is let go.
 
    It draws only when something changed — an edit, a resize, an orbit, a
    loaded upload — or when the clock moves the hands: every frame for a sweeping
@@ -23,6 +23,7 @@ import {store} from '../state/store.js';
 import {sceneClock} from '../core/time.js';
 import {createView} from '../core/three/view.js';
 import {useWebgl,markWebglFailed} from '../core/three/support.js';
+import {pointerHeld} from './pointerHeld.js';
 const {useEffect,useRef,useState}=React;
 
 /* how long a lost context may take to come back before we give up on 3D */
@@ -45,7 +46,7 @@ export function useWatchView({camera='front',orbit=false}={}){
 
  useEffect(()=>{if(!gl.ok)return;const cvs=canvas.current;if(!cvs)return;
   let v;
-  try{v=createView(cvs)}catch(e){markWebglFailed('failed',e);return}
+  try{v=createView(cvs,{asyncCompile:true})}catch(e){markWebglFailed('failed',e);return}
   view.current=v;dirty.current=true;
   /* the live view, for the console and the browser checks (e2e/): in development,
      or in any build opened with ?e2e */
@@ -62,7 +63,13 @@ export function useWatchView({camera='front',orbit=false}={}){
    refinedAt=-1;
    const st=store.getState();
    if(st.d!==lastD||st.customs!==lastC){dirty.current=true;
-    if(v.stale(st.d,st.customs)&&t-lastBuild<90)v.pose(st.d);
+    /* A change that needs the watch rebuilt costs about a second. Rebuilt on
+       every step of a slider the page froze for as long as the drag lasted. So
+       while a pointer is held down — a slider being dragged — the watch is only
+       posed (and a new diameter shown by scaling the one built), and rebuilt
+       once, when it is let go. A click lands after its pointer is up, so it
+       rebuilds at once. */
+    if(v.stale(st.d,st.customs)&&pointerHeld()){v.pose(st.d);v.previewScale(lastD&&lastD.caseMm?st.d.caseMm/lastD.caseMm:1)}
     else{v.setDesign(st.d,st.customs);lastBuild=t;lastD=st.d;lastC=st.customs}}
    const tm=st.d.time||{},running=!!(st.d.chrono&&st.d.chrono.running);
    /* a balance seen through an exhibition caseback swings several times a second */

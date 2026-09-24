@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+**Fixed — faster to open, and no freezes while editing**
+- Every watch built left its textures on the GPU: going through seventeen
+  designs three times over left 306, then 581, then 856 of them, growing until
+  a laptop's graphics memory ran out. A texture is now released when no built
+  watch uses it any more (three/watch.js holdTextures), and the count stays
+  near 30.
+- Opening the site froze the page for most of twelve seconds on an Intel
+  laptop. The watch's shaders are handed to the driver to compile in parallel
+  while the page stays live (three/view.js compileScene), including the ones the
+  crystal's pass through the scene behind it needs; the preset pictures wait
+  for the stage's watch rather than compiling alongside it; and the GPU's
+  anisotropy limit is asked once, not on the first build, where it waited on
+  everything queued before it. On that laptop the watch is up after about
+  eight seconds the first time and four after that, and the page is frozen
+  for about five seconds in all, none of them longer than two.
+- Dragging a slider rebuilt the watch at every step, a second or more each, so
+  the page froze for as long as the drag lasted. While a pointer is held the
+  watch is only posed, a new diameter shown by scaling the one already built,
+  and it is rebuilt once when the slider is let go; the preset pictures wait
+  for the let-go too (ui/pointerHeld.js). A theme is on screen in one to two
+  seconds, down from as many as seven.
+
+**Changed — the site is published only once the browser checks pass**
+- A push to main was published as soon as the unit tests passed, while the
+  browser checks, the only ones that see the watch drawn, ran without holding
+  it back. The deploy waits for every group of them now, and the slowest group
+  is split in two so the wait stays near a quarter of an hour.
+
 **Fixed — a shaped dial no longer shows through the case**
 - A dial of the case's shape was a disc reaching its furthest corner, and on a
   square or cushion case that disc stood out through the case's flat sides as a

@@ -13,7 +13,7 @@
 import {WebGLRenderer,Scene,OrthographicCamera,PerspectiveCamera,DirectionalLight,Mesh,PlaneGeometry,
         ShadowMaterial,NeutralToneMapping,SRGBColorSpace,VSMShadowMap,Vector3,Vector2,Raycaster,Spherical,Box3,
         ShaderMaterial,WebGLRenderTarget,FramebufferTexture,HalfFloatType,UnsignedByteType,NoBlending,NearestFilter,
-        LinearFilter,CustomBlending,OneFactor,ZeroFactor,AddEquation} from 'three';
+        LinearFilter,CustomBlending,OneFactor,ZeroFactor,AddEquation,DoubleSide,BackSide} from 'three';
 import {FullScreenQuad} from 'three/examples/jsm/postprocessing/Pass.js';
 import {CAN,PX} from '../constants.js';
 import {LIGHT} from '../render/material.js';
@@ -45,12 +45,18 @@ export function profileLayout(w,h,d){
 
 /* aoScale: occlusion resolution relative to the canvas — half for live views,
    where it is recomputed every frame the hands move; full for stills */
-export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
+/* `asyncCompile`: a view people work in compiles a new watch's shaders in the
+   background (setDesign below); a view that must hand back a picture at once —
+   a preset still, a render for export — compiles them as it draws */
+export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncCompile=false}={}){
  const renderer=new WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer});
  renderer.setClearColor(0x000000,0);
  renderer.outputColorSpace=SRGBColorSpace;
  renderer.toneMapping=NeutralToneMapping;
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=VSMShadowMap;
+ /* asked once, now: asked on the first build, it waited on the GPU to finish
+    everything queued before it — most of a second at startup */
+ const aniso=renderer.capabilities.getMaxAnisotropy();
 
  const scene=new Scene();
  const env=studioEnvironment(renderer);scene.environment=env.texture;
@@ -106,6 +112,31 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
  let tilt=[0,0];
  const ao=createAO(renderer,scene,front);let aoOn=true;const buf=new Vector2();
  let onDirty=null;
+ /* A new watch's shaders, compiling in the background. Compiled the first time
+    they are drawn, 32 programs took six seconds on an Intel UHD under Direct3D —
+    the page frozen, the watch not yet there. Handed to the driver all at once
+    (renderer.compileAsync), they compile in parallel where the browser can
+    (KHR_parallel_shader_compile) while the page stays live; until they are done
+    the view keeps the picture it last drew, and draws the moment they are.
+    A crystal that transmits draws the scene behind it once more, into a target
+    of its own — linear, not tone mapped, a two-sided glass by its back faces —
+    and those are other shaders again: compiled alongside, as that pass will
+    draw them, or the first frame still compiled a dozen the slow way.
+    Where the driver cannot compile in parallel (a software renderer) nothing
+    is gained by compiling ahead: the first frame compiles them, as it always did. */
+ let compiling=null;const passTarget=new WebGLRenderTarget(1,1,{type:HalfFloatType});
+ const parallel=!!renderer.compileAsync&&renderer.extensions.has('KHR_parallel_shader_compile');
+ const compileScene=()=>{if(!parallel)return Promise.resolve();
+  const c=cam(),jobs=[renderer.compileAsync(scene,c)],glass=new Set();
+  scene.traverseVisible(o=>{if(o.material)for(const m of[].concat(o.material))if(m.transmission>0)glass.add(m)});
+  if(glass.size){const prev=renderer.getRenderTarget(),two=[...glass].filter(m=>m.side===DoubleSide);
+   renderer.setRenderTarget(passTarget);for(const m of two){m.side=BackSide;m.needsUpdate=true}
+   try{jobs.push(renderer.compileAsync(scene,c))}
+   finally{for(const m of two){m.side=DoubleSide;m.needsUpdate=true}renderer.setRenderTarget(prev)}}
+  return Promise.all(jobs)};
+ const compileWatch=()=>{if(!asyncCompile||!parallel)return;const token={};compiling=token;
+  compileScene().then(()=>{if(compiling===token){compiling=null;if(onDirty)onDirty()}},
+   ()=>{if(compiling===token)compiling=null})};
  /* a watch built before the simplifier was ready carries its traced parts at
     full density (relief.js): build it again, lighter, once it is */
  reliefReady.then(()=>{if(watch){built='';if(onDirty)onDirty()}});
@@ -171,7 +202,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
    const k=headKey(worn(d),customs)+(lite?'|lite':'');
    if(k!==built){built=k;
     if(watch){scene.remove(watch);disposeHead(watch)}
-    watch=buildHead(worn(d),customs,{aniso:renderer.capabilities.getMaxAnisotropy(),lite});scene.add(watch);
+    watch=buildHead(worn(d),customs,{aniso,lite});scene.add(watch);compileWatch();
     /* the watch rests on its strap, so the table is wherever the strap lands */
     ground.position.y=watch.userData.groundY-.02;placeSurface();
     target.set(0,watch.userData.heights.dial,0);aim();
@@ -216,12 +247,18 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   /* ambient occlusion on or off, e.g. when a slow GPU cannot afford it live */
   setAO(on){aoOn=!!on},
   get aoOn(){return aoOn},
-  render(clock){if(!watch)return;if(clock)poseHead(watch,clock);aa.reset();
+  /* a size change shown before the watch is rebuilt for it: the built watch scaled */
+  previewScale(k){if(watch&&Number.isFinite(k)&&k>0&&Math.abs(watch.scale.x-k)>1e-4){watch.scale.setScalar(k);aa.reset()}},
+  /* is a new watch still compiling (the last picture is still up)? */
+  get compiling(){return !!compiling},
+  /* the scene's shaders compiled in the background: resolves when it can be drawn without stalling */
+  compile:compileScene,
+  render(clock){if(!watch||compiling)return;if(clock)poseHead(watch,clock);aa.reset();
    if(camera!=='profile'){renderer.setScissorTest(false);renderer.setViewport(0,0,w,h);
     underside(camera==='back');renderer.render(scene,cam());
     renderer.getDrawingBufferSize(buf);if(aoOn)ao.apply(cam(),buf.x,buf.y,aoScale);
     if(night)glow.apply(buf.x,buf.y);
-    underside(false);return}
+    underside(false);if(asyncCompile)liveDrawn();return}
    /* the profile is a measured technical drawing: no occlusion shading */
    const L=layout();renderer.setScissorTest(true);
    for(const[c,r]of[[side,L.side],[back,L.back]]){
@@ -233,7 +270,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
      (createAccumulator): the frame again, shifted by a fraction of a pixel,
      averaged with the samples before it and shown. False once the frame has all
      its samples, or where there is nothing to refine (the profile's drawing). */
-  refine(clock){if(!watch||camera==='profile'||aa.done)return false;
+  refine(clock){if(!watch||compiling||camera==='profile'||aa.done)return false;
    if(clock)poseHead(watch,clock);
    renderer.getDrawingBufferSize(buf);const c=cam();
    aa.sample(buf.x,buf.y,(jx,jy)=>{
@@ -274,7 +311,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     if(aoOn)ao.apply(c,x1-x0,y1-y0,1);
     put(renderer.domElement,tx-x0,ty-y0,tw,th,tx,ty)}
    c.clearViewOffset()},
-  dispose(){if(watch)disposeHead(watch);ao.dispose();aa.dispose();glow.dispose();env.dispose();renderer.dispose();watch=null}};
+  dispose(){if(watch)disposeHead(watch);ao.dispose();aa.dispose();glow.dispose();env.dispose();passTarget.dispose();renderer.dispose();watch=null}};
  return view}
 
 /* Lume in the dark glows: the light it gives off scatters in the crystal and
@@ -380,6 +417,12 @@ function stillView(){if(still)return still;
  c.addEventListener('webglcontextlost',()=>{still=null},{once:true});
  return still}
 
+/* The watch on the stage comes first. Started with it, the preset pictures'
+   context compiled and built alongside and held it back by seconds: they wait
+   until a live view has drawn its watch, or a few seconds, whichever is sooner. */
+let liveDrawn;
+const firstLive=Promise.race([new Promise(r=>{liveDrawn=r}),new Promise(r=>setTimeout(r,8000))]);
+
 /* Stills take turns on the one view: a preset picture rendering in the panel
    must not swap the design out from under an export's frame, or the reverse. */
 let turn=Promise.resolve();
@@ -387,7 +430,12 @@ const inTurn=fn=>{const r=turn.then(fn);turn=r.catch(()=>{});return r};
 
 async function ready(v,d,customs,opts){let p=v.setDesign(d,customs,opts);
  /* uploads load asynchronously; wait, then rebuild with them in place */
- for(let i=0;p&&i<3;i++){await p;p=v.setDesign(d,customs,opts)}}
+ for(let i=0;p&&i<3;i++){await p;p=v.setDesign(d,customs,opts)}
+ /* The stills draw in a context of their own, which compiles every shader
+    again; compiled on first draw they froze the page for seconds while the
+    preset pictures came in. Handed over at once, they compile in parallel
+    while the page stays live. */
+ try{await v.compile()}catch(e){}}
 
 /* A transparent still of the design. `camera` is front, three-quarter, side or
    back; front stills use the sheet scale so SVG dimension lines drawn at
@@ -405,7 +453,7 @@ export function renderStill(d,customs,{w=CAN,h=w,camera='front',clock}={}){retur
 /* A preset's picture for the Presets row (ui/PresetThumb.jsx), as a data URL:
    the case face-on out to its lug tips, the crown close up from three-quarter.
    Rendered at twice the size and scaled down, so edges stay clean. */
-export function presetStill(d,part,{size=120,clock}={}){return inTurn(async()=>{
+export function presetStill(d,part,{size=120,clock}={}){return firstLive.then(()=>inTurn(async()=>{
  const v=stillView();await ready(v,d,{},{lite:true});
  const S=size*2;v.resize(S,S,1);
  try{const g=geoOf(d),dial=v.watch.userData.heights.dial;
@@ -427,7 +475,7 @@ export function presetStill(d,part,{size=120,clock}={}){return inTurn(async()=>{
   out.getContext('2d').drawImage(v.renderer.domElement,0,0,S,S,0,0,size,size);
   return out.toDataURL('image/png')}
  /* every other still frames from the centre */
- finally{v.target().set(0,0,0);v.fit()}})}
+ finally{v.target().set(0,0,0);v.fit()}}))}
 
 /* A technical line drawing of a design from the front, side or back
    (export/lineart.js), on the still view's renderer. */

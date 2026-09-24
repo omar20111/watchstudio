@@ -16,20 +16,23 @@ import {marketingClock} from '../core/time.js';
 import {headKey} from '../core/three/watch.js';
 import {presetStill} from '../core/three/view.js';
 import {webglState} from '../core/three/support.js';
+import {pointerFree} from './pointerHeld.js';
 const {useEffect,useState}=React;
 
 const SOLID=['case','crown','dial','markers','hands','bezel','strap'];
 const stills=new Map();                           /* key -> data URL, or the render on its way */
 /* Pictures render one after another. While a design is being edited its keys
    change faster than the pictures come, so a picture whose key is no longer on
-   screen when its turn comes is skipped rather than rendered for nothing. */
+   screen when its turn comes is skipped rather than rendered for nothing. None
+   renders while a slider is held, either: each is a build of its own, and one
+   per step froze the drag. */
 const wanted=new Map();let chain=Promise.resolve();
 const variantDesign=(part,v,d)=>{const dv=clone(d);applyVariant(dv,part,v);dv.shadow=false;return dv};
 const keyOf=(part,dv)=>part+'|'+headKey(dv,{});
 
 function still(part,dv,key){
  if(!stills.has(key)){
-  const job=chain.then(()=>wanted.get(key)?presetStill(dv,part,{size:120,clock:marketingClock(dv)}):null)
+  const job=chain.then(pointerFree).then(()=>wanted.get(key)?presetStill(dv,part,{size:120,clock:marketingClock(dv)}):null)
    .then(url=>{if(url)stills.set(key,url);else stills.delete(key);return url},e=>{stills.delete(key);console.warn('WatchStudio: preset picture failed',e);return null});
   chain=job.then(()=>{},()=>{});stills.set(key,job);
   if(stills.size>90)stills.delete(stills.keys().next().value)}
