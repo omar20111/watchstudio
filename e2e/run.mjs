@@ -31,9 +31,18 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const URL0=`http://127.0.0.1:${server.address().port}/?e2e`;
 
 const channel=process.env.E2E_CHANNEL||(process.platform==='win32'?'msedge':'chrome');
-const browser=await chromium.launch({channel:channel==='chromium'?undefined:channel,headless:true,
+const launch=()=>chromium.launch({channel:channel==='chromium'?undefined:channel,headless:true,
  /* CI runners have no GPU and run Chrome without its user-namespace sandbox */
  args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--ignore-gpu-blocklist',...(process.env.CI?['--no-sandbox']:[])]});
+let browser=await launch();
+
+/* A page can hang for good under SwiftShader (seen at a reload: an evaluate that
+   never returns, for hours). A suite not finished in SUITE_S seconds fails as
+   timed out and its browser is swapped for a fresh one, so the retry and the
+   suites after it still run. The slowest suite takes about eight minutes on a
+   laptop. */
+const SUITE_S=+process.env.E2E_SUITE_S||720;
+const inTime=(promise,ms)=>Promise.race([promise,new Promise(r=>setTimeout(()=>r('late'),ms))]);
 
 const SUITES=['welcome','editor','markers','partstudio','crystal','movement','night','touch','logo','ar','photo','glb','techpack'];
 const only=(process.env.E2E_ONLY||'').split(',').filter(Boolean);
@@ -71,10 +80,15 @@ for(const name of suites){
  for(let attempt=1;attempt<=2;attempt++){
   const fails=[],notes=[];
   const expect=(ok,msg)=>{notes.push(`    ${ok?'ok  ':'FAIL'}  ${msg}`);if(!ok)fails.push(msg)};
-  const t0=Date.now();
-  try{await mod.run({browser,page,ready,until,press,present,expect,url:URL0,fixtures:path.join(here,'fixtures')})}
+  const t0=Date.now();let timer,hung=false;
+  const running=mod.run({browser,page,ready,until,press,present,expect,url:URL0,fixtures:path.join(here,'fixtures')});
+  running.catch(()=>{});                /* a hung run rejects later, when its browser is closed */
+  const limit=new Promise((_,no)=>{timer=setTimeout(()=>{hung=true;no(new Error(`timed out after ${SUITE_S} s`))},SUITE_S*1000)});
+  try{await Promise.race([running,limit])}
   catch(e){fails.push(String(e.message||e).split('\n')[0]);notes.push(`    FAIL  threw: ${String(e.message||e).split('\n')[0]}`)}
-  finally{for(const c of browser.contexts())await c.close().catch(()=>{})}
+  finally{clearTimeout(timer);
+   const closed=await inTime(Promise.all(browser.contexts().map(c=>c.close().catch(()=>{}))),20000);
+   if(hung||closed==='late'){await inTime(browser.close().catch(()=>{}),20000);browser=await launch()}}
   const secs=((Date.now()-t0)/1000).toFixed(0);
   if(!fails.length||attempt===2){
    console.log(`${fails.length?'FAIL':'ok  '}  ${name} (${secs} s${attempt>1?', second attempt':''})`);
@@ -85,6 +99,6 @@ for(const name of suites){
    if(fails.length)failed++;break}
   console.log(`retry ${name}: ${fails[0]}`)}}
 
-await browser.close();server.close();
+await inTime(browser.close().catch(()=>{}),20000);server.close();
 console.log(failed?`E2E FAIL (${failed} of ${suites.length})`:`E2E PASS (${suites.length})`);
 process.exit(failed?1:0);
