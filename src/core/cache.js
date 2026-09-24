@@ -17,10 +17,15 @@ const dimsKey=d=>{const c=d.case||{};
   d.parts.bezel.variant].join('|')};
 
 const cache=new Map();
-/* everything procOpts feeds a renderer, so the key moves whenever the bake would */
-const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
- return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,p.accent,p.stripe,p.style,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
-  part==='hands'?d.parts.hands.secColor:0,part==='markers'?d.parts.hands.metal:0,part==='markers'?d.parts.dial.color:0,
+/* everything procOpts feeds a renderer, so the key moves whenever the bake would.
+   A 'shape' bake is a silhouette, white on nothing, and all that reads it (the
+   relief tracing, contact shadows, engravings) reads only its coverage: colours
+   stay out of its key. A 'lume' bake is painted in the lume's colour alone. Keyed
+   on the rest, a new dial colour or hand metal baked the indices' fine lume and
+   shape again, more than half a second each time. */
+const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)],lit=mode!=='shape',ink=lit&&mode!=='lume';
+ return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,ink&&p.metal,p.finish,ink&&p.color,ink&&p.stitch,lit&&p.lume,ink&&p.insertColor,ink&&p.accent,p.stripe,p.style,part==='bezel'&&lit?d.parts.markers.lume:0,part==='dial'?p.text:0,
+  part==='hands'&&ink?d.parts.hands.secColor:0,part==='markers'&&ink?d.parts.hands.metal:0,part==='markers'&&ink?d.parts.dial.color:0,
   /* the caseback prints the engraving and the water resistance, which no other bake reads */
   part==='caseback'?[(d.case||{}).engraving,(d.case||{}).wrM]:0,
   /* the dial draws its date window, registers and chapter step; a painted dial

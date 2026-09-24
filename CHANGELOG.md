@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**Fixed — recolouring is instant**
+- A new dial colour rebuilt the watch in 0.7 s, most of it tracing the applied
+  indices again, though a colour does not change their shape: the silhouette
+  and lume bakes they are traced from were keyed on the dial's colour and the
+  hands' metal. Those bakes are keyed only on what draws them now — a
+  silhouette on no colour at all, the lume on its own colour (cache.js
+  procKey) — and a dial colour or hand metal takes 40–60 ms. An edit built this
+  way draws the same, pixel for pixel within the renderer's own noise, as the
+  design built fresh.
+
 **Fixed — Photo works in Chrome and Edge on Windows**
 - Photo came out empty on a Windows laptop. Chrome and Edge there draw WebGL
   through Direct3D 11, where the path tracer's shader took a minute and a half
