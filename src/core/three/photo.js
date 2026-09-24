@@ -79,13 +79,13 @@ export function createPhoto(canvas,{textureSize=2048}={}){
   get watch(){return watch},
   /* build the scene for a design, posed at `clock`, on a surface — or worn on a
      wrist of `wrist` cm (wrist.js), which the strap then wraps */
-  async setDesign(d,customs={},{surface:surfaceId='none',clock=null,wrist=0,tone='medium'}={}){
+  async setDesign(d,customs={},{surface:surfaceId='none',clock=null,wrist=0,tone='medium',side='left'}={}){
    if(watch){scene.remove(watch);disposeHead(watch)}
    if(surface){scene.remove(surface);surface.geometry.dispose();surface.material.dispose();surface=null}
    const D=wrist?{...d,onWrist:wrist}:d;
    watch=forPathTracing(await exportWatch(D,customs));
    poseHead(watch,clock||sceneClock(d,Date.now()));scene.add(watch);
-   surface=wrist?wristMesh(wrist,tone):surfaceMesh(surfaceId,watch.userData.groundY-.03);if(surface)scene.add(surface);
+   surface=wrist?wristMesh(wrist,tone,side):surfaceMesh(surfaceId,watch.userData.groundY-.03);if(surface)scene.add(surface);
    /* the BVH is built on this thread: a worker would not survive the single-file
       build, and a watch is small enough to build in a moment */
    pt.setScene(scene,camera)},

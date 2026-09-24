@@ -450,21 +450,31 @@ export const DIAL_MM={
  /* a sculpted dial: the pitch of the ribs in its channels */
  rib:.55};
 export const STRAP_STRIPE_MM=2.4;      /* the width of a strap's centre stripe */
+/* A rally strap's holes: a row of large ones down the middle of both straps,
+   mm past the spring bar, and their radius — punched to let the wrist breathe. */
+export const RALLY_HOLES_MM=[9,17,25,33,41],RALLY_HOLE_R=2.1;
 export const DIAL_PLATE_MM=.34;        /* how far a sculpted dial's plates stand over it */
 export const SUBDIAL_DEPTH_MM=.28;      /* depth of a register below the plate */
 
+/* A complication on a dial that is not a chronograph: small seconds in a
+   register at 6 (the centre seconds hand gives way to it), a power reserve on an
+   arc at 9, or a GMT's fourth hand going round once a day. */
+export const COMPLICATIONS=['none','smallsec','power','gmt'];
+export const complicationOf=d=>{const P=(d.parts&&d.parts.dial)||{};return P.variant==='chrono'?'none':COMPLICATIONS.includes(P.complication)?P.complication:'none'};
 export function dialLayoutOf(d){
- const r=geoOf(d).dialR,P=(d.parts&&d.parts.dial)||{},chrono=P.variant==='chrono';
+ const r=geoOf(d).dialR,P=(d.parts&&d.parts.dial)||{},chrono=P.variant==='chrono',comp=complicationOf(d);
  let date=DATE_POSITIONS.includes(P.date)?P.date:'none';
- /* a chronograph's 6 o'clock register and model line leave no room at 6 */
+ /* a chronograph's 6 o'clock register and model line leave no room at 6, nor
+    does a small seconds' */
  if(chrono&&date==='6')date='430';
+ if(comp==='smallsec'&&date==='6')date='3';
  const stepped=P.step==='stepped';
  /* registers where a chronograph movement puts them, no further out than the
     track (or the step) allows and never touching each other */
  const RG=DIAL_MM.register,rMm=r/PX,dist=Math.min(RG.dist,rMm*.5);
  const rs=Math.min(RG.r,(stepped?r*.915:r*.9)/PX-RG.gap-dist,dist*.68);
- const subdials=chrono?[[90,'smallsec'],[180,'chHr'],[270,'chMin']].map(([deg,key])=>{
-  const[x,y]=posAt(deg,dist*PX);return{deg,key,x,y,r:rs*PX}}):[];
+ const regs=chrono?[[90,'smallsec'],[180,'chHr'],[270,'chMin']]:comp==='smallsec'?[[180,'smallsec']]:comp==='power'?[[270,'power']]:[];
+ const subdials=regs.map(([deg,key])=>{const[x,y]=posAt(deg,dist*PX);return{deg,key,x,y,r:rs*PX}});
  /* A chronograph's date at 3 goes between the running-seconds register and the
     track when there is room for the window and its frame; on a smaller dial
     there is not, and it moves to 4:30 as it does from 6. */
@@ -491,7 +501,8 @@ export function dialLayoutOf(d){
  /* hours whose index is left out: the one a date window replaces, and those a
     register reaches into */
  const skipHours=win&&win.skipHour!=null?[win.skipHour]:[];
- if(chrono&&(dist+rs+.2)*PX>indexInnerOf(d)*r)for(const h of[3,6,9])if(!skipHours.includes(h))skipHours.push(h);
+ /* a register reaching into the indices' ring takes its hour's index */
+ if(subdials.length&&(dist+rs+.2)*PX>indexInnerOf(d)*r)for(const sd of subdials){const h=Math.round(sd.deg/30)%12;if(!skipHours.includes(h))skipHours.push(h)}
  return{r,chrono,stepped,stepR:r*.915,subdials,date,win,skipHours}}
 
 /* ==================== CLEARANCES ====================
@@ -544,7 +555,8 @@ export function marketingSecondsOf(d,extra=[]){const r=geoOf(d).dialR,L=handLeng
 export function dialTextOf(d){const r=geoOf(d).dialR,L=dialLayoutOf(d),T=DIAL_MM.text;
  const brand={size:T.brand*PX,y:C-r*.4,maxW:r*1.1};
  const lead=(T.brand*.62+T.line*.62+T.stack)*PX,gap=.3*PX;
- const line={size:T.line*PX,y:L.chrono?brand.y+lead:C+r*.46,maxW:r*1.0};
+ /* stacked under the brand when a register takes the bottom of the dial */
+ const line={size:T.line*PX,y:L.chrono||L.subdials.some(s=>s.deg===180)?brand.y+lead:C+r*.46,maxW:r*1.0};
  /* stacked above the registers at 3 and 9, not squeezed between them: the pair
     moves up toward 12 as far as that needs */
  if(L.chrono&&L.subdials.length){line.y=Math.min(line.y,C-L.subdials[0].r-gap-line.size*.6);brand.y=Math.min(brand.y,line.y-lead)}

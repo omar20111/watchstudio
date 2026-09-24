@@ -32,7 +32,7 @@ export const DEF={caseMm:40,strapMm:'auto',
   crown:{variant:'standard',metal:'steel',finish:'polished',t:TT()},
   bezel:{variant:'smooth',metal:'steel',finish:'polished',insertColor:'#101318',rot:0,detents:120,dir:'ccw',t:TT()},
   /* date: none | 3 | 430 | 6 — a window onto a date wheel; step: flat | stepped chapter ring */
-  dial:{variant:'sunburst',color:'#16324f',finish:'none',accent:'#b5a24a',date:'3',step:'stepped',text:{top:'WatchStudio',bottom:'AUTOMATIC',font:'serif',color:'auto'},
+  dial:{variant:'sunburst',color:'#16324f',finish:'none',accent:'#b5a24a',complication:'none',date:'3',step:'stepped',text:{top:'WatchStudio',bottom:'AUTOMATIC',font:'serif',color:'auto'},
    logo:{style:'print',color:'ink',size:.34,y:-.6},t:TT()},
   markers:{variant:'batons',lume:'#dff3e4',glow:false,t:TT()},
   hands:{variant:'dauphine',metal:'steel',finish:'polished',lume:'#dff3e4',glow:false,

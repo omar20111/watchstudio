@@ -93,7 +93,7 @@ export function normalsFromHeight(W,h,strength){const H=new Float32Array(W*W);
    leather  pebbled grain: rounded cells with creases between and a few pores
    rubber   a fine matte skin
    nato     the weave: ridges across the webbing, offset column by column */
-export const STRAP_GRAIN_MM={leather:6,rubber:4,nato:3.9,mesh:2.4};
+export const STRAP_GRAIN_MM={leather:6,rubber:4,nato:3.9,mesh:2.4,tropic:4.8};
 export const strapGrainMap=variant=>once('strap:'+variant,()=>{const W=512,r=rng(variant.length*7919+13);
  /* Milanese: rows of tiny interlocked loops, a pillow grid turned 45 degrees,
     0.4 mm apart: a whole number of loops a tile each way keeps both diagonals
@@ -102,6 +102,13 @@ export const strapGrainMap=variant=>once('strap:'+variant,()=>{const W=512,r=rng
  if(variant==='mesh'){const k=6/W;
   return normalsFromHeight(W,(x,y)=>{const u=(x+y)*k,v=(x-y)*k,fu=u-Math.floor(u),fv=v-Math.floor(v);
    return Math.sin(fu*Math.PI)*Math.sin(fv*Math.PI)},8)}
+ /* a tropic strap's basket weave: small square cells, each moulded with three
+    bars, one cell's running across the strap and the next's along it, a groove
+    between cells */
+ if(variant==='tropic'){const cells=4,cw=W/cells;
+  return normalsFromHeight(W,(x,y)=>{const ci=Math.floor(x/cw),cj=Math.floor(y/cw),u=(x-ci*cw)/cw,v=(y-cj*cw)/cw;
+   const t=(ci+cj)%2?u:v,bar=Math.sin(Math.PI*((t*3)%1));
+   return bar*.85*Math.min(1,Math.min(u,1-u,v,1-v)*10)},2.6)}
  if(variant==='rubber'){const n=lattice(96,96,r),m=lattice(24,24,r);
   return normalsFromHeight(W,(x,y)=>.7*n(x/W*96,y/W*96)+.3*m(x/W*24,y/W*24),1.4)}
  if(variant==='nato'){const rows=10,cols=10,n=lattice(64,64,r);

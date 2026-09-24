@@ -6,7 +6,7 @@
 import {C,CAN,PX,METALS,STRAP_REACH_2D,STRAP_REACH_3D} from '../constants.js';
 import {shade,lighten} from '../utils.js';
 import {noiseFill} from '../textures.js';
-import {strapEndFactor,strapTaperEnd,STRAP_TAIL_MM,STRAP_HOLES_MM,STRAP_STRIPE_MM} from '../geometry.js';
+import {strapEndFactor,strapTaperEnd,STRAP_TAIL_MM,STRAP_HOLES_MM,STRAP_STRIPE_MM,RALLY_HOLE_R} from '../geometry.js';
 import {axisGrad,lineGrain,envLevel,tone} from './material.js';
 
 export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';const col=o.color||'#6b4a2f',st=o.stitch||'#e0cfa6',m=METALS[o.metal]||METALS.steel;
@@ -113,7 +113,7 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
    ctx.setLineDash([]);ctx.fillStyle=shade(col,.35);ctx.fillRect(C-sw/2,top?y0+dir*44:y0+dir*44-26,sw,26);}
   if(o.variant==='rubber'){noiseFill(ctx,.07,'overlay',.55);
    /* its moulded grooves (in 3D, cut into the strap's section: watch.js strapRing) */
-   if(!flat)for(const s of[-1,1]){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(C+s*sw*0.16-3,yA,6,yB-yA);ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(C+s*sw*0.16+3,yA,2,yB-yA)}
+   if(!flat&&o.style!=='tropic')for(const s of[-1,1]){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(C+s*sw*0.16-3,yA,6,yB-yA);ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(C+s*sw*0.16+3,yA,2,yB-yA)}
    if(!flat){const rg=ctx.createLinearGradient(C-sw/2,0,C+sw/2,0);
     rg.addColorStop(0,'rgba(255,255,255,0)');rg.addColorStop(.38,'rgba(255,255,255,.09)');rg.addColorStop(1,'rgba(0,0,0,.18)');
     ctx.fillStyle=rg;ctx.fillRect(C-sw,yA,sw*2,yB-yA)}}
@@ -136,6 +136,12 @@ export function drStrap(ctx,o){const{R,sw,lugExt}=o.g;const top=o.which==='top';
      the 3D strap the hole is cut out of the bake (alpha, which the strap's alpha
      test punches through both faces) around a pressed rim, and its wall and a
      NATO's eyelet are geometry (watch.js strapHoles). */
+  /* a rally strap's row of large holes, down both straps from the lug end */
+  if(o.rally)for(const D of o.rally){const y=C+dir*D,r=RALLY_HOLE_R*PX;
+   ctx.beginPath();ctx.arc(C,y,r+2.5,0,Math.PI*2);ctx.fillStyle=shade(col,.45);ctx.fill();
+   if(flat){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.beginPath();ctx.arc(C,y,r,0,Math.PI*2);ctx.fill();ctx.restore();continue}
+   const hg=ctx.createRadialGradient(C,y-r*.25,r*.1,C,y,r);hg.addColorStop(0,'#050404');hg.addColorStop(.75,'#0d0a08');hg.addColorStop(1,shade(col,.7));
+   ctx.beginPath();ctx.arc(C,y,r,0,Math.PI*2);ctx.fillStyle=hg;ctx.fill()}
   if(shaped&&!top&&!mesh)for(const mm of STRAP_HOLES_MM){const y=y1-dir*mm*PX,r=(o.variant==='nato'?.7:.78)*PX;
    if(flat){if(o.variant!=='nato'){ctx.beginPath();ctx.arc(C,y,r+2.5,0,Math.PI*2);ctx.fillStyle=shade(col,o.variant==='rubber'?.3:.45);ctx.fill()}
     ctx.save();ctx.globalCompositeOperation='destination-out';ctx.beginPath();ctx.arc(C,y,r,0,Math.PI*2);ctx.fill();ctx.restore();continue}

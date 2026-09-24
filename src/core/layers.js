@@ -34,7 +34,9 @@ export function layerAngle(key,clock){
   case'hour':return clock.ang.hour;
   case'min':return clock.ang.min;
   case'sec':return clock.secAng;
-  case'smallsec':return clock.smallsecAng;       /* chronograph register at 3 */
+  case'smallsec':return clock.smallsecAng;       /* chronograph register at 3, or a small seconds at 6 */
+  case'gmt':return clock.ang.gmt;                 /* a GMT's 24-hour hand */
+  case'power':return -120+240*.72;                /* a power reserve, most of the way full */
   case'chMin':return clock.chrono.ang.min30;     /* 30-minute register at 9 */
   case'chHr':return clock.chrono.ang.hr12;       /* 12-hour register at 6 */
   case'bezelIns':return clock.bezel.rot;

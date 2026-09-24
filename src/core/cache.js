@@ -19,15 +19,15 @@ const dimsKey=d=>{const c=d.case||{};
 const cache=new Map();
 /* everything procOpts feeds a renderer, so the key moves whenever the bake would */
 const procKey=(part,d,sub,mode)=>{const p=d.parts[srcOf(part)];
- return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,p.accent,p.stripe,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
+ return JSON.stringify([part,sub,mode||'',dimsKey(d),p.variant,p.metal,p.finish,p.color,p.stitch,p.lume,p.insertColor,p.accent,p.stripe,p.style,part==='bezel'?d.parts.markers.lume:0,part==='dial'?p.text:0,
   part==='hands'?d.parts.hands.secColor:0,part==='markers'?d.parts.hands.metal:0,part==='markers'?d.parts.dial.color:0,
   /* the caseback prints the engraving and the water resistance, which no other bake reads */
   part==='caseback'?[(d.case||{}).engraving,(d.case||{}).wrM]:0,
   /* the dial draws its date window, registers and chapter step; a painted dial
      also prints today's date in the window. Markers leave out the index a date
      window replaces, which depends on the dial's variant too. */
-  part==='dial'?[p.date,p.step,mode==='flat'?0:dialDayOf(d),(d.active||{}).dialbg||0]:0,
-  part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step]:0,
+  part==='dial'?[p.date,p.step,p.complication,mode==='flat'?0:dialDayOf(d),(d.active||{}).dialbg||0]:0,
+  part==='markers'?[d.parts.dial.date,d.parts.dial.variant,d.parts.dial.step,d.parts.dial.complication]:0,
   /* a PartStudio set is drawn from its own data */
   part==='markers'&&p.variant==='partstudio'?p.set:0,
   /* an hour hand is as long as the markers it reaches are deep */

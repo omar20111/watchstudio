@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+**Added — more straps, complications, and the right wrist**
+- A strap has a style (Strap > Style). A bracelet is an Oyster — three links a
+  row — or a Jubilee: two long outer links and three small polished ones across
+  the middle, the middle column a link a row and the two beside it half links,
+  the brickwork the style is known by (three/watch.js braceletParts). A leather
+  strap can be a rally strap: a row of large holes down both straps from the lug
+  end, punched through the bake and walled in 3D like the buckle holes
+  (geometry.js RALLY_HOLES_MM). A rubber strap can be a tropic: a basket weave
+  moulded in small cells, one cell's bars across and the next's along (wear.js
+  strapGrainMap), in place of the grooves.
+- A dial can carry a complication (Dial > Complication): small seconds in a
+  register at 6, the centre seconds hand giving way to it and the model line
+  moving up under the brand; a power reserve on a 240-degree arc at 9, its low
+  end red; or a GMT's fourth hand, a red arrow going round once a day against the
+  hours or a 24-hour bezel (layers.js 'gmt', from the clock's own gmt angle). A
+  register's printed scale now shows on any dial, not only a chronograph's; the
+  dial's and the indices' bakes are keyed on the complication.
+- On wrist: left or right. On the right wrist the arm narrows toward the other
+  side, the hand's.
+
 **Added — a model to 3D print**
 - 3D print (toolbar) downloads a 3MF, the format PrusaSlicer, Bambu Studio,
   OrcaSlicer and Cura read, in millimetres, one named, coloured object per part

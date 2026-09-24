@@ -36,9 +36,9 @@ export function ProductRender(){const s=useApp();const d=s.d;
  /* staging: the surface shows live; the blur is a lens, so only a photo has it */
  const pr=d.product||{surface:'studio',blur:'soft'};
  /* worn on a wrist of the viewer's size: the strap wraps it, and it takes the surface's place */
- const wr={on:false,cm:17,tone:'medium',...(pr.wrist||{})};
+ const wr={on:false,cm:17,tone:'medium',side:'left',...(pr.wrist||{})};
  useEffect(()=>{if(view.current){view.current.setSurface(pr.surface);redraw()}},[pr.surface,gen]);
- useEffect(()=>{if(view.current){view.current.setWrist(wr.on?wr.cm:0,wr.tone);redraw()}},[wr.on,wr.cm,wr.tone,gen]);
+ useEffect(()=>{if(view.current){view.current.setWrist(wr.on?wr.cm:0,wr.tone,wr.side);redraw()}},[wr.on,wr.cm,wr.tone,wr.side,gen]);
  /* worn, the watch is seen with the wrist around it: stand back far enough to show it */
  useEffect(()=>{setZoom(wr.on?.62:1)},[wr.on]);
  const[photo,setPhoto]=useState(false);
@@ -60,6 +60,8 @@ export function ProductRender(){const s=useApp();const d=s.d;
      <button className="chip" aria-label="Smaller wrist" disabled={wr.cm<=WRIST_CM[0]} onClick={()=>setProduct({wrist:{...wr,cm:Math.max(WRIST_CM[0],wr.cm-.5)}})}>−</button>
      <span className="text-[11px] text-neutral-200 tabular-nums w-[44px] text-center" aria-label="Wrist size">{wr.cm.toFixed(1)} cm</span>
      <button className="chip" aria-label="Larger wrist" disabled={wr.cm>=WRIST_CM[1]} onClick={()=>setProduct({wrist:{...wr,cm:Math.min(WRIST_CM[1],wr.cm+.5)}})}>+</button>
+     {[['left','L'],['right','R']].map(([id,l])=><button key={id} className={`chip ${wr.side===id?'on':''}`} aria-pressed={wr.side===id}
+      aria-label={`${id==='left'?'Left':'Right'} wrist`} onClick={()=>setProduct({wrist:{...wr,side:id}})}>{l}</button>)}
      {SKIN_TONES.map(([id,c])=><button key={id} aria-label={`Skin tone ${id}`} aria-pressed={wr.tone===id}
       className={`w-5 h-5 rounded-full border ${wr.tone===id?'border-amber-300':'border-white/25'}`} style={{background:c}}
       onClick={()=>setProduct({wrist:{...wr,tone:id}})}/>)}</>}</div>

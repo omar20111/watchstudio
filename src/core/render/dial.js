@@ -68,6 +68,12 @@ export const tapisserieCell=()=>DIAL_MM.tapisserie*PX;
 
 /* A register's hour scale: twelve ticks round its edge. */
 function registerScale(ctx,sd,ink){const{x,y,r:rs}=sd;
+ if(sd.key==='power'){ctx.save();ctx.lineCap='round';
+  for(let i=0;i<=8;i++){const a=(-120+i*30)*Math.PI/180,l=i%4?.8:.68;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*rs*.86,y-Math.cos(a)*rs*.86);ctx.lineTo(x+Math.sin(a)*rs*l,y-Math.cos(a)*rs*l);
+   ctx.strokeStyle=ink;ctx.lineWidth=i%4?1.5:2.5;ctx.stroke()}
+  /* the reserve running low */
+  ctx.beginPath();ctx.arc(x,y,rs*.9,(-120-90)*Math.PI/180,(-90-90)*Math.PI/180);ctx.strokeStyle=ink==='#fff'?'#fff':'#c8402f';ctx.lineWidth=2.2;ctx.stroke();
+  ctx.restore();return}
  for(let i=0;i<12;i++){const a=i*30*Math.PI/180;ctx.beginPath();ctx.moveTo(x+Math.sin(a)*rs*0.86,y-Math.cos(a)*rs*0.86);ctx.lineTo(x+Math.sin(a)*rs*0.72,y-Math.cos(a)*rs*0.72);ctx.strokeStyle=ink;ctx.lineWidth=1.5;ctx.stroke()}}
 
 /* The minute track: 60 ticks ending on the track ring, the fives longer. `ink`
@@ -202,7 +208,7 @@ export function drDial(ctx,o){const r=o.g.dialR;const col=o.color||'#16324f';
   g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.34)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
 
  /* the registers where the layout (and the 3D plate) puts them */
- if(o.variant==='chrono'&&L){for(const sd of L.subdials||[]){const{x,y,deg}=sd,rs=sd.r;
+ if(L&&(L.subdials||[]).length){for(const sd of L.subdials){const{x,y,deg}=sd,rs=sd.r;
   /* sub-dials are milled into the dial plate: a shadowed wall on the light side
      and a lit wall opposite is what gives them their depth */
   if(!flat){const wall=ctx.createRadialGradient(x,y,rs*0.72,x,y,rs*1.06);

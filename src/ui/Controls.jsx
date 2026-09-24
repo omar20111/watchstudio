@@ -149,6 +149,10 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      <option value="auto">Auto ({strapMmOf(d)} mm)</option><option value="18">18 mm</option><option value="20">20 mm</option><option value="22">22 mm</option></select></div>
    <ColorField label="Strap color" val={p.color} onChange={v=>up({color:v},'col')}/>
    <ColorField label="Stitching" val={p.stitch} onChange={v=>up({stitch:v},'st')}/>
+   {(()=>{const styles={steel:[['oyster','Oyster'],['jubilee','Jubilee']],leather:[['plain','Plain'],['rally','Rally']],rubber:[['grooved','Grooved'],['tropic','Tropic']]}[p.variant];
+    if(!styles)return null;const cur=p.style&&styles.some(x=>x[0]===p.style)?p.style:styles[0][0];
+    return<div className="flex items-center justify-between text-[11px] text-neutral-400"><span>Style</span><div className="flex gap-1">
+     {styles.map(([id,l])=><button key={id} className={`chip ${cur===id?'on':''}`} aria-pressed={cur===id} aria-label={`${l} style`} onClick={()=>up({style:id},'sty')}>{l}</button>)}</div></div>})()}
    {(p.variant==='leather'||p.variant==='rubber')&&<div className="flex items-center justify-between text-[11px] text-neutral-400">
     <span>Centre stripe</span><div className="flex gap-1 items-center">
      <button className={`chip ${p.stripe?'':'on'}`} aria-label="No centre stripe" onClick={()=>up({stripe:null},'sp')}>None</button>
@@ -188,6 +192,11 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
   {part==='dial'&&!d.active.dial&&<Section title="Dial Construction">
    {(()=>{const chrono=p.variant==='chrono',at=dialLayoutOf(d).date;
     return<>
+    {!chrono&&<div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Complication">
+     <span>Complication</span><div className="flex gap-1 flex-wrap justify-end">{[['none','None'],['smallsec','Small sec'],['power','Power'],['gmt','GMT']].map(([v,t])=>
+      <button key={v} className={`chip ${(p.complication||'none')===v?'on':''}`} aria-pressed={(p.complication||'none')===v}
+       title={{none:'',smallsec:'Small seconds in a register at 6',power:'Power reserve on an arc at 9',gmt:'A fourth hand going round once a day, for a second time zone'}[v]}
+       onClick={()=>up({complication:v},'cmp')}>{t}</button>)}</div></div>}
     <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Date window">
      <span>Date window</span><div className="flex gap-1">{[['none','None'],['3','3'],['430','4:30'],['6','6']].map(([v,t])=>{
       const off=chrono&&v==='6';

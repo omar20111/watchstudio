@@ -16,9 +16,9 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
+import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,complicationOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
-        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM} from '../geometry.js';
+        HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM,RALLY_HOLES_MM,RALLY_HOLE_R} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
 import {headProfiles,lathe,knurledLathe,crownParts,strapPath,smoothstep} from './lathe.js';
@@ -375,8 +375,8 @@ function strapMaterial(map,p){const v=p.variant;
   clearcoat:v==='rubber'?.25:0,clearcoatRoughness:.4});
  /* the grain, tiled in millimetres: the strap's u spans the sheet across it and
     its v the tall flat bake along it (strapGeometry) */
- const kind=STRAP_GRAIN_MM[v]?v:'leather';
- mat.normalMap=strapNormalOf(kind,map.image.height);mat.normalScale=new Vector2(1,1).multiplyScalar(kind==='leather'?.55:kind==='nato'?.45:.3);
+ const kind=v==='rubber'&&p.style==='tropic'?'tropic':STRAP_GRAIN_MM[v]?v:'leather';
+ mat.normalMap=strapNormalOf(kind,map.image.height);mat.normalScale=new Vector2(1,1).multiplyScalar({leather:.55,nato:.45,tropic:.75}[kind]??.3);
  return mat}
 /* one grain texture per kind and bake height: each strap piece's bake is as
    tall as that piece is long */
@@ -448,7 +448,8 @@ const pathMatrix=(P,dir)=>new Matrix4().makeTranslation(0,P.y,P.z).multiply(new 
 
 function strapGeometry(d,dir){
  const which=dir<0?'top':'bottom',{sp,f,sA,sEnd,at}=strapForm(d,which);
- const grooves=d.parts.strap.variant==='rubber'?RUBBER_GROOVES:null;
+ /* a tropic strap has its basket weave instead of the grooves */
+ const grooves=d.parts.strap.variant==='rubber'&&d.parts.strap.style!=='tropic'?RUBBER_GROOVES:null;
  const{h:Hc,ty}=bakeSize('strap','flat',d,which),M=strapRing(at(0,which),grooves).length;
  const vAt=s=>1-(C+dir*(sp.start+s)*PX+ty)/Hc;
  /* stations even down the run, bunched toward the tip where the outline turns */
@@ -519,6 +520,11 @@ function strapStitches(d,dir){
 function strapHoles(d){
  const{sp,sEnd,at}=strapForm(d,'bottom'),nato=d.parts.strap.variant==='nato',r=nato?.7:.78;
  const walls=[],eyelets=[];
+ /* a rally strap's large holes, down both straps from the lug end: their walls */
+ if(d.parts.strap.style==='rally'&&d.parts.strap.variant==='leather')for(const which of['top','bottom']){
+  const F=strapForm(d,which),dir=which==='top'?-1:1;
+  for(const mm of RALLY_HOLES_MM){if(mm>F.sEnd-4)continue;const sec=F.at(mm,which),top=sec.k0+sec.c,M=pathMatrix(pathFrame(F.sp,mm,dir),dir);
+   const w=new CylinderGeometry(RALLY_HOLE_R,RALLY_HOLE_R,top-sec.k0+.06,40,1,true);w.translate(0,(top+sec.k0)/2,0);w.applyMatrix4(M);walls.push(w)}}
  for(const mm of STRAP_HOLES_MM){const s=sEnd-mm;if(s<0)continue;
   const sec=at(s,'bottom'),top=sec.k0+sec.c,M=pathMatrix(pathFrame(sp,s,1),1);
   const w=new CylinderGeometry(r,r,top-sec.k0+.06,24,1,true);w.translate(0,(top+sec.k0)/2,0);w.applyMatrix4(M);walls.push(w);
@@ -633,7 +639,7 @@ function pillowLink(pw,pl,t,{crown=.1,slope=0}={}){
    the space between the lugs. Rows are merged per material: a few meshes, not
    hundreds, and one node each in a GLB. */
 function braceletParts(d,dir){
- const sp=strapPath(d),T=sp.T,bottom=dir>0;
+ const sp=strapPath(d),T=sp.T,bottom=dir>0,jubilee=d.parts.strap.style==='jubilee';
  /* each half its own length; the width tapers to where the bracelet ends, the clasp's end on the 6 o'clock half */
  const sEnd=BRACELET_MM[bottom?'bottom':'top'],widthAt=strapWidthAt(d,(sp.start+sEnd+(bottom?BRACELET_MM.clasp:0))*PX);
  const w0=widthAt(0),pitch=Math.min(8,Math.max(5.2,w0*.36)),gap=Math.max(.18,pitch*.035);
@@ -670,6 +676,20 @@ function braceletParts(d,dir){
      links fall away a little to the edges, and the centre link is crowned, only
      its middle standing proud of them and its edges dipping below, its underside
      flush with theirs — no second layer showing above or below. */
+  if(jubilee){
+   /* A Jubilee row: two long outer links and three small polished ones across
+      the middle — the middle column one link a row, the two beside it two half
+      links, so the centre reads as the fine brickwork the style is known by */
+   const ow=w*.27,gc=Math.max(.14,w*.011),cw3=(w-2*ow-4*gc)/3,half=pitch/2-gap;
+   outer.push(place(pillowLink(ow,pl,T,{crown:T*.05,slope:-T*.07}),mid,-(w/2-ow/2)));
+   outer.push(place(pillowLink(ow,pl,T,{crown:T*.05,slope:T*.07}),mid,w/2-ow/2));
+   centre.push(place(pillowLink(cw3,pl,T*.9,{crown:T*.16}).translate(0,-T*.05,0),mid,0));
+   for(const sx of[-1,1])for(const off of[-pitch/4,pitch/4])
+    centre.push(place(pillowLink(cw3,half,T*.9,{crown:T*.16}).translate(0,-T*.05,0),mid+off,sx*(cw3+gc)));
+   /* dark in the gaps between the columns */
+   for(const x of[cw3/2+gc/2,w/2-ow-gc/2])for(const sx of[-1,1]){const bar=new BoxGeometry(gc+.25,T*.55,pl*.92);bar.translate(sx*x,-T*.12,0);pins.push(place(bar,mid))}
+   const pin=new CylinderGeometry(T*.3,T*.3,w*.96,10);pin.rotateZ(Math.PI/2);pin.translate(0,-T*.12,0);pins.push(place(pin,s));
+   continue}
   const ow=w*.31,cw=w*.36,seam=(w-2*ow-cw)/2;
   outer.push(place(pillowLink(ow,pl,T,{crown:T*.05,slope:-T*.07}),mid,-(w/2-ow/2)));
   outer.push(place(pillowLink(ow,pl,T,{crown:T*.05,slope:T*.07}),mid,w/2-ow/2));
@@ -1086,8 +1106,9 @@ function buildWatch(d,customs,aniso){
     const wheel=add(G.dial,'dateWheel',faceUp(sheetUV(new RingGeometry(Math.max(0,cr-span)/PX,(cr+span)/PX,160,1),wres.box[2])),
      paintedMaterial(tex(getProc('dial',d,'dateWheel','flat',wres)),{roughness:.5}),{cast:false});
     wheel.position.y=wheelY;wheel.userData.spin='dateWheel'}}}
- /* chronograph registers: running seconds at 3, 12-hour at 6, 30-minute at 9 */
- if(parts.dial.variant==='chrono'&&!dialUpload){const hp=parts.hands;
+ /* registers: a chronograph's running seconds at 3, 12-hour at 6, 30-minute at 9;
+    a small seconds at 6 or a power reserve at 9 */
+ if(DL.subdials.length&&!dialUpload){const hp=parts.hands;
   /* on the registers the layout placed, sized in mm (geometry.js DIAL_MM) */
   for(const{key,x:px,y:py,r:rs}of DL.subdials){
    const reg=new Group();reg.name='reg:'+key;
@@ -1143,7 +1164,9 @@ function buildWatch(d,customs,aniso){
  {const holder=new Group();holder.name='hand:upload';G.hands.add(holder);
   if(!uploaded('hands',holder,H.dial+.7)){G.hands.remove(holder);
    const lift=HAND_LIFT_MM;
-   for(const k of['hour','min','sec']){
+   /* a small seconds in its register takes the place of the centre seconds */
+   const smallSec=complicationOf(d)==='smallsec';
+   for(const k of['hour','min','sec']){if(k==='sec'&&smallSec)continue;
     const hold=new Group();hold.name='hand:'+k;G.hands.add(hold);
     const arbor=new Group();arbor.name=k;arbor.position.y=H.dial+lift[k];arbor.userData.spin=k;hold.add(arbor);
     const form=handForm(hp.variant,k),lumed=form.pocket!=null;
@@ -1171,7 +1194,19 @@ function buildWatch(d,customs,aniso){
      lm.position.y=form.pocket+.004}
     if(k==='sec'){/* the pipe that holds the seconds hand, and its dark pinion */
      const cap=add(arbor,'secCap',new CylinderGeometry(13/PX,13/PX,.22,40),metalMaterial(hp.metal,'polished'));cap.position.y=form.height+.11;
-     const pin=add(arbor,'secPin',new CylinderGeometry(5/PX,5/PX,.06,24),new MeshPhysicalMaterial({color:0x1c1e22,roughness:.4}),{cast:false});pin.position.y=form.height+.25}}}}
+     const pin=add(arbor,'secPin',new CylinderGeometry(5/PX,5/PX,.06,24),new MeshPhysicalMaterial({color:0x1c1e22,roughness:.4}),{cast:false});pin.position.y=form.height+.25}}
+   /* A GMT's fourth hand: a thin needle with an arrowhead, going round once a
+      day to show a second time zone against the 24-hour bezel or the hours,
+      between the minute and the seconds hand in height */
+   if(complicationOf(d)==='gmt'){const hold=new Group();hold.name='hand:gmt';G.hands.add(hold);
+    const arbor=new Group();arbor.name='gmt';arbor.position.y=H.dial+(lift.min+lift.sec)/2;arbor.userData.spin='gmt';hold.add(arbor);
+    const L=Rr.dialR*.86,w=.2,t=.1,head=new Shape();head.moveTo(-.75,0);head.lineTo(.75,0);head.lineTo(0,1.5);head.closePath();
+    const needle=new BoxGeometry(w,t,L-.8);needle.translate(0,t/2,-(L-.8)/2);
+    const tip=new ExtrudeGeometry(head,{depth:t,bevelEnabled:false});tip.rotateX(-Math.PI/2);tip.translate(0,0,-(L-.8));
+    const tail=new BoxGeometry(w*1.3,t,2.4);tail.translate(0,t/2,1.2);
+    const gm=new MeshPhysicalMaterial({color:new Color(hp.gmtColor||'#d8402c'),roughness:.32,clearcoat:.6,clearcoatRoughness:.1});
+    add(arbor,'gmtBody',mergeGeometries([needle,tip,tail].map(g=>g.index?g.toNonIndexed():g)),gm,{receive:false});
+    const hub=add(arbor,'gmtHub',new CylinderGeometry(10/PX,10/PX,.1,32),gm);hub.position.y=t/2}}}
 
  /* ---- crystal ---- */
  if(!uploaded('crystal',G.crystal,H.top+.02,{transparent:true,opacity:parts.crystal.opacity,alphaTest:0,depthWrite:false})){

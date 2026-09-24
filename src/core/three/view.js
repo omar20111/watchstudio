@@ -84,11 +84,11 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
     shadow, and the shadow-only ground steps aside */
  let surface=null,surfaceId='none';
  /* worn on a wrist (setWrist): the strap wraps it, and it stands in for the surface */
- let wristCm=0,wristTone='medium',wrist=null;
+ let wristCm=0,wristTone='medium',wristSide='left',wrist=null;
  const worn=d=>wristCm?{...d,onWrist:wristCm}:d;
  const placeSurface=()=>{if(surface){scene.remove(surface);surface.geometry.dispose();surface.material.dispose();surface=null}
   if(wrist){scene.remove(wrist);wrist.geometry.dispose();wrist.material.dispose();wrist=null}
-  if(watch&&wristCm){wrist=wristMesh(wristCm,wristTone);scene.add(wrist);return}
+  if(watch&&wristCm){wrist=wristMesh(wristCm,wristTone,wristSide);scene.add(wrist);return}
   if(watch&&surfaceId!=='none'){surface=surfaceMesh(surfaceId,watch.userData.groundY-.03);if(surface)scene.add(surface)}};
  const groundOn=d=>d.shadow!==false&&!surface&&!wristCm;
 
@@ -188,8 +188,8 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5}={}){
   setSurface(id='none'){if(id===surfaceId)return;surfaceId=id;placeSurface();if(lastD)ground.visible=groundOn(lastD)},
   /* wear the watch on a wrist of this size in cm (0 or null: off it), in a skin
      tone (wrist.js SKIN_TONES). The strap is rebuilt to wrap it. */
-  setWrist(cm,tone='medium'){cm=+cm||0;if(cm===wristCm&&tone===wristTone)return;
-   const rebuild=cm!==wristCm;wristCm=cm;wristTone=tone;
+  setWrist(cm,tone='medium',side='left'){cm=+cm||0;if(cm===wristCm&&tone===wristTone&&side===wristSide)return;
+   const rebuild=cm!==wristCm;wristCm=cm;wristTone=tone;wristSide=side;
    if(rebuild&&lastD)this.setDesign(lastD,lastCustoms);else placeSurface();
    if(lastD)ground.visible=groundOn(lastD)},
   get wrist(){return wrist},
