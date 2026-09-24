@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+**Fixed — Photo works in Chrome and Edge on Windows**
+- Photo came out empty on a Windows laptop. Chrome and Edge there draw WebGL
+  through Direct3D 11, where the path tracer's shader took a minute and a half
+  to compile, its first samples as long again, and then every ray that met the
+  watch came back empty: the backdrop right, the watch a hole. Where the browser
+  draws through Direct3D, Photo is now the live view's own frame made in full,
+  every anti-aliasing sample and occlusion on, ready in about a second and
+  marked "Fast render" (three/photo.js canPathTrace, ui/Photo.jsx). Elsewhere it
+  path traces as before.
+
+**Changed — a stuck browser check fails instead of hanging**
+- A page can hang for good in the software renderer the browser checks use
+  (seen for hours at a reload, on old code as well as new). Each suite now has
+  twelve minutes; one that runs over fails as timed out, gets a fresh browser
+  for its retry, and the suites after it still run (e2e/run.mjs). With the
+  checks now holding back the deploy, a hang no longer holds it for good.
+
 **Fixed — faster to open, and no freezes while editing**
 - Every watch built left its textures on the GPU: going through seventeen
   designs three times over left 306, then 581, then 856 of them, growing until

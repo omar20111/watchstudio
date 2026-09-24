@@ -3,11 +3,16 @@
 
    It draws on its own canvas over the live view, and the live view pauses
    underneath so the GPU works on the photo alone. The overlay takes the
-   pointer: turning the watch mid-photo would only restart it. */
+   pointer: turning the watch mid-photo would only restart it.
+
+   Where the browser cannot path trace (photo.js canPathTrace: Direct3D, the
+   default on Windows), the photo is the live view's own frame made in full —
+   every anti-aliasing sample, occlusion on — and is ready at once. */
 import React from 'react';
 import {store} from '../state/store.js';
 import {toast} from '../core/utils.js';
-import {createPhoto,BLUR_FSTOP,PHOTO_SAMPLES} from '../core/three/photo.js';
+import {sceneClock} from '../core/time.js';
+import {createPhoto,canPathTrace,BLUR_FSTOP,PHOTO_SAMPLES} from '../core/three/photo.js';
 const {useEffect,useRef,useState}=React;
 
 /* a photo's pixel budget: the view's size at the screen's density, capped so a
@@ -21,12 +26,23 @@ export function PhotoOverlay({view,box,onClose}){
  const saving=useRef(false);
  const[status,setStatus]=useState('preparing');     /* preparing | rendering | done | failed */
  const[samples,setSamples]=useState(0);
+ const[raster,setRaster]=useState(false);
 
  useEffect(()=>{const live=view.current;if(!live||!cv.current)return;
   let raf=0,dead=false;const st=store.getState(),d=st.d;
   live.paused=true;
   (async()=>{
    try{
+    if(!canPathTrace(live.renderer)){setRaster(true);
+     /* a watch just rebuilt may still be compiling: its frame comes once it has */
+     while(live.compiling){await new Promise(r=>setTimeout(r,50));if(dead)return}
+     await new Promise(r=>setTimeout(r,30));if(dead)return;
+     /* drawn and copied in one go: the live canvas keeps no frame once shown */
+     const src=live.renderer.domElement,out=cv.current,ao=live.aoOn,at=sceneClock(d,Date.now());
+     out.width=src.width;out.height=src.height;
+     live.setAO(true);live.render(at);while(live.refine(at));
+     out.getContext('2d').drawImage(src,0,0);live.setAO(ao);
+     setSamples(PHOTO_SAMPLES);setStatus('done');return}
     const dpr=Math.min(2,window.devicePixelRatio||1),px=box.w*box.h*dpr*dpr;
     const density=px>MAX_PIXELS?dpr*Math.sqrt(MAX_PIXELS/px):dpr;
     const gl=live.renderer.capabilities;
@@ -72,7 +88,7 @@ export function PhotoOverlay({view,box,onClose}){
 
  const pct=Math.round(samples/PHOTO_SAMPLES*100);
  return<div className="absolute inset-0" style={{zIndex:60,touchAction:'none'}} onPointerDown={e=>e.stopPropagation()}>
-  <canvas ref={cv} className="absolute inset-0 w-full h-full block" aria-label="Photo of the watch, path traced"/>
+  <canvas ref={cv} className="absolute inset-0 w-full h-full block" aria-label={raster?'Photo of the watch':'Photo of the watch, path traced'}/>
   {status==='preparing'&&<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
    <div className="rounded-lg bg-black/70 border border-white/10 px-4 py-2 text-[12px] text-neutral-200">Setting up the photo…</div></div>}
   <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 whitespace-nowrap rounded-full bg-black/70 backdrop-blur border border-white/10 px-3 py-1.5 text-[11px] text-neutral-200">
@@ -82,8 +98,10 @@ export function PhotoOverlay({view,box,onClose}){
      {/* a fixed width, so the bar does not shift under the pointer as the count changes */}
      <span className="tabular-nums inline-block w-[6.5rem]" role="status" aria-live="polite">
       {status==='preparing'?'Preparing…':status==='done'?'Photo ready':`Refining… ${pct}%`}</span>
-     <span className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden" aria-hidden="true">
-      <span className="block h-full bg-[#d4af37]" style={{width:`${pct}%`}}/></span>
+     {raster
+      ?<span className="text-neutral-400 cursor-help" title="This browser draws 3D through Direct3D, where a ray-traced photo cannot be made; this is the live view rendered in full. For ray-traced photos in Chrome or Edge, set chrome://flags › Choose ANGLE graphics backend to OpenGL.">Fast render</span>
+      :<span className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden" aria-hidden="true">
+       <span className="block h-full bg-[#d4af37]" style={{width:`${pct}%`}}/></span>}
      <button className="goldbtn !py-1 !px-3" disabled={samples<8} onClick={save}>Save PNG</button>
     </>}
    <button className="btn" onClick={onClose}>Done</button>

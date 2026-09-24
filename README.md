@@ -173,7 +173,9 @@ src/
 - **Side**: measured side elevation and caseback
 - **Night** (or `N`): lights out, the lume glows
 - **Product render**: drag to turn · pick a surface and a lens blur · **📷
-  Photo** path traces a photo-quality still of the view, saved as a PNG
+  Photo** path traces a photo-quality still of the view, saved as a PNG (in
+  Chrome and Edge on Windows, which draw through Direct3D where path tracing
+  fails, it is the live view rendered in full, marked "Fast render")
 - **Touch**: drag a part to move it · pinch to zoom · two fingers to tilt the
   front view · the ☰ and ✎ tabs open the parts and the part's controls · ⋯
   holds saving and exports

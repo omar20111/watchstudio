@@ -28,6 +28,19 @@ export const BLUR_FSTOP={off:null,soft:5.6,strong:2.2};
 /* samples a photo converges to; it can be saved before then */
 export const PHOTO_SAMPLES=320;
 
+/* Can this browser's WebGL path trace a photo? Not through ANGLE's Direct3D 11
+   backend, which Chrome and Edge use on Windows by default: there the path
+   tracer's shader took a minute and a half to compile, its first samples as long
+   again, and every ray that met a surface came back empty — the backdrop right,
+   the watch a transparent hole (an Intel UHD, three-gpu-pathtracer 0.0.24). The
+   photo is made by the live view there instead (ui/Photo.jsx). The e2e checks
+   set __RASTER_PHOTO__ to take that path in a browser that could trace. */
+export function canPathTrace(renderer){
+ if(typeof window!=='undefined'&&window.__RASTER_PHOTO__)return false;
+ try{const gl=renderer.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info');
+  return !/direct3d|d3d11/i.test(String(gl.getParameter(ext?ext.UNMASKED_RENDERER_WEBGL:gl.RENDERER)))}
+ catch(e){return true}}
+
 /* the parts a path tracer reads differently from a rasteriser */
 function forPathTracing(watch){
  watch.traverse(o=>{if(!o.isMesh)return;const m=o.material;
