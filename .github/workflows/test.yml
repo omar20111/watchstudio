@@ -28,10 +28,12 @@ jobs:
           path: dist
 
   # The browser checks (e2e/): the built app driven in Chrome with software
-  # WebGL. They are slow and newer than the rest, so for now they report on
-  # every push without holding back a deploy. All in one job they had grown past
-  # its 45 minutes and were cancelled, so they run in four groups side by side,
-  # each a job with its own time limit; one group failing does not stop the rest.
+  # WebGL. They are the only checks that see the watch drawn, so a push to main
+  # is published only once every group has passed (deploy, below). All in one
+  # job they had grown past its 45 minutes and were cancelled, so they run in
+  # groups side by side, each a job with its own time limit; one group failing
+  # does not stop the rest. The groups are sized so no one of them keeps the
+  # deploy waiting much past a quarter of an hour.
   e2e:
     name: e2e (${{ matrix.suites }})
     runs-on: ubuntu-latest
@@ -43,7 +45,8 @@ jobs:
           - editor
           - photo,techpack
           - welcome,markers,partstudio,crystal
-          - movement,night,touch,logo,ar,glb
+          - movement,night,touch
+          - logo,ar,glb
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -57,7 +60,7 @@ jobs:
           E2E_ONLY: ${{ matrix.suites }}
 
   deploy:
-    needs: test
+    needs: [test, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

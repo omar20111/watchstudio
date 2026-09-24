@@ -127,7 +127,9 @@ work, and the watch comes back as soon as 3D does.
 
 The build is a single self-contained `index.html`, so it can be hosted
 anywhere static. The included workflow (`.github/workflows/test.yml`) tests
-every push and publishes `main` to GitHub Pages. One-time setup:
+every push and publishes `main` to GitHub Pages once the tests and every group
+of browser checks have passed, which takes about a quarter of an hour; a push
+that fails any of them is not published. One-time setup:
 
 1. Create an empty repository on GitHub (no README, so the first push is clean).
 2. Push this project to it:
