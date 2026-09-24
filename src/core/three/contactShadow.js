@@ -20,15 +20,18 @@ const KEY=[Math.cos(LIGHT.key),Math.sin(LIGHT.key)],RUN=55/85;
 /* where a shadow falls, in the scene's x and z, for a part `h` mm above the dial */
 export const shadowOffset=h=>[-KEY[0]*h*RUN,-KEY[1]*h*RUN];
 
-/* three passes of a box blur approximate a Gaussian; alpha only */
-function boxBlur(a,w,h,r){if(r<1)return a;const tmp=new Float32Array(a.length),n=2*r+1;
+/* three passes of a box blur approximate a Gaussian; alpha only. The columns
+   run side by side, a row at a time, each with its own running sum: walked one
+   column at a time, every step jumped a whole row through memory. */
+function boxBlur(a,w,h,r){if(r<1)return a;const tmp=new Float32Array(a.length),n=2*r+1,s=new Float64Array(w);
  for(let pass=0;pass<3;pass++){
-  for(let y=0;y<h;y++){let s=0;const row=y*w;
-   for(let x=-r;x<=r;x++)s+=a[row+Math.min(w-1,Math.max(0,x))];
-   for(let x=0;x<w;x++){tmp[row+x]=s/n;s+=a[row+Math.min(w-1,x+r+1)]-a[row+Math.max(0,x-r)]}}
-  for(let x=0;x<w;x++){let s=0;
-   for(let y=-r;y<=r;y++)s+=tmp[Math.min(h-1,Math.max(0,y))*w+x];
-   for(let y=0;y<h;y++){a[y*w+x]=s/n;s+=tmp[Math.min(h-1,y+r+1)*w+x]-tmp[Math.max(0,y-r)*w+x]}}}
+  for(let y=0;y<h;y++){let sum=0;const row=y*w;
+   for(let x=-r;x<=r;x++)sum+=a[row+(x<0?0:x>w-1?w-1:x)];
+   for(let x=0;x<w;x++){tmp[row+x]=sum/n;sum+=a[row+(x+r+1<w?x+r+1:w-1)]-a[row+(x-r>0?x-r:0)]}}
+  s.fill(0);
+  for(let y=-r;y<=r;y++){const row=(y<0?0:y>h-1?h-1:y)*w;for(let x=0;x<w;x++)s[x]+=tmp[row+x]}
+  for(let y=0;y<h;y++){const row=y*w,add=(y+r+1<h?y+r+1:h-1)*w,sub=(y-r>0?y-r:0)*w;
+   for(let x=0;x<w;x++){a[row+x]=s[x]/n;s[x]+=tmp[add+x]-tmp[sub+x]}}}
  return a}
 
 const cache=new WeakMap();

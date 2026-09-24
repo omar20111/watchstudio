@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**Fixed — a new style or size rebuilds a quarter faster**
+- A new index or hand style, or a new size, traces the applied parts again.
+  The tracing's search for each pixel's distance to the outline read its pieces
+  from arrays of arrays with a Math.hypot apiece, over every square of buckets
+  around the pixel; it reads flat arrays now, compares squared distances, and
+  visits each ring of buckets once (three/relief.js), four times faster. Its
+  smoothing and the contact shadows' blur (three/contactShadow.js) add the
+  same numbers in the same order with less work round them. The solids and the
+  shadows come out bit for bit as before; a rebuild that re-traces is about a
+  quarter quicker.
+
 **Fixed — recolouring is instant**
 - A new dial colour rebuilt the watch in 0.7 s, most of it tracing the applied
   indices again, though a colour does not change their shape: the silhouette

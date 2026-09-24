@@ -80,26 +80,44 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
    const pieces=Math.max(1,Math.ceil(Math.hypot(q[0]-p[0],q[1]-p[1])/S));
    for(let m=0;m<pieces;m++){const t0=m/pieces,t1=(m+1)/pieces;
     segs.push([[p[0]+(q[0]-p[0])*t0-bx,p[1]+(q[1]-p[1])*t0-by],[p[0]+(q[0]-p[0])*t1-bx,p[1]+(q[1]-p[1])*t1-by]])}}}
- const BW=Math.ceil(W/S)+1,BH=Math.ceil(H/S)+1,bucket=new Array(BW*BH);
- segs.forEach((s,n)=>{const bi=Math.floor((s[0][0]+s[1][0])/2/S),bj=Math.floor((s[0][1]+s[1][1])/2/S);
-  (bucket[bj*BW+bi]||(bucket[bj*BW+bi]=[])).push(n)});
- const segDist=(px,py,s)=>{const[ax,ay]=s[0],[bx2,by2]=s[1],dx=bx2-ax,dy=by2-ay,l2=dx*dx+dy*dy;
-  let t=l2?((px-ax)*dx+(py-ay)*dy)/l2:0;t=t<0?0:t>1?1:t;return Math.hypot(px-ax-t*dx,py-ay-t*dy)};
- /* distances are also needed just outside the outline (see the smoothing below) */
- const near=new Uint8Array(W*H);
- for(let j=0;j<H;j++)for(let i=0;i<W;i++){if(!inside[j*W+i])continue;
-  for(let jj=Math.max(0,j-4);jj<=Math.min(H-1,j+4);jj++)for(let ii=Math.max(0,i-4);ii<=Math.min(W-1,i+4);ii++)near[jj*W+ii]=1}
+ /* The pieces go in flat arrays — start, direction, 1/length² — and each
+    bucket's pieces are one range of `order`: the search below runs for every
+    pixel near the part, several million on a watch, and read through arrays of
+    arrays with a Math.hypot per piece it was a third of a rebuild. */
+ const BW=Math.ceil(W/S)+1,BH=Math.ceil(H/S)+1,NS=segs.length;
+ const SAX=new Float64Array(NS),SAY=new Float64Array(NS),SDX=new Float64Array(NS),SDY=new Float64Array(NS),SIL=new Float64Array(NS);
+ const start=new Int32Array(BW*BH+1),order=new Int32Array(NS),cellOf=new Int32Array(NS);
+ for(let n=0;n<NS;n++){const[[ax,ay],[bx2,by2]]=segs[n],dx=bx2-ax,dy=by2-ay,l2=dx*dx+dy*dy;
+  SAX[n]=ax;SAY[n]=ay;SDX[n]=dx;SDY[n]=dy;SIL[n]=l2?1/l2:0;
+  const c=Math.floor((ay+by2)/2/S)*BW+Math.floor((ax+bx2)/2/S);cellOf[n]=c;start[c+1]++}
+ for(let c=0;c<BW*BH;c++)start[c+1]+=start[c];
+ {const fill=start.slice(0,BW*BH);for(let n=0;n<NS;n++)order[fill[cellOf[n]]++]=n}
+ /* distances are also needed just outside the outline (see the smoothing below):
+    within 4 px of the part, a square found a row and then a column at a time */
+ const rowNear=new Uint8Array(W*H),near=new Uint8Array(W*H);
+ for(let j=0;j<H;j++){const row=j*W;
+  for(let i=0,last=-9;i<W;i++){if(inside[row+i])last=i;if(i-last<=4)rowNear[row+i]=1}
+  for(let i=W-1,last=W+9;i>=0;i--){if(inside[row+i])last=i;if(last-i<=4)rowNear[row+i]=1}}
+ for(let i=0;i<W;i++){
+  for(let j=0,last=-9;j<H;j++){if(rowNear[j*W+i])last=j;if(j-last<=4)near[j*W+i]=1}
+  for(let j=H-1,last=H+9;j>=0;j--){if(rowNear[j*W+i])last=j;if(last-j<=4)near[j*W+i]=1}}
  const dist=new Float32Array(W*H);let maxD=0;
- for(let j=0;j<H;j++)for(let i=0;i<W;i++){const k=j*W+i;if(!near[k])continue;
-  const bi=Math.floor(i/S),bj=Math.floor(j/S);let best=INF;
-  for(let r=0;r<Math.max(BW,BH);r++){
-   for(let jj=bj-r;jj<=bj+r;jj++)for(let ii=bi-r;ii<=bi+r;ii++){
-    if(Math.max(Math.abs(ii-bi),Math.abs(jj-bj))!==r||ii<0||jj<0||ii>=BW||jj>=BH)continue;
-    const list=bucket[jj*BW+ii];if(!list)continue;
-    for(const n of list){const dd=segDist(i,j,segs[n]);if(dd<best)best=dd}}
-   /* every bucket beyond this ring is at least r*S away (plus a segment's half-length) */
-   if(best<=(r-1)*S)break}
-  dist[k]=best;if(inside[k]&&best>maxD)maxD=best}
+ for(let j=0;j<H;j++){const bj=Math.floor(j/S);
+  for(let i=0;i<W;i++){const k=j*W+i;if(!near[k])continue;
+   const bi=Math.floor(i/S);let best2=INF;
+   /* rings of buckets outward, each visited once: its top and bottom rows whole,
+      the rows between at their two ends */
+   for(let r=0,R=Math.max(BW,BH);r<R;r++){const i0=bi-r,i1=bi+r;
+    for(let jj=Math.max(0,bj-r),j1=Math.min(BH-1,bj+r);jj<=j1;jj++){
+     const step=jj===bj-r||jj===bj+r?1:2*r;
+     for(let ii=i0;ii<=i1;ii+=step){if(ii<0||ii>=BW)continue;
+      for(let q=start[jj*BW+ii],e=start[jj*BW+ii+1];q<e;q++){const n=order[q],ex0=i-SAX[n],ey0=j-SAY[n];
+       let t=(ex0*SDX[n]+ey0*SDY[n])*SIL[n];t=t<0?0:t>1?1:t;
+       const ex=ex0-t*SDX[n],ey=ey0-t*SDY[n],d2=ex*ex+ey*ey;if(d2<best2)best2=d2}}}
+    /* every bucket beyond this ring is at least r*S away (plus a segment's half-length) */
+    const reach=(r-1)*S;if(reach>=0&&best2<=reach*reach)break}
+   const best=best2>=INF?INF:Math.sqrt(best2);
+   dist[k]=best;if(inside[k]&&best>maxD)maxD=best}}
  maxD=Math.max(1,maxD);
  const ease=profile==='dome'?t=>Math.sqrt(1-(1-t)*(1-t)):profile==='bevel'?t=>Math.sin(t*Math.PI/2):t=>t;
  const span=profile==='roof'?maxD:Math.max(1,maxD*bevel);
@@ -122,12 +140,16 @@ function build(cv,{height=.3,edge=.08,profile='bevel',bevel=.35,lume=null,pocket
     mirror is kept for the rim's gradients only — the rim itself is built at
     the edge height, so the outline stays put. */
  for(let pass=0,passes=Math.max(1,Math.round(K*K));pass<passes;pass++){const tmp=new Float32Array(W*H),B=[1,4,6,4,1];
-  for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
-   for(let q=-2;q<=2;q++){const ii=i+q;if(ii<0||ii>=W)continue;s+=hAt[j*W+ii]*B[q+2];w+=B[q+2]}tmp[j*W+i]=s/w}
-  for(let j=0;j<H;j++)for(let i=0;i<W;i++){let s=0,w=0;
-   for(let q=-2;q<=2;q++){const jj=j+q;if(jj<0||jj>=H)continue;s+=tmp[jj*W+i]*B[q+2];w+=B[q+2]}
+  /* away from the borders all five taps are there: summed in the same order */
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){const k=j*W+i;
+   if(i>=2&&i<W-2){tmp[k]=(hAt[k-2]+hAt[k-1]*4+hAt[k]*6+hAt[k+1]*4+hAt[k+2])/16;continue}
+   let s=0,w=0;
+   for(let q=-2;q<=2;q++){const ii=i+q;if(ii<0||ii>=W)continue;s+=hAt[j*W+ii]*B[q+2];w+=B[q+2]}tmp[k]=s/w}
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){const k=j*W+i;let v;
+   if(j>=2&&j<H-2)v=(tmp[k-2*W]+tmp[k-W]*4+tmp[k]*6+tmp[k+W]*4+tmp[k+2*W])/16;
+   else{let s=0,w=0;for(let q=-2;q<=2;q++){const jj=j+q;if(jj<0||jj>=H)continue;s+=tmp[jj*W+i]*B[q+2];w+=B[q+2]}v=s/w}
    /* nothing inside sinks below the rim, or the rim grows a hairline moat */
-   const k=j*W+i;hAt[k]=inside[k]?Math.max(edge,s/w):s/w}}
+   hAt[k]=inside[k]?Math.max(edge,v):v}}
 
  const pos=[],nrm=[],uv=[],idx=[];
  const mmX=i=>((i+bx)/K+OX-C)/PX,mmZ=j=>((j+by)/K+OY-C)/PX,step=1/(PX*K);
