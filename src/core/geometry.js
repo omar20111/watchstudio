@@ -468,7 +468,9 @@ export function dialLayoutOf(d){
     does a small seconds' */
  if(chrono&&date==='6')date='430';
  if(comp==='smallsec'&&date==='6')date='3';
- const stepped=P.step==='stepped';
+ /* a dial of the case's shape is flat: a round chapter step would show inside
+    it as a circle drawn across the dial */
+ const stepped=P.step==='stepped'&&!openingShaped(d);
  /* registers where a chronograph movement puts them, no further out than the
     track (or the step) allows and never touching each other */
  const RG=DIAL_MM.register,rMm=r/PX,dist=Math.min(RG.dist,rMm*.5);

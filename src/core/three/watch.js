@@ -265,6 +265,13 @@ function engravingMaps(cv,span=CAN){if(engravings.has(cv))return engravings.get(
    painted dark bars (render/caseback.js). Shape space, face +z; the caller turns
    it face-down. Normals flat per face of each pocket. Returns the face and the
    pockets apart, so the pockets can be shaded as the recesses they are. */
+/* the dial's own outline (geometry.js dialEdgeOf) as a Shape in mm, y toward 12,
+   grown by `grow` mm so it runs just under the flange's foot */
+function edgeShape(edge,grow=.15){const s=new Shape(),N=360;
+ for(let i=0;i<N;i++){const deg=i*360/N,a=deg*Math.PI/180,R=edge(deg)/PX+grow;
+  if(i)s.lineTo(Math.sin(a)*R,Math.cos(a)*R);else s.moveTo(Math.sin(a)*R,Math.cos(a)*R)}
+ s.closePath();return s}
+
 /* a flat-bottomed recess cut into a face: its floor and its walls, from a ring
    of points running anticlockwise */
 function sunkPocket(rings,depth){const pos=[],idx=[];
@@ -1052,11 +1059,14 @@ function buildWatch(d,customs,aniso){
   if(plateArt instanceof Promise){pending.push(plateArt);plateArt=getProc('dial',d,undefined,'flat',dres)}
   if(dialUpload||src){
    const mat=src?new MeshStandardMaterial({map:tex(src),roughness:.5}):dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX,dspan);
-   const dial=add(G.dial,'dial',faceUp(sheetUV(new CircleGeometry(dialOut,180),src?CAN:dspan)),mat,{cast:false});
+   const dial=add(G.dial,'dial',faceUp(sheetUV(edge?new ShapeGeometry(edgeShape(edge),1):new CircleGeometry(dialOut,180),src?CAN:dspan)),mat,{cast:false});
    dial.position.y=H.dial}
   else{const mat=dialMaterial(tex(plateArt),parts.dial,Rr.dialR*PX,dspan);
    const plateR=DL.stepped?DL.stepR/PX:dialOut;
-   const outline=new Shape();outline.absarc(0,0,plateR,0,Math.PI*2,false);
+   /* a dial of the case's shape is cut to that shape, a hair beyond its edge
+      under the flange: a disc reaching its corners stood out through the case's
+      flat sides */
+   const outline=edge&&!DL.stepped?edgeShape(edge):new Shape();if(!(edge&&!DL.stepped))outline.absarc(0,0,plateR,0,Math.PI*2,false);
    for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
    if(DL.win)outline.holes.push(roundRectPath(new Path(),mmX(DL.win.x),mmY(DL.win.y),DL.win.w/PX,DL.win.h/PX,DL.win.rad/PX));
    const plate=add(G.dial,'dial',faceUp(sheetUV(new ShapeGeometry(outline,48),dspan)),mat,{cast:false});

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Fixed — a shaped dial no longer shows through the case**
+- A dial of the case's shape was a disc reaching its furthest corner, and on a
+  square or cushion case that disc stood out through the case's flat sides as a
+  dark round shape. It is cut to the dial's own outline now, a hair under the
+  flange (three/watch.js edgeShape). A shaped dial is also flat: its round
+  chapter step showed across it as a circle.
+
 **Added — more straps, complications, and the right wrist**
 - A strap has a style (Strap > Style). A bracelet is an Oyster — three links a
   row — or a Jubilee: two long outer links and three small polished ones across
