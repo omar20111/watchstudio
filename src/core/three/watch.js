@@ -789,7 +789,26 @@ function cyclopsGeometry({A,B,rc,R,rho,wall}){const M=72,N=12;
 /* ---------------------------------------------------------------- head */
 
 export function buildHead(d,customs={},{aniso=8,lite=false}={}){LITE=lite;
- try{return buildWatch(d,customs,aniso)}finally{LITE=false}}
+ try{const w=buildWatch(d,customs,aniso);holdTextures(w);return w}finally{LITE=false}}
+
+/* Textures outlive the watch they were made for: bakes, grain and engraving maps
+   are cached and shared, so disposeHead left every one of them alone — and none
+   was ever released. Each design change left its new ones on the GPU for good:
+   over a long session they filled graphics memory until the browser dropped the
+   3D view. So every built watch counts the textures it uses, and when the last
+   watch using one is disposed its GPU copy is released. The texture itself stays
+   in its cache, and a later watch that uses it again uploads it again. */
+const texUsers=new Map();
+const texturesOf=head=>{const out=new Set();
+ head.traverse(o=>{if(!o.isMesh)return;for(const m of[].concat(o.material,o.customDepthMaterial||[]))
+  for(const k in m){const v=m[k];if(v&&v.isTexture)out.add(v)}});
+ return out};
+function holdTextures(head){const set=texturesOf(head);head.userData.textures=set;
+ for(const t of set)texUsers.set(t,(texUsers.get(t)||0)+1)}
+function releaseTextures(head){const set=head.userData&&head.userData.textures;if(!set)return;
+ for(const t of set){const n=(texUsers.get(t)||1)-1;
+  if(n>0)texUsers.set(t,n);else{texUsers.delete(t);t.dispose()}}
+ head.userData.textures=null}
 function buildWatch(d,customs,aniso){
  const{profiles:P,heights:H,radii:Rr,crystal:CR}=headProfiles(d);
  const parts=d.parts,arch=caseOf(d),tex=cv=>canvasTexture(cv,aniso);
@@ -1308,8 +1327,8 @@ export function pickPart3D(watch,raycaster,sel){
   return part}
  return null}
 
-export function disposeHead(head){
+export function disposeHead(head){releaseTextures(head);
  head.traverse(o=>{if(!o.isMesh)return;o.geometry.dispose();
   if(o.customDepthMaterial)o.customDepthMaterial.dispose();
-  /* textures belong to the canvas cache, uploads.js and surface.js */
+  /* the textures are released above, once no watch uses them (releaseTextures) */
   o.material.dispose()})}
