@@ -36,7 +36,7 @@ const BACK_GAP=.12;
    allows and wider than the window; `y0` is its caseback side, `yB` the face of
    its bridges, `yT` its dial side. An automatic keeps the space its rotor
    swings in between y0 and the bridges. */
-export function movementLayout(kind,H,Rr){
+export function movementLayout(kind,H,Rr,{heart=null}={}){
  const rw=Rr.rCase*CASEBACK_WINDOW;
  const r=Math.max(rw+.8,Math.min(Rr.dialR*.96,Rr.rCase*.68));
  const rotor=kind==='automatic'||kind==='spring';
@@ -44,7 +44,17 @@ export function movementLayout(kind,H,Rr){
  /* a quartz movement's coil and quartz capsule lie on its plate, toward the caseback */
  const yB=y0+(rotor?1.15:kind==='quartz'?1:.5);
  const m=r;
- return{kind,r,rw,y0,yB,yT,rotor,
+ /* Under an open heart (openHeart, geometry.js dialLayoutOf) the balance is
+    where the dial's aperture shows it, at 9, and the same size, so the back and
+    the front show one balance: the train bridge moves across to 3-6 to make
+    room (mx), the cock reaches out toward 7:30, and the barrel bridge stops
+    short of the balance's recess. */
+ if(heart)return{kind,r,rw,y0,yB,yT,rotor,heart:true,mx:-1,cockAng:Math.PI*.75,
+  balance:{x:heart.x,z:heart.z,r:heart.r},
+  barrel:{x:.2*m,z:-.3*m,r:.3*m},
+  crownWheel:{x:.6*m,z:-.15*m,r:.13*m},
+  escape:{x:-.05*m,z:.42*m}};
+ return{kind,r,rw,y0,yB,yT,rotor,mx:1,
   balance:{x:.36*m,z:.36*m,r:.3*m},
   barrel:{x:.2*m,z:-.3*m,r:.3*m},
   crownWheel:{x:.6*m,z:-.15*m,r:.13*m},
@@ -124,12 +134,14 @@ function balanceWheel(kind,rr,add,spring=-1){const bal=new Group();bal.name='bal
    shows its glide wheel turning. `r` is the aperture's radius and `reach` how
    far the plate may run under the dial. It all lies within 2.3 mm of the dial's
    face, above the movement (movementLayout's yT is at least 2.6 mm below it). */
+/* an open heart's balance, as a share of its aperture's radius */
+export const HEART_BALANCE=.8;
 export function openHeart(kind,r,reach=r+3){const g=new Group();g.name='openHeart';
  const add=(to,name,geo,mat)=>{const o=new Mesh(geo,mat);o.name='heart:'+name;o.castShadow=o.receiveShadow=true;to.add(o);return o};
  const floor=-2,balY=-1.3,bridgeTop=-.52,bridgeBottom=-.78;
  /* the plate runs on under the dial as far as an oblique look through the aperture reaches */
  add(g,'plate',slab([new Shape().absarc(0,0,Math.max(r+.6,Math.min(r+3.2,reach)),0,Math.PI*2,false)],floor-.3,floor,.04),MAT.plate());
- const bal=balanceWheel(kind,r*.8,add,1);bal.position.y=balY;bal.userData.front=true;g.add(bal);
+ const bal=balanceWheel(kind,r*HEART_BALANCE,add,1);bal.position.y=balY;bal.userData.front=true;g.add(bal);
  add(bal,'balanceStaff',new CylinderGeometry(.16,.16,bridgeBottom-floor,16).translate(0,(bridgeBottom+floor)/2-balY,0),MAT.steel('polished'));
  /* the bridge: a bar across the aperture, its feet under the dial, and a round boss over the balance */
  {const L=r+1.1,w=.5,a=.62,c=Math.cos(a),s=Math.sin(a);
@@ -146,8 +158,10 @@ export function openHeart(kind,r,reach=r+3){const g=new Group();g.name='openHear
  return g}
 
 /* Build the movement for a design's case. `engrave` is the case's engraving. */
-export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
- const L=movementLayout(kind,H,Rr),{r:m,y0,yB,yT}=L,g=new Group();g.name='movement';
+export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO',heart=null}={}){
+ const L=movementLayout(kind,H,Rr,{heart}),{r:m,y0,yB,yT}=L,g=new Group();g.name='movement';
+ /* the train bridge's side, and everything on it: at 9, or at 3 under an open heart */
+ const M=([x,z])=>[L.mx*x,z];
  const add=(to,name,geo,mat)=>{const o=new Mesh(geo,mat);o.name='movement:'+name;o.castShadow=o.receiveShadow=true;to.add(o);return o};
  const B=L.balance,br=B.r+.3;
 
@@ -162,13 +176,21 @@ export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
 
  if(kind==='quartz')return quartz(g,L,add);
 
- /* bridges: barrel bridge over the top half, train bridge at 9, the balance cock at 4:30 */
+ /* bridges: barrel bridge over the top half, train bridge at 9, the balance cock at 4:30
+    (under an open heart: the balance at 9, the train bridge at 3-6, the cock toward 7:30) */
  const edge=m*.97,bridges=[];
- bridges.push(outline([...arc(0,0,edge,Math.PI*1.04,Math.PI*1.96,40),[edge*.9,-.05*m],[.1*m,.02*m],[-edge*.9,-.02*m]]));
- bridges.push(outline([...arc(0,0,edge,Math.PI*.99,Math.PI*.62,24),[.08*m,.5*m],[0,.28*m],[-.1*m,.06*m]]));
- /* the cock: a round eye over the balance on an arm that widens to the edge, one outline */
- {const d=Math.hypot(B.x,B.z),ux=B.x/d,uz=B.z/d,px=-uz,pz=ux,wR=.15*m,th=Math.atan2(uz,ux);
-  bridges.push(outline([...arc(B.x,B.z,.12*m,th+Math.PI/2,th+Math.PI*1.5,20),[ux*edge-px*wR,uz*edge-pz*wR],[ux*edge+px*wR,uz*edge+pz*wR]]))}
+ bridges.push(outline(L.heart
+  /* round the top of the balance's recess, clear of it by half a millimetre */
+  ?[...arc(0,0,edge,Math.PI*1.22,Math.PI*1.96,36),[edge*.9,-.05*m],[.1*m,.02*m],...arc(B.x,B.z,br+.5,-.05,-Math.PI*.6,16)]
+  :[...arc(0,0,edge,Math.PI*1.04,Math.PI*1.96,40),[edge*.9,-.05*m],[.1*m,.02*m],[-edge*.9,-.02*m]]));
+ bridges.push(outline([...arc(0,0,edge,Math.PI*.99,Math.PI*.62,24),[.08*m,.5*m],[0,.28*m],[-.1*m,.06*m]].map(M)));
+ /* the cock: a round eye over the balance on an arm that widens to the edge, one
+    outline; the arm runs out from the centre through the balance, or along cockAng */
+ let cockFoot;
+ {const a=L.cockAng??Math.atan2(B.z,B.x),ux=Math.cos(a),uz=Math.sin(a),px=-uz,pz=ux,wR=.15*m;
+  const bu=B.x*ux+B.z*uz,t=-bu+Math.sqrt(bu*bu-(B.x*B.x+B.z*B.z)+edge*edge),ex=B.x+ux*t,ez=B.z+uz*t;
+  cockFoot=[ex-ux*.1*m,ez-uz*.1*m];
+  bridges.push(outline([...arc(B.x,B.z,.12*m,a+Math.PI/2,a+Math.PI*1.5,20),[ex-px*wR,ez-pz*wR],[ex+px*wR,ez+pz*wR]]))}
  add(g,'bridges',slab(bridges,yB,plateTop),MAT.rhodium());
 
  /* balance wheel and hairspring in the recess, swinging about the cock's jewel */
@@ -190,14 +212,18 @@ export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
  wheelAt('crownWheel',L.crownWheel,30,.22);
 
  /* jewels at the pivots, in gold settings standing a hair proud of the bridges */
- const jewels=[[B.x,B.z],[L.escape.x,L.escape.z],[-.12*m,.28*m],[-.36*m,.12*m],[-.55*m,-.3*m],[.62*m,-.52*m]];
+ const jewels=[[B.x,B.z],[L.escape.x,L.escape.z],M([-.12*m,.28*m]),M([-.36*m,.12*m]),L.heart?[-.35*m,-.45*m]:[-.55*m,-.3*m],[.62*m,-.52*m]];
  jewels.forEach(([x,z],k)=>{const ch=new CylinderGeometry(.78,.78,.08,28);ch.translate(x,yB-.04,z);add(g,'chaton'+k,ch,MAT.gilt());
   const j=new CylinderGeometry(.42,.46,.06,24);j.translate(x,yB-.1,z);add(g,'jewel'+k,j,MAT.ruby())});
  /* screws holding the bridges */
- for(const[x,z]of[[-.72*m,-.48*m],[.1*m,-.8*m],[-.78*m,.3*m],[-.3*m,.55*m],[.78*m*Math.cos(.78),.78*m*Math.sin(.78)]])screw(g,'bridgeScrew',x,z,yB);
+ for(const[x,z]of L.heart?[[-.5*m,-.62*m],[.1*m,-.8*m],M([-.78*m,.3*m]),M([-.3*m,.55*m]),[.78*m*Math.cos(.78),.78*m*Math.sin(.78)],cockFoot]
+  :[[-.72*m,-.48*m],[.1*m,-.8*m],[-.78*m,.3*m],[-.3*m,.55*m],[.78*m*Math.cos(.78),.78*m*Math.sin(.78)]])screw(g,'bridgeScrew',x,z,yB);
 
  /* rotor: half a disc turning on the centre bearing, its heavy rim toward the caseback */
  if(L.rotor){const rot=new Group();rot.name='rotor';g.add(rot);
+  /* at rest it covers the half away from the balance: under an open heart,
+     the half toward 3 (its sector's middle, at 1.35 pi, turned round to 0) */
+  if(L.heart)rot.rotation.y=-.65*Math.PI;
   const a0=Math.PI*.85,a1=Math.PI*1.85,ro=m*.95,ri=m*.8,top=yB-.4;
   const sector=outline([...arc(0,0,.16*m,a1,a0,12),...arc(0,0,ri,a0,a1,40)]);
   const plate=slab([sector],top-.35,top,.05);

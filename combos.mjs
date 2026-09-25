@@ -821,7 +821,14 @@ for(const caseMm of[34,46]){const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap
   if(y1>H.dial-.05)bad(tag,`the open heart stands ${(y1-H.dial).toFixed(2)}mm up to the dial's face`);
   if(y0<Lm.yT+1e-6)bad(tag,`the open heart reaches ${(Lm.yT-y0).toFixed(2)}mm into the movement`);
   let spin=null;heart.traverse(o=>{if(o.userData.spin)spin=o.userData.spin});
-  if(spin!==(kind==='spring'?'glide':'balance'))bad(tag,`the heart shows ${spin||'nothing'} turning`)}
+  if(spin!==(kind==='spring'?'glide':'balance'))bad(tag,`the heart shows ${spin||'nothing'} turning`);
+  /* seen from the back, the movement's balance is the one the aperture shows: under it, as big */
+  const mv=w.getObjectByName('movement'),mb=mv&&mv.getObjectByName('balance'),hb=heart.getObjectByName('balance');
+  if(!mb||!hb){bad(tag,'a balance is missing');continue}
+  const P=o=>{o.updateWorldMatrix(true,false);return[o.matrixWorld.elements[12],o.matrixWorld.elements[14]]},[mx,mz]=P(mb),[hx,hz]=P(hb);
+  if(Math.hypot(mx-hx,mz-hz)>1e-6)bad(tag,`the movement's balance is ${Math.hypot(mx-hx,mz-hz).toFixed(2)}mm from the one the heart shows`);
+  const rimR=b=>{const g=b.getObjectByName(b.children[0].name).geometry;g.computeBoundingBox();return g.boundingBox.max.x};
+  if(Math.abs(rimR(mb)-rimR(hb))>1e-6)bad(tag,'the balance behind the window is not the size of the one in the heart')}
  {const d=M.clone(M.DEF);d.case.movement='quartz';d.parts.dial.complication='heart';
   if(G.dialLayoutOf(d).heart||M.buildHead(d,{}).getObjectByName('openHeart'))bad('open heart quartz','a quartz movement shows a balance')}}
 

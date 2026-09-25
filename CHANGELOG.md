@@ -36,7 +36,12 @@
   where it reaches the ring; the brand moves up rather than shrinking beside it.
   The date wheel runs under the dial three quarters of the way out, under 9
   wherever its window is, so an open heart has no date, and the date buttons
-  say so. The exhibition movement's balance is built by the same code.
+  say so.
+- Behind an exhibition caseback the movement's balance is the one the heart
+  shows: under the aperture and the same size, built by the same code. The
+  train bridge moves across to 3-6 to make room for it, the cock reaches out
+  toward 7:30, the barrel bridge stops short of its recess, and an automatic's
+  rotor rests over the other half (three/movement.js movementLayout).
 
 **Fixed — a new style or size rebuilds a quarter faster**
 - A new index or hand style, or a new size, traces the applied parts again.

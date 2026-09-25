@@ -39,7 +39,7 @@ import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 import {dialPlateCanvas,activeDialBg} from '../dialbg.js';
-import {buildMovement,openHeart} from './movement.js';
+import {buildMovement,openHeart,HEART_BALANCE} from './movement.js';
 const IDENTITY=new Matrix4();
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
@@ -976,7 +976,9 @@ function buildWatch(d,customs,aniso){
   if(arch.caseback==='exhibition'){const rw=Rr.rCase*CASEBACK_WINDOW;
    /* the movement itself (movement.js), and a solid sapphire window set just
       inside the caseback's face */
-   G.case.add(buildMovement(arch.movement,H,Rr,{engrave:arch.engraving}));
+   /* under an open heart, the movement's balance is the one the aperture shows */
+   const HL=dialLayoutOf(d).heart,heart=HL&&{x:(HL.x-C)/PX,z:(HL.y-C)/PX,r:HL.r/PX*HEART_BALANCE};
+   G.case.add(buildMovement(arch.movement,H,Rr,{engrave:arch.engraving,heart}));
    const g0=.1,g1=Math.min(H.back-.15,g0+1),Vv=(x,y)=>new Vector2(x,y);
    const glass=add(G.case,'backGlass',lathe([Vv(0,g0),Vv(rw,g0),Vv(rw,g1),Vv(0,g1)],96),
     crystalMaterial('polished',.5,{solid:g1-g0}),{cast:false,receive:false});
