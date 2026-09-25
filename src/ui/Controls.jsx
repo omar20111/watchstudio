@@ -2,7 +2,7 @@
 import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant,strapFinish} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
-        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit} from '../core/geometry.js';
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit,complicationOf} from '../core/geometry.js';
 import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
@@ -193,15 +193,17 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
    {(()=>{const chrono=p.variant==='chrono',at=dialLayoutOf(d).date;
     return<>
     {!chrono&&<div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Complication">
-     <span>Complication</span><div className="flex gap-1 flex-wrap justify-end">{[['none','None'],['smallsec','Small sec'],['power','Power'],['gmt','GMT']].map(([v,t])=>
-      <button key={v} className={`chip ${(p.complication||'none')===v?'on':''}`} aria-pressed={(p.complication||'none')===v}
-       title={{none:'',smallsec:'Small seconds in a register at 6',power:'Power reserve on an arc at 9',gmt:'A fourth hand going round once a day, for a second time zone'}[v]}
-       onClick={()=>up({complication:v},'cmp')}>{t}</button>)}</div></div>}
+     <span>Complication</span><div className="flex gap-1 flex-wrap justify-end">{[['none','None'],['smallsec','Small sec'],['power','Power'],['gmt','GMT'],['heart','Open heart']].map(([v,t])=>{
+      /* a quartz movement has no balance to show */
+      const off=v==='heart'&&caseOf(d).movement==='quartz',on=complicationOf(d)===v;
+      return<button key={v} className={`chip ${on?'on':''}`} aria-pressed={on} disabled={off} style={off?{opacity:.35,cursor:'not-allowed'}:undefined}
+       title={off?'A quartz movement has no balance wheel to show — choose a mechanical movement on the Case panel':{none:'',smallsec:'Small seconds in a register at 6',power:'Power reserve on an arc at 9',gmt:'A fourth hand going round once a day, for a second time zone',heart:'An aperture at 9 showing the balance wheel beating'}[v]}
+       onClick={()=>up({complication:v},'cmp')}>{t}</button>})}</div></div>}
     <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Date window">
      <span>Date window</span><div className="flex gap-1">{[['none','None'],['3','3'],['430','4:30'],['6','6']].map(([v,t])=>{
-      const off=chrono&&v==='6';
+      const heart=complicationOf(d)==='heart'&&v!=='none',off=chrono&&v==='6'||heart;
       return<button key={v} className={`chip ${at===v?'on':''}`} disabled={off} aria-pressed={at===v}
-       title={off?'A chronograph’s 6 o’clock register and model line leave no room — its date sits at 4:30':v==='none'?'No date':v==='430'?'Date window at 4:30':`Date window at ${t} o’clock`}
+       title={heart?'The date wheel would run under the open heart — an open heart has no date':off?'A chronograph’s 6 o’clock register and model line leave no room — its date sits at 4:30':v==='none'?'No date':v==='430'?'Date window at 4:30':`Date window at ${t} o’clock`}
        style={off?{opacity:.35,cursor:'not-allowed'}:undefined} onClick={()=>up({date:v},'date')}>{t}</button>})}</div></div>
     {chrono&&p.date==='3'&&at==='430'&&<p className="text-[10px] text-neutral-500">On a dial this size the running-seconds register leaves no room for a window at 3, so the date sits at 4:30.</p>}
     <div className="flex items-center justify-between gap-2 text-[11px] text-neutral-400" role="group" aria-label="Chapter ring">

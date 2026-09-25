@@ -788,5 +788,41 @@ for(const caseMm of[34,46]){const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap
   if(Math.abs(b.z1-want)>8)bad(tag,`the clasp ends at ${b.z1.toFixed(1)}mm, the bracelet should end near ${want.toFixed(1)}mm`);
   if(!(b.z0>0))bad(tag,'the clasp is not on the 6 o\'clock half')}}
 
+/* an open heart: the aperture and its collar inside the plate, clear of the
+   hands' centre and the printing, which keeps its size; no date wheel running
+   under it; its index left out where it reaches the ring. What it shows lies
+   between the dial and the movement below, and beats. Never on a quartz. */
+{const MV=await import('./src/core/three/movement.js');const mm=px=>px/PX;
+ for(const caseMm of[34,38,42,46])for(const shape of['round','cushion'])for(const step of['stepped','flat']){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;d.case.shape=shape;Object.assign(d.parts.dial,{step,complication:'heart',date:'3'});
+  const tag=`open heart ${caseMm}mm ${shape} ${step}`,L=G.dialLayoutOf(d),h=L.heart;
+  if(!h){bad(tag,'no aperture');continue}
+  if(L.date!=='none')bad(tag,`a date window at ${L.date} over the date wheel's path under the heart`);
+  const dist=Math.hypot(h.x-C,h.y-C),limit=L.stepped?L.stepR:L.r*.905;
+  if(dist+h.r+h.frame>limit+1e-6)bad(tag,`the collar reaches ${mm(dist+h.r+h.frame-limit).toFixed(2)}mm past the plate`);
+  if(mm(dist-h.r-h.frame)<1.2)bad(tag,`the aperture comes within ${mm(dist-h.r-h.frame).toFixed(2)}mm of the hands' centre`);
+  if(mm(h.r)<2.5)bad(tag,`the aperture is only ${mm(2*h.r).toFixed(1)}mm across`);
+  const reaches=dist+h.r+h.frame+.2*PX>G.indexInnerOf(d)*L.r;
+  if(reaches!==L.skipHours.includes(9))bad(tag,`the index at 9 ${reaches?'kept under':'left out beside'} the aperture`);
+  const T=G.dialTextOf(d);
+  for(const[n,t]of[['brand',T.brand],['model line',T.line]]){
+   if(!(t.maxW>=Math.min(8,mm(L.r)*.6)*PX))bad(tag,`the ${n} has only ${mm(t.maxW).toFixed(1)}mm to print in`);
+   const nx=Math.max(C-t.maxW/2,Math.min(h.x,C+t.maxW/2)),ny=Math.max(t.y-t.size*.6,Math.min(h.y,t.y+t.size*.6));
+   if(Math.hypot(nx-h.x,ny-h.y)<h.r+h.frame)bad(tag,`the ${n} runs into the aperture`)}}
+ for(const kind of['automatic','manual','spring'])for(const caseMm of[34,46]){
+  const d=M.clone(M.DEF);d.caseMm=caseMm;Object.assign(d.case,{caseback:'exhibition',movement:kind});d.parts.dial.complication='heart';
+  const tag=`open heart ${kind}/${caseMm}`;let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const{heights:H,radii:R}=L3.headProfiles(d),Lm=MV.movementLayout(kind,H,R);
+  const heart=w.getObjectByName('openHeart');if(!heart){bad(tag,'nothing under the aperture');continue}
+  let y0=1e9,y1=-1e9;w.updateMatrixWorld(true);
+  heart.traverse(o=>{if(!o.isMesh)return;const e=o.matrixWorld.elements,p=o.geometry.attributes.position;
+   for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),Y=e[1]*x+e[5]*y+e[9]*z+e[13];y0=Math.min(y0,Y);y1=Math.max(y1,Y)}});
+  if(y1>H.dial-.05)bad(tag,`the open heart stands ${(y1-H.dial).toFixed(2)}mm up to the dial's face`);
+  if(y0<Lm.yT+1e-6)bad(tag,`the open heart reaches ${(Lm.yT-y0).toFixed(2)}mm into the movement`);
+  let spin=null;heart.traverse(o=>{if(o.userData.spin)spin=o.userData.spin});
+  if(spin!==(kind==='spring'?'glide':'balance'))bad(tag,`the heart shows ${spin||'nothing'} turning`)}
+ {const d=M.clone(M.DEF);d.case.movement='quartz';d.parts.dial.complication='heart';
+  if(G.dialLayoutOf(d).heart||M.buildHead(d,{}).getObjectByName('openHeart'))bad('open heart quartz','a quartz movement shows a balance')}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

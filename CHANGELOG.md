@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+**Added — an open heart**
+- A dial can show its balance beating (Dial > Complication > Open heart): a
+  round aperture at 9, lined with a polished collar in the hands' metal, over
+  the balance wheel swinging at the movement's beat with its hairspring, under a
+  rhodium bridge that carries the upper jewel in a gilt setting, above a stretch
+  of the main plate grained with perlage (three/movement.js openHeart). The dial
+  casts its shadow into it, so the balance is seen down a well. A spring drive
+  shows its glide wheel turning instead; a quartz movement has no balance and no
+  open heart. The live view keeps drawing while the balance is in sight.
+- It takes the place of a register at 9, a little wider, and the index there
+  where it reaches the ring; the brand moves up rather than shrinking beside it.
+  The date wheel runs under the dial three quarters of the way out, under 9
+  wherever its window is, so an open heart has no date, and the date buttons
+  say so. The exhibition movement's balance is built by the same code.
+
 **Fixed — a new style or size rebuilds a quarter faster**
 - A new index or hand style, or a new size, traces the applied parts again.
   The tracing's search for each pixel's distance to the outline read its pieces

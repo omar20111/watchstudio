@@ -458,9 +458,14 @@ export const SUBDIAL_DEPTH_MM=.28;      /* depth of a register below the plate *
 
 /* A complication on a dial that is not a chronograph: small seconds in a
    register at 6 (the centre seconds hand gives way to it), a power reserve on an
-   arc at 9, or a GMT's fourth hand going round once a day. */
-export const COMPLICATIONS=['none','smallsec','power','gmt'];
-export const complicationOf=d=>{const P=(d.parts&&d.parts.dial)||{};return P.variant==='chrono'?'none':COMPLICATIONS.includes(P.complication)?P.complication:'none'};
+   arc at 9, a GMT's fourth hand going round once a day, or an open heart — a
+   round aperture at 9 showing the balance beating (movement.js openHeart),
+   which a quartz movement has none of. */
+export const COMPLICATIONS=['none','smallsec','power','gmt','heart'];
+export const complicationOf=d=>{const P=(d.parts&&d.parts.dial)||{};if(P.variant==='chrono'||!COMPLICATIONS.includes(P.complication))return'none';
+ return P.complication==='heart'&&caseOf(d).movement==='quartz'?'none':P.complication};
+/* the polished collar lining an open heart's aperture, mm wide */
+export const HEART_FRAME_MM=.35;
 export function dialLayoutOf(d){
  const r=geoOf(d).dialR,P=(d.parts&&d.parts.dial)||{},chrono=P.variant==='chrono',comp=complicationOf(d);
  let date=DATE_POSITIONS.includes(P.date)?P.date:'none';
@@ -468,6 +473,9 @@ export function dialLayoutOf(d){
     does a small seconds' */
  if(chrono&&date==='6')date='430';
  if(comp==='smallsec'&&date==='6')date='3';
+ /* the date wheel is a ring under the dial three quarters of the way out, which
+    runs under 9 wherever its window is: an open heart there has no date */
+ if(comp==='heart')date='none';
  /* a dial of the case's shape is flat: a round chapter step would show inside
     it as a circle drawn across the dial */
  const stepped=P.step==='stepped'&&!openingShaped(d);
@@ -477,6 +485,10 @@ export function dialLayoutOf(d){
  const rs=Math.min(RG.r,(stepped?r*.915:r*.9)/PX-RG.gap-dist,dist*.68);
  const regs=chrono?[[90,'smallsec'],[180,'chHr'],[270,'chMin']]:comp==='smallsec'?[[180,'smallsec']]:comp==='power'?[[270,'power']]:[];
  const subdials=regs.map(([deg,key])=>{const[x,y]=posAt(deg,dist*PX);return{deg,key,x,y,r:rs*PX}});
+ /* an open heart takes a register's place at 9, a little wider: the balance it
+    shows is the size of a register, and its collar stands round it */
+ const heart=comp==='heart'?(()=>{const rh=Math.min(rs*1.12,(stepped?r*.915:r*.9)/PX-RG.gap-dist-HEART_FRAME_MM,dist*.72);
+  const[x,y]=posAt(270,dist*PX);return{deg:270,x,y,r:rh*PX,frame:HEART_FRAME_MM*PX}})():null;
  /* A chronograph's date at 3 goes between the running-seconds register and the
     track when there is room for the window and its frame; on a smaller dial
     there is not, and it moves to 4:30 as it does from 6. */
@@ -503,9 +515,10 @@ export function dialLayoutOf(d){
  /* hours whose index is left out: the one a date window replaces, and those a
     register reaches into */
  const skipHours=win&&win.skipHour!=null?[win.skipHour]:[];
- /* a register reaching into the indices' ring takes its hour's index */
- if(subdials.length&&(dist+rs+.2)*PX>indexInnerOf(d)*r)for(const sd of subdials){const h=Math.round(sd.deg/30)%12;if(!skipHours.includes(h))skipHours.push(h)}
- return{r,chrono,stepped,stepR:r*.915,subdials,date,win,skipHours}}
+ /* a register or an open heart reaching into the indices' ring takes its hour's index */
+ const reaching=[...subdials.map(sd=>[sd.deg,dist+rs]),...(heart?[[heart.deg,(heart.r+heart.frame)/PX+dist]]:[])];
+ for(const[deg,reach]of reaching)if((reach+.2)*PX>indexInnerOf(d)*r){const h=Math.round(deg/30)%12;if(!skipHours.includes(h))skipHours.push(h)}
+ return{r,chrono,stepped,stepR:r*.915,subdials,heart,date,win,skipHours}}
 
 /* ==================== CLEARANCES ====================
    The hands sweep over everything on the dial, so what stands on it must clear
@@ -533,6 +546,7 @@ export function dialBoxesOf(d,pad=0){const L=dialLayoutOf(d),T=dialTextOf(d),t=(
   const w=Math.min(b.maxW,est(str,b.size,t.font==='caps'));
   out.push({kind,x0:C-w/2-pad,x1:C+w/2+pad,y0:b.y-b.size*.6-pad,y1:b.y+b.size*.6+pad})}
  if(L.win){const w=L.win,hx=w.w/2+w.frame+pad,hy=w.h/2+w.frame+pad;out.push({kind:'date window',x0:w.x-hx,x1:w.x+hx,y0:w.y-hy,y1:w.y+hy})}
+ if(L.heart){const h=L.heart,e=h.r+h.frame+pad;out.push({kind:'open heart',x0:h.x-e,x1:h.x+e,y0:h.y-e,y1:h.y+e})}
  return out}
 const segmentHitsBox=(ax,ay,bx,by,b)=>{let t0=0,t1=1;const dx=bx-ax,dy=by-ay;
  for(const[p,q]of[[-dx,ax-b.x0],[dx,b.x1-ax],[-dy,ay-b.y0],[dy,b.y1-ay]]){
@@ -562,9 +576,13 @@ export function dialTextOf(d){const r=geoOf(d).dialR,L=dialLayoutOf(d),T=DIAL_MM
  /* stacked above the registers at 3 and 9, not squeezed between them: the pair
     moves up toward 12 as far as that needs */
  if(L.chrono&&L.subdials.length){line.y=Math.min(line.y,C-L.subdials[0].r-gap-line.size*.6);brand.y=Math.min(brand.y,line.y-lead)}
+ /* likewise the brand over an open heart, rather than shrunk to fit beside it:
+    and the model line under it */
+ if(L.heart){const e=L.heart.r+L.heart.frame+gap;brand.y=Math.min(brand.y,L.heart.y-e-brand.size*.6);line.y=Math.max(line.y,L.heart.y+e+line.size*.6)}
  /* a line of print is centred; anything level with it — a register, the date
     window — leaves it the width up to its nearer edge, less a clearance */
  const obstacles=[...L.subdials.map(s=>({x0:s.x-s.r,x1:s.x+s.r,y0:s.y-s.r,y1:s.y+s.r})),
+  ...(L.heart?[{x0:L.heart.x-L.heart.r-L.heart.frame,x1:L.heart.x+L.heart.r+L.heart.frame,y0:L.heart.y-L.heart.r-L.heart.frame,y1:L.heart.y+L.heart.r+L.heart.frame}]:[]),
   ...(L.win?[{x0:L.win.x-L.win.w/2-L.win.frame,x1:L.win.x+L.win.w/2+L.win.frame,y0:L.win.y-L.win.h/2-L.win.frame,y1:L.win.y+L.win.h/2+L.win.frame}]:[])];
  for(const t of[brand,line]){const half=t.size*.6;
   for(const o of obstacles){if(o.y1<t.y-half||o.y0>t.y+half)continue;

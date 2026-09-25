@@ -268,7 +268,7 @@ function partsSheet(doc,F,d,meta){
    `Outer Ø${f1(F.Rr.rBezOut*2)}, width ${f1(F.bezelMm)}, ${f1(F.st.bezel)} high${F.rot?`; insert, ${detentOf(d)} clicks`:''}`],
   ['Crystal',`${F.crystalName} sapphire`,'Sapphire','Polished','—',`Ø${f1(F.openingMm)} visible, ${f1(F.c.crystalMm)} above the bezel${F.cyclops?'; cyclops over the date':''}`],
   ['Dial',VNAME[P.dial.variant]||P.dial.variant,'—',!P.dial.finish||P.dial.finish==='none'?'—':cap(P.dial.finish),P.dial.color,
-   `Ø${f1(F.dialMm)}${F.dateAt?`; date window at ${F.dateAt}`:''}${P.dial.step==='stepped'?`; centre sunk ${f2(DIAL_STEP_MM)}`:''}${F.L.subdials.length?`; registers milled ${f2(SUBDIAL_DEPTH_MM)}`:''}`],
+   `Ø${f1(F.dialMm)}${F.dateAt?`; date window at ${F.dateAt}`:''}${P.dial.step==='stepped'?`; centre sunk ${f2(DIAL_STEP_MM)}`:''}${F.L.subdials.length?`; registers milled ${f2(SUBDIAL_DEPTH_MM)}`:''}${F.L.heart?`; open heart Ø${f1(2*F.L.heart.r/PX)} at 9, polished collar`:''}`],
   ['Hour indices',VNAME[P.markers.variant]||P.markers.variant,metalName(P.hands.metal),'Polished',P.markers.lume,`Outer ends on Ø${f1(F.dialMm*.885)}; lume ${P.markers.lume}`],
   ['Hands',VNAME[P.hands.variant]||P.hands.variant,metalName(P.hands.metal),cap(P.hands.finish||'polished'),P.hands.lume,
    `Hour ${f1(F.hands.hour)}, minute ${f1(F.hands.min)}, seconds ${f1(F.hands.sec)} (${P.hands.secColor})`],

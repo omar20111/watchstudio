@@ -97,6 +97,54 @@ function engraving(text){if(engravings.has(text))return engravings.get(text);
  ctx.font='500 24px system-ui, sans-serif';ctx.fillText('AUTOMATIC · 25 JEWELS',632,312);
  const maps=engravedMetalMaps(cv,W);engravings.set(text,maps);return maps}
 
+/* A balance wheel of radius `rr` in its own frame, turning about its y axis at
+   the movement's beat (userData.spin, posed by watch.js poseHead): a glucydur
+   rim and arms, eight gilt timing screws round a mechanical balance's rim, and
+   its hairspring on the side `spring` (-1 toward the caseback, +1 toward the
+   dial). A spring drive's glide wheel has five arms and neither. */
+function balanceWheel(kind,rr,add,spring=-1){const bal=new Group();bal.name='balance';bal.userData.spin=kind==='spring'?'glide':'balance';
+ const t=.28,rim=Math.max(.35,rr*.12);
+ const wheel=new LatheGeometry([V2(rr-rim,-t/2),V2(rr,-t/2),V2(rr,t/2),V2(rr-rim,t/2),V2(rr-rim,-t/2)],64);
+ add(bal,'balanceRim',wheel,MAT.glucydur());
+ const arms=kind==='spring'?5:3;
+ for(let k=0;k<arms;k++){const a=new BoxGeometry(rr*2-rim,t*.7,Math.max(.22,rr*.07));a.rotateY(k*Math.PI/arms);add(bal,'balanceArm'+k,a,MAT.glucydur())}
+ /* timing screws round a mechanical balance's rim */
+ if(kind!=='spring')for(let k=0;k<8;k++){const a=k/8*Math.PI*2,sc=new CylinderGeometry(.16,.16,.22,10);
+  sc.rotateZ(Math.PI/2);sc.rotateY(-a);sc.translate(Math.cos(a)*(rr+.08),0,Math.sin(a)*(rr+.08));add(bal,'balanceScrew'+k,sc,MAT.gilt())}
+ if(kind!=='spring'){const pts=[],turns=11;
+  for(let i=0;i<=turns*48;i++){const u=i/(turns*48),a=u*turns*Math.PI*2,rad=rr*(.14+.62*u);pts.push(new Vector3(Math.cos(a)*rad,spring*(t/2+.12),Math.sin(a)*rad))}
+  add(bal,'hairspring',new TubeGeometry(new CatmullRomCurve3(pts),turns*64,.035,4,false),MAT.steel('polished'))}
+ return bal}
+
+/* An open heart: what the dial's aperture shows (geometry.js dialLayoutOf
+   heart, watch.js), in the aperture's own frame — centred on it, y = 0 at the
+   dial's face, down into the case. The balance beats with its hairspring on the
+   dial side, under a bridge that crosses the aperture and carries the upper
+   jewel, over a stretch of the main plate grained with perlage; a spring drive
+   shows its glide wheel turning. `r` is the aperture's radius and `reach` how
+   far the plate may run under the dial. It all lies within 2.3 mm of the dial's
+   face, above the movement (movementLayout's yT is at least 2.6 mm below it). */
+export function openHeart(kind,r,reach=r+3){const g=new Group();g.name='openHeart';
+ const add=(to,name,geo,mat)=>{const o=new Mesh(geo,mat);o.name='heart:'+name;o.castShadow=o.receiveShadow=true;to.add(o);return o};
+ const floor=-2,balY=-1.3,bridgeTop=-.52,bridgeBottom=-.78;
+ /* the plate runs on under the dial as far as an oblique look through the aperture reaches */
+ add(g,'plate',slab([new Shape().absarc(0,0,Math.max(r+.6,Math.min(r+3.2,reach)),0,Math.PI*2,false)],floor-.3,floor,.04),MAT.plate());
+ const bal=balanceWheel(kind,r*.8,add,1);bal.position.y=balY;bal.userData.front=true;g.add(bal);
+ add(bal,'balanceStaff',new CylinderGeometry(.16,.16,bridgeBottom-floor,16).translate(0,(bridgeBottom+floor)/2-balY,0),MAT.steel('polished'));
+ /* the bridge: a bar across the aperture, its feet under the dial, and a round boss over the balance */
+ {const L=r+1.1,w=.5,a=.62,c=Math.cos(a),s=Math.sin(a);
+  const bar=outline([[-L,-w],[L,-w],[L,w],[-L,w]].map(([x,z])=>[x*c-z*s,x*s+z*c]));
+  add(g,'bridge',slab([bar],bridgeBottom,bridgeTop,.05),MAT.rhodium());
+  /* the boss stands a little proud of the bar, so their tops never share a plane */
+  const bossTop=bridgeTop+.04;add(g,'bridgeBoss',slab([new Shape().absarc(0,0,1,0,Math.PI*2,false)],bridgeBottom+.02,bossTop,.05),MAT.rhodium());
+  /* the upper jewel in its gilt setting, on the dial side of the bridge */
+  const ch=new CylinderGeometry(.62,.62,.08,28);ch.translate(0,bossTop+.04,0);add(g,'chaton',ch,MAT.gilt());
+  const j=new CylinderGeometry(.34,.38,.06,24);j.translate(0,bossTop+.1,0);add(g,'jewel',j,MAT.ruby());
+  /* a blued screw on each arm, where it passes under the aperture's edge */
+  for(const k of[-1,1]){const x=k*(r-.55)*c,z=k*(r-.55)*s,sc=new CylinderGeometry(.34,.34,.1,20);sc.translate(x,bridgeTop+.05,z);add(g,'bridgeScrew',sc,MAT.blued());
+   const sl=new BoxGeometry(.7,.04,.1);sl.rotateY(-a+.9);sl.translate(x,bridgeTop+.1,z);add(g,'bridgeScrewSlot',sl,MAT.slot())}}
+ return g}
+
 /* Build the movement for a design's case. `engrave` is the case's engraving. */
 export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
  const L=movementLayout(kind,H,Rr),{r:m,y0,yB,yT}=L,g=new Group();g.name='movement';
@@ -124,19 +172,8 @@ export function buildMovement(kind,H,Rr,{engrave='WATCHSTUDIO'}={}){
  add(g,'bridges',slab(bridges,yB,plateTop),MAT.rhodium());
 
  /* balance wheel and hairspring in the recess, swinging about the cock's jewel */
- {const bal=new Group();bal.name='balance';bal.position.set(B.x,(plateTop+recess)/2,B.z);bal.userData.spin=kind==='spring'?'glide':'balance';g.add(bal);
-  const rr=B.r,t=.28,rim=Math.max(.35,rr*.12);
-  const wheel=new LatheGeometry([V2(rr-rim,-t/2),V2(rr,-t/2),V2(rr,t/2),V2(rr-rim,t/2),V2(rr-rim,-t/2)],64);
-  add(bal,'balanceRim',wheel,MAT.glucydur());
-  const arms=kind==='spring'?5:3;
-  for(let k=0;k<arms;k++){const a=new BoxGeometry(rr*2-rim,t*.7,Math.max(.22,rr*.07));a.translate(0,0,0);a.rotateY(k*Math.PI/arms);add(bal,'balanceArm'+k,a,MAT.glucydur())}
-  add(bal,'balanceStaff',new CylinderGeometry(.18,.18,recess-plateTop+.3,16),MAT.steel('polished'));
-  /* timing screws round a mechanical balance's rim */
-  if(kind!=='spring')for(let k=0;k<8;k++){const a=k/8*Math.PI*2,sc=new CylinderGeometry(.16,.16,.22,10);
-   sc.rotateZ(Math.PI/2);sc.rotateY(-a);sc.translate(Math.cos(a)*(rr+.08),0,Math.sin(a)*(rr+.08));add(bal,'balanceScrew'+k,sc,MAT.gilt())}
-  if(kind!=='spring'){const pts=[],turns=11;
-   for(let i=0;i<=turns*48;i++){const u=i/(turns*48),a=u*turns*Math.PI*2,rad=rr*(.14+.62*u);pts.push(new Vector3(Math.cos(a)*rad,-t/2-.12,Math.sin(a)*rad))}
-   add(bal,'hairspring',new TubeGeometry(new CatmullRomCurve3(pts),turns*64,.035,4,false),MAT.steel('polished'))}}
+ {const bal=balanceWheel(kind,B.r,add);bal.position.set(B.x,(plateTop+recess)/2,B.z);g.add(bal);
+  add(bal,'balanceStaff',new CylinderGeometry(.18,.18,recess-plateTop+.3,16),MAT.steel('polished'))}
 
  /* ratchet and crown wheels on the barrel bridge: turned faces, cut teeth */
  /* a wheel with its teeth cut round the outline, its face turned from the centre */

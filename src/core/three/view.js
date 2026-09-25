@@ -284,11 +284,13 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncC
     underside(false);c.clearViewOffset();renderer.shadowMap.autoUpdate=auto});
    return !aa.done},
   /* is something moving in view that the clock does not tick once a second — the
-     balance behind an exhibition caseback, seen from below */
+     balance behind an exhibition caseback, seen from below, or an open heart's,
+     seen from the front or three-quarter */
   /* night mode on (lume lit, studio dimmed), for the stage and for tests */
   get night(){return night},
-  get moving(){if(!watch||camera!=='back')return false;let m=false;
-   watch.traverse(o=>{const k=o.userData&&o.userData.spin;if(k==='balance'||k==='glide')m=true});return m},
+  get moving(){if(!watch)return false;let m=false;
+   watch.traverse(o=>{const k=o.userData&&o.userData.spin;
+    if((k==='balance'||k==='glide')&&(o.userData.front?camera==='front'||camera==='three-quarter':camera==='back'))m=true});return m},
   /* the design part under a canvas-relative point (px), or null */
   pick(x,y,sel){if(!watch||camera==='profile')return null;
    const rc=new Raycaster();rc.setFromCamera(new Vector2(x/w*2-1,-(y/h*2-1)),cam());

@@ -44,9 +44,10 @@ function ribs(ctx,P,Ro,Ri,col,r){const mid=(Ro+Ri)/2,step=Math.max(.5,DIAL_MM.ri
   ctx.beginPath();ctx.moveTo(P.x+c*Ri,P.y+si*Ri);ctx.lineTo(P.x+c*Ro,P.y+si*Ro);ctx.stroke()}
  ctx.restore()}
 
-/* the apertures a plate must not cover: a date window and any register */
+/* the apertures a plate must not cover: a date window, any register, an open heart */
 function cutApertures(ctx,L){ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';
  for(const sd of (L&&L.subdials)||[]){ctx.beginPath();ctx.arc(sd.x,sd.y,sd.r+2,0,Math.PI*2);ctx.fill()}
+ if(L&&L.heart){ctx.beginPath();ctx.arc(L.heart.x,L.heart.y,L.heart.r+L.heart.frame+2,0,Math.PI*2);ctx.fill()}
  if(L&&L.win){const w=L.win;roundRect(ctx,w.x,w.y,w.w+2*w.frame+4,w.h+2*w.frame+4,w.rad+w.frame);ctx.fill()}
  ctx.restore()}
 

@@ -45,7 +45,7 @@ export function logoBoxOf(d,aspect=1){const L=logoOf(d),r=geoOf(d).dialR,lay=dia
  const cx=C,cy=C+L.y*r;
  let w0=r*L.size,h0=w0*aspect;if(h0>r*.42){h0=r*.42;w0=h0/aspect}
  const boxes=dialBoxesOf(d,gap),ringR=indexInnerOf(d)*r-gap;
- const circles=[...lay.subdials.map(s=>({kind:'register',x:s.x,y:s.y,r:s.r+gap})),{kind:'hands’ centre',x:C,y:C,r:HANDS_HUB_MM*PX}];
+ const circles=[...lay.subdials.map(s=>({kind:'register',x:s.x,y:s.y,r:s.r+gap})),...(lay.heart?[{kind:'open heart',x:lay.heart.x,y:lay.heart.y,r:lay.heart.r+lay.heart.frame+gap}]:[]),{kind:'hands’ centre',x:C,y:C,r:HANDS_HUB_MM*PX}];
  const clash=k=>{const hw=w0*k/2,hh=h0*k/2,b={x0:cx-hw,x1:cx+hw,y0:cy-hh,y1:cy+hh};
   for(const o of boxes)if(b.x0<o.x1&&b.x1>o.x0&&b.y0<o.y1&&b.y1>o.y0)return o.kind;
   for(const c of circles){const nx=Math.max(b.x0,Math.min(c.x,b.x1)),ny=Math.max(b.y0,Math.min(c.y,b.y1));if(Math.hypot(nx-c.x,ny-c.y)<c.r)return c.kind}

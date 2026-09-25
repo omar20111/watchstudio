@@ -39,7 +39,7 @@ import {anisotropyMap,stripeNormalMap,snailNormalMap} from './surface.js';
 import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 import {dialPlateCanvas,activeDialBg} from '../dialbg.js';
-import {buildMovement} from './movement.js';
+import {buildMovement,openHeart} from './movement.js';
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
    the floor of the lume channel; numerals carry no lume. */
@@ -1088,6 +1088,7 @@ function buildWatch(d,customs,aniso){
    const outline=edge&&!DL.stepped?edgeShape(edge):new Shape();if(!(edge&&!DL.stepped))outline.absarc(0,0,plateR,0,Math.PI*2,false);
    for(const sd of DL.subdials){const h=new Path();h.absarc(mmX(sd.x),mmY(sd.y),sd.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
    if(DL.win)outline.holes.push(roundRectPath(new Path(),mmX(DL.win.x),mmY(DL.win.y),DL.win.w/PX,DL.win.h/PX,DL.win.rad/PX));
+   if(DL.heart){const h=new Path();h.absarc(mmX(DL.heart.x),mmY(DL.heart.y),DL.heart.r/PX,0,Math.PI*2,true);outline.holes.push(h)}
    const plate=add(G.dial,'dial',faceUp(sheetUV(new ShapeGeometry(outline,48),dspan)),mat,{cast:false});
    plate.position.y=Hc;
    /* the wall of any recess is the plate's own metal, seen in its own shade */
@@ -1134,7 +1135,16 @@ function buildWatch(d,customs,aniso){
     const wres=artRes(cr+span);
     const wheel=add(G.dial,'dateWheel',faceUp(sheetUV(new RingGeometry(Math.max(0,cr-span)/PX,(cr+span)/PX,160,1),wres.box[2])),
      paintedMaterial(tex(getProc('dial',d,'dateWheel','flat',wres)),{roughness:.5}),{cast:false});
-    wheel.position.y=wheelY;wheel.userData.spin='dateWheel'}}}
+    wheel.position.y=wheelY;wheel.userData.spin='dateWheel'}
+   /* Open heart: a polished collar lines the aperture — bevelled outward on top,
+      a wall down into the case — and under it the balance beats over the
+      movement's plate (movement.js openHeart). The plate casts its shadow in, so
+      the balance is seen down a well rather than lit as if the dial were not there. */
+   if(DL.heart){const hx=mmX(DL.heart.x),hz=-mmY(DL.heart.y),hr=DL.heart.r/PX,b=DL.heart.frame/PX;
+    const collar=lathe([new Vector2(hr+b,Hc+.002),new Vector2(hr+b*.4,Hc+.085),new Vector2(hr,Hc+.05),new Vector2(hr,Hc-.45)],128);
+    collar.translate(hx,0,hz);add(G.dial,'heartCollar',collar,metalMaterial(parts.hands.metal,'polished'));
+    const heart=openHeart(caseOf(d).movement,hr,Rr.dialR-.3-Math.hypot(hx,hz));heart.position.set(hx,Hc,hz);G.dial.add(heart);
+    plate.castShadow=true}}}
  /* registers: a chronograph's running seconds at 3, 12-hour at 6, 30-minute at 9;
     a small seconds at 6 or a power reserve at 9 */
  if(DL.subdials.length&&!dialUpload){const hp=parts.hands;
