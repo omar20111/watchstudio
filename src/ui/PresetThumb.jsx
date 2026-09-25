@@ -64,10 +64,28 @@ function Crystal({v}){
   <path d={GLASS[v]||GLASS.flat} fill="#a9cbe9" fillOpacity=".3" stroke="#d6e8f7" strokeWidth="1.2" strokeLinejoin="round"/>
  </svg>}
 
+/* A case or crown drawn as an outline, where the 3D pictures cannot be had in
+   good time: drawn in software, each took seconds in a context of its own,
+   and held up the page — a drag on the stage waited behind it for half a minute. */
+function Outline({part,v}){const guards=part==='case'&&v==='sport',big=part==='crown'&&v==='oversized';
+ return<svg viewBox="0 0 60 60" className="block w-14 h-14" role="img" aria-label={v}>
+  {part==='case'?<>
+   <path d="M22 6h16l2 10H20zM20 44h20l-2 10H22z" fill="#7d828b"/>
+   <circle cx="30" cy="30" r="17" fill="#9aa0a8" stroke="#c9ced6" strokeWidth="1.5"/>
+   <circle cx="30" cy="30" r="12" fill="#1b2a44"/>
+   <rect x="46" y="27" width="5" height="6" rx="1" fill="#b9bec6"/>
+   {guards&&<path d="M45 21l5 4v10l-5 4z" fill="#7d828b"/>}</>
+  :<>
+   <rect x="10" y="26" width="16" height="8" fill="#7d828b"/>
+   <rect x="24" y={big?16:20} width={big?24:18} height={big?28:20} rx="3" fill="#b9bec6" stroke="#dde1e6" strokeWidth="1"/>
+   {[...Array(big?7:5)].map((_,i)=><path key={i} d={`M${27+i*(big?3:3.2)} ${big?17:21}v${big?26:18}`} stroke="#8a9098" strokeWidth="1"/>)}</>}
+ </svg>}
+
 export function PresetThumb({part,v,d}){
  if(part==='crystal')return<Crystal v={v}/>;
- /* the case and crown have no painted bake to fall back to; the artwork parts use
-    theirs where there is no 3D, or only software drawing it (a picture a second) */
+ /* where there is no 3D, or only software drawing it (a picture a second), the
+    artwork parts show their painted bakes and the case and crown an outline */
  const gl=webglState();
- if(SOLID.includes(part)&&((gl.ok&&!gl.software)||part==='case'||part==='crown'))return<Solid part={part} v={v} d={d}/>;
+ if(SOLID.includes(part)&&gl.ok&&!gl.software)return<Solid part={part} v={v} d={d}/>;
+ if(part==='case'||part==='crown')return<Outline part={part} v={v}/>;
  return<img src={getThumb(part,v,d)} className="w-14 h-14 object-cover" alt={v}/>}

@@ -46,6 +46,11 @@
 - The preset pictures render only while they are on screen: behind a phone's
   closed drawer they had been built in the background at startup and after
   every edit (ui/PresetThumb.jsx).
+- Where the graphics are drawn in software, the case and crown presets are
+  drawn as outlines: each 3D picture took seconds there in a context of its
+  own, and a drag on the stage waited behind them for half a minute (the
+  browser checks' editor run, which draws in software, fell from over four
+  minutes to two and a half).
 
 **Added — a curved tonneau**
 - A tonneau can curve to the wrist (Case > Curve, the ends up to 2.5 mm lower):
