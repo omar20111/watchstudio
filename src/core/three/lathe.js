@@ -13,9 +13,9 @@
    Point order matters: LatheGeometry takes each segment's normal as (dy, -dx),
    so every profile runs bottom -> outside -> top -> inward, which faces its
    normals out of the metal. */
-import {Vector2,LatheGeometry,Shape,BufferGeometry,Float32BufferAttribute} from 'three';
+import {Vector2,Vector3,Matrix3,LatheGeometry,Shape,BufferGeometry,Float32BufferAttribute} from 'three';
 import {PX} from '../constants.js';
-import {LUG_CLEAR_MM,caseReachMm,endReachMm,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt} from '../geometry.js';
+import {LUG_CLEAR_MM,caseReachMm,endReachMm,geoOf,caseOf,thicknessStack,crownAng,strapMmOf,springBarMm,HAND_STACK_MM,HAND_CLEAR_MM,CRYSTAL_T_MM,handsTopAt,caseBendOf,bendAt,bendSlope} from '../geometry.js';
 import {bezelRings} from '../render/bezel.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 
@@ -303,6 +303,23 @@ function wristPath(start,y0,lead,T,W){
   return[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t,Math.atan2(q[1]-p[1],q[0]-p[0])]};
  return{pos,groundY:yc-B-T/2}}
 
+/* A curved case (geometry.js caseBendOf): every point of `geo` beyond the flat
+   middle brought down by bendAt, its normals and tangents turned with the
+   surface — a shear of y along z, so a normal takes the transpose of its
+   inverse. `m` carries the geometry into the head's frame where it is not
+   already in it. In place; returns `geo`. */
+export function bendGeometry(geo,B,m=null){if(!B)return geo;
+ const p=geo.attributes.position,n=geo.attributes.normal,t=geo.attributes.tangent;
+ const inv=m&&m.clone().invert(),nm=m&&new Matrix3().getNormalMatrix(m),nmi=m&&new Matrix3().getNormalMatrix(inv);
+ const v=new Vector3(),w=new Vector3();
+ for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);if(m)v.applyMatrix4(m);
+  if(Math.abs(v.z)<=B.z0)continue;
+  const k=bendSlope(B,v.z);v.y+=bendAt(B,v.z);if(inv)v.applyMatrix4(inv);p.setXYZ(i,v.x,v.y,v.z);
+  if(n){w.fromBufferAttribute(n,i);if(nm)w.applyMatrix3(nm);w.z-=k*w.y;w.normalize();if(nmi)w.applyMatrix3(nmi).normalize();n.setXYZ(i,w.x,w.y,w.z)}
+  if(t){w.set(t.getX(i),t.getY(i),t.getZ(i));if(m)w.transformDirection(m);w.y+=k*w.z;w.normalize();if(inv)w.transformDirection(inv);t.setXYZ(i,w.x,w.y,w.z)}}
+ p.needsUpdate=true;if(n)n.needsUpdate=true;if(t)t.needsUpdate=true;
+ geo.computeBoundingBox();geo.computeBoundingSphere();return geo}
+
 export function strapPath(d){
  const lp=lugParts(d),v=d.parts.strap.variant;
  const T=v==='nato'?1.3:v==='steel'?3.4:v==='rubber'?3.6:v==='mesh'?2.2:3.1;
@@ -313,7 +330,8 @@ export function strapPath(d){
  /* how far a strap's top stands above its centreline where it leaves the case, as
     a share of T (its crown and padding; measured off the built straps) */
  const TOP={steel:.48,rubber:.69,leather:.86,nato:.5,mesh:.55}[v]??.6;
- const y0=integrated?lp.heights.shoulderTop-.05-T*TOP:lp.bottom-lugDropAtBar+lp.thick*.42-T/2;
+ /* a curved case's lugs come down with its ends: the strap leaves them that much lower */
+ const y0=(integrated?lp.heights.shoulderTop-.05-T*TOP:lp.bottom-lugDropAtBar+lp.thick*.42-T/2)+bendAt(caseBendOf(d),lp.springZ);
  const r1=16,r2=12,th=55*Math.PI/180;
  /* an integrated bracelet leaves the case level, as its first link, before it bends */
  const lead=integrated?7:0;

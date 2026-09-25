@@ -825,5 +825,34 @@ for(const caseMm of[34,46]){const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap
  {const d=M.clone(M.DEF);d.case.movement='quartz';d.parts.dial.complication='heart';
   if(G.dialLayoutOf(d).heart||M.buildHead(d,{}).getObjectByName('openHeart'))bad('open heart quartz','a quartz movement shows a balance')}}
 
+/* a curved tonneau: its ends come down by the drop asked for and its middle
+   stays where it was; its bent surfaces keep unit normals; the strap leaves
+   the lugs as much lower as the case is there. Only a tonneau whose bezel is not
+   of its own shape curves at all. */
+{const pts=(w,n)=>{const out=[];w.updateMatrixWorld(true);w.traverse(o=>{if(!o.isMesh||o.name!==n)return;const a=o.geometry.attributes.position,e=o.matrixWorld.elements;
+  for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i);out.push([e[0]*x+e[4]*y+e[8]*z+e[12],e[1]*x+e[5]*y+e[9]*z+e[13],e[2]*x+e[6]*y+e[10]*z+e[14]])}});return out};
+ const top=(w,n,zMin)=>{let y=-1e9;w.updateMatrixWorld(true);w.traverse(o=>{if(!o.isMesh||o.name!==n)return;const a=o.geometry.attributes.position,e=o.matrixWorld.elements;
+  for(let i=0;i<a.count;i++){const x=a.getX(i),yy=a.getY(i),z=a.getZ(i),Z=e[2]*x+e[6]*yy+e[10]*z+e[14];if(Math.abs(Z)>=zMin)y=Math.max(y,e[1]*x+e[5]*yy+e[9]*z+e[13])}});return y};
+ for(const tl of[1.1,1.45])for(const bend of[1,2.5])for(const[lugs,strap]of[['straight','leather'],['integrated','steel']]){
+  const flat=M.clone(M.DEF);Object.assign(flat.case,{shape:'tonneau',tonneauLen:tl,lugs});flat.parts.strap.variant=strap;
+  const d=M.clone(flat);d.case.bend=bend;
+  const tag=`curved tonneau x${tl} ${bend}mm ${lugs}/${strap}`;
+  let w,w0;try{w=M.buildHead(d,{});w0=M.buildHead(flat,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const B=G.caseBendOf(d);if(!B){bad(tag,'no bend');continue}
+  /* vertex by vertex against the flat case: each has come down by exactly bendAt where it is */
+  let err=0,far=0;for(const n of['flank','chamfer','lugs','caseback']){const a=pts(w,n),a0=pts(w0,n);
+   if(a.length!==a0.length){bad(tag,`${n} has ${a.length} vertices bent, ${a0.length} flat`);continue}
+   for(let i=0;i<a.length;i++){err=Math.max(err,Math.abs((a0[i][1]-a[i][1])+G.bendAt(B,a0[i][2])));far=Math.max(far,Math.abs(a0[i][2]))}}
+  if(err>1e-4)bad(tag,`the case comes down ${err.toFixed(4)}mm off its curve`);
+  if(!(far>B.z1-.5))bad(tag,'no case vertex reaches the ends');
+  if(Math.abs(top(w,'bezelTop',0)-top(w0,'bezelTop',0))>1e-6)bad(tag,'the bezel moved: the middle is not flat');
+  const nonUnit=w=>{let n=0;w.getObjectByName('case').traverse(o=>{if(!o.isMesh||!o.geometry.attributes.normal)return;const a=o.geometry.attributes.normal;
+   for(let i=0;i<a.count;i++)if(!(Math.abs(Math.hypot(a.getX(i),a.getY(i),a.getZ(i))-1)<1e-3))n++});return n};
+  if(nonUnit(w)>nonUnit(w0))bad(tag,`bending left ${nonUnit(w)-nonUnit(w0)} case normals not unit length`);
+  const sp=L3.strapPath(d),sp0=L3.strapPath(flat),lower=sp0.pos(0)[1]-sp.pos(0)[1],wantS=-G.bendAt(B,sp.start);
+  if(Math.abs(lower-wantS)>1e-6)bad(tag,`the strap leaves ${lower.toFixed(2)}mm lower, the lugs are ${wantS.toFixed(2)}mm lower`)}
+ for(const[shape,bezelShape]of[['cushion','round'],['tonneau','case'],['round','round']]){const d=M.clone(M.DEF);Object.assign(d.case,{shape,bezelShape,bend:2});
+  if(G.caseBendOf(d))bad(`curve ${shape}/${bezelShape}`,'a case that cannot curve is curved')}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

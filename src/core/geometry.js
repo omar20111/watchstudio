@@ -63,6 +63,7 @@ export const DEF_CASE=()=>({
  lugHoles:false,       /* spring-bar holes drilled through the lugs */
  shape:'round',        /* round | cushion | octagon | square | tonneau — the case's outline (caseshape.js) */
  tonneauLen:1.2,       /* a tonneau's length from 12 to 6, as a share of its width */
+ bend:0,               /* mm a curved tonneau's ends come down toward the wrist; 0 = flat */
  bezelShape:'round'}); /* round | octagon | square */
 
 export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['straight','twisted','hooded','integrated'];
@@ -129,7 +130,10 @@ export function caseOf(d){
   lugHoles:!!c0.lugHoles,
   shape:CASE_SHAPES.includes(c0.shape)?c0.shape:'round',
   tonneauLen:Math.round(mmOf(c0.tonneauLen,TONNEAU_RANGE[0],TONNEAU_RANGE[1],TONNEAU_LENGTH)*200)/200,
-  bezelShape:BEZEL_SHAPES.includes(c0.bezelShape)?c0.bezelShape:'round'}}
+  bezelShape:BEZEL_SHAPES.includes(c0.bezelShape)?c0.bezelShape:'round',
+  /* only a tonneau reaches far enough past its bezel to curve, and not under a
+     bezel of its own shape, which covers the top to its ends */
+  bend:c0.shape==='tonneau'&&c0.bezelShape!=='case'?Math.round(mmOf(c0.bend,0,BEND_MAX_MM,0)*20)/20:0}}
 
 /* The thickness stack in mm. Sums to caseOf(d).thickness exactly — the
    mid-band absorbs the remainder and can never fall below MIN_BAND_MM,
@@ -160,6 +164,21 @@ export function endReachMm(d){const c=d.case||{},A0=(+d.caseMm||40)/2;
  return CASE_SHAPES.includes(c.shape)&&c.shape!=='round'?Math.max(0,supportAlong(shapeSpec(c.shape,c),A0,-Math.PI/2)-A0):0}
 /* the case from 12 to 6, mm: its size, or a tonneau's length */
 export const caseLengthMm=d=>Math.round(((+d.caseMm||40)+2*endReachMm(d))*10)/10;
+
+/* A curved (bombé) case: flat across the middle, where the bezel, the crystal
+   and the dial sit, and bending down beyond the bezel toward 12 and 6 so the
+   ends follow the wrist — the case band, its top, the lugs and the caseback
+   alike, the strap leaving the lugs as much lower (lathe.js bendGeometry,
+   strapPath). The drop grows with the square of the distance past z0, so the
+   bend starts without a crease, reaches `drop` mm at the case's end z1, and
+   goes on at that slope into the lugs. null for a flat case. */
+export const BEND_MAX_MM=2.5;
+export function caseBendOf(d){const c=caseOf(d);if(!(c.bend>0))return null;
+ const O=outlinesOf(d),z0=Math.max(supportAlong(O.bezel.spec,O.bezel.A0,-Math.PI/2),supportAlong(O.bezel.spec,O.bezel.A0,Math.PI/2))+.4;
+ const z1=caseLengthMm(d)/2;return z1>z0+1?{drop:c.bend,z0,z1}:null}
+/* how far a point `z` mm toward 12 or 6 comes down, mm (<= 0), and the slope there, dy/dz */
+export function bendAt(B,z){const a=Math.abs(z);if(!B||a<=B.z0)return 0;const t=(a-B.z0)/(B.z1-B.z0);return -B.drop*(t<=1?t*t:2*t-1)}
+export function bendSlope(B,z){const a=Math.abs(z);if(!B||a<=B.z0)return 0;const t=(a-B.z0)/(B.z1-B.z0);return -Math.sign(z)*B.drop*2*Math.min(t,1)/(B.z1-B.z0)}
 
 export const lugWidthMm=d=>strapMmOf(d);
 /* crown bearing in degrees clockwise from 12 (3h = 90, 4:30 = 135) */

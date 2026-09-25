@@ -2,7 +2,7 @@
 import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant,strapFinish} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
-        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit,complicationOf} from '../core/geometry.js';
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit,complicationOf,BEND_MAX_MM} from '../core/geometry.js';
 import {TONNEAU_RANGE} from '../core/caseshape.js';
 import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
@@ -101,7 +101,10 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      {/* the barrel's length from 12 to 6, as a share of its width */}
      <Slider label="Length" min={TONNEAU_RANGE[0]} max={TONNEAU_RANGE[1]} step={0.01} val={c.tonneauLen}
       fmt={v=>(+d.caseMm*v).toFixed(1)+' mm'} onChange={v=>setc({tonneauLen:v},'tlen')}/>
-     <p className="text-[10px] text-neutral-500">{(+d.caseMm).toFixed(1)} mm across, {caseLengthMm(d).toFixed(1)} mm from 12 to 6.</p></>}
+     <p className="text-[10px] text-neutral-500">{(+d.caseMm).toFixed(1)} mm across, {caseLengthMm(d).toFixed(1)} mm from 12 to 6.</p>
+     {/* curved to the wrist: the ends come down past the bezel */}
+     {c.bezelShape==='case'?<p className="text-[10px] text-neutral-500">A bezel of the case’s own shape covers the top to its ends, so this case stays flat; a round or shaped bezel lets it curve.</p>
+      :<Slider label="Curve" min={0} max={BEND_MAX_MM} step={0.05} val={c.bend} fmt={v=>v>0?`ends ${v.toFixed(2)} mm lower`:'flat'} onChange={v=>setc({bend:v},'bend')}/>}</>}
     {(()=>{const why=k=>bezelFit(d,k).fits?null:`A ${k} bezel this size would cut into the crystal opening on a ${c.shape} case`;
      const off={octagon:why('octagon'),square:why('square')};
      return<><Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon'],['square','Square'],['case','Follow case']]} off={off}

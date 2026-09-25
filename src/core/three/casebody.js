@@ -23,7 +23,7 @@
    it — and placed by `toWorld`. Units mm, y up out of the dial. */
 import {BufferGeometry,Float32BufferAttribute,CylinderGeometry} from 'three';
 import {lugParts,headHeights,headRadii,bandOf,crownParts,smoothstep,strapPath} from './lathe.js';
-import {geoOf,caseOf,crownAng,outlinesOf,strapMmOf,LUG_CLEAR_MM} from '../geometry.js';
+import {geoOf,caseOf,crownAng,outlinesOf,strapMmOf,LUG_CLEAR_MM,caseBendOf,bendAt} from '../geometry.js';
 import {crossingAt,insetOf,outlinePoint,outlineSamples} from '../caseshape.js';
 import {PX} from '../constants.js';
 
@@ -205,8 +205,9 @@ export function caseHorns(d){
   const wall=Math.max(.9,L.lugW*.55),xo=strapMmOf(d)/2+LUG_CLEAR_MM+wall;
   const edgeOut=resample(edge(xo,1,O,BETA,L.rf,sTip,[[xo,sTip]]),shares,N);
   const st=edgeOut.map(p=>({inner:[-p[0],p[1]],outer:[p[0],p[1]]}));
-  /* solid down toward the band, its end face as deep as the bracelet that meets it */
-  const sp=strapPath(d),strapBottom=sp.pos(0)[1]-sp.T/2;
+  /* solid down toward the band, its end face as deep as the bracelet that meets it
+     — where it meets it before a curved case is bent, which brings both down together */
+  const sp=strapPath(d),strapBottom=sp.pos(0)[1]-sp.T/2-bendAt(caseBendOf(d),sp.start);
   const hh=(x,z,s)=>{const u=smoothstep(sCase-.3,sTip,s);
    const top=lerp(H.seat-.06,Hh.shoulderTop,smoothstep(sCase-.2,sTip,s));
    const bot=Math.min(lerp(Hh.bandBottom,Math.max(Hh.bandBottom,strapBottom),u),top-.5);return{top,bot}};

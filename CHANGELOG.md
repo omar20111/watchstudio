@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+**Added — a curved tonneau**
+- A tonneau can curve to the wrist (Case > Curve, the ends up to 2.5 mm lower):
+  flat across the middle, where the bezel, crystal and dial sit, and bending
+  down past the bezel toward 12 and 6 — the band, its top, the lugs and the
+  caseback together, with no crease where the bend begins and the lugs carrying
+  on at the end's slope (geometry.js caseBendOf, lathe.js bendGeometry). The
+  strap leaves the lugs as much lower; an integrated case's shoulders and
+  bracelet come down together. Seen from the front, the long polished ends that
+  mirrored the softbox as one white slab now fall away in a gradient, as a
+  curved case does. The 3D print's case is curved the same way, and the tech
+  pack says so. A bezel of the case's own shape covers the top to its ends, so
+  such a case stays flat, and the panel says why.
+
 **Added — a tonneau's length**
 - A tonneau case can be anywhere from 1.1 to 1.45 times as long from 12 to 6
   as it is wide (Case > Length, shown in mm), where it was always 1.2: a short

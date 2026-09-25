@@ -16,12 +16,12 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,complicationOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
+import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,complicationOf,caseBendOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM,RALLY_HOLES_MM,RALLY_HOLE_R} from '../geometry.js';
 import {shade} from '../utils.js';
 import {layerAngle} from '../layers.js';
-import {headProfiles,lathe,knurledLathe,crownParts,strapPath,smoothstep} from './lathe.js';
+import {headProfiles,lathe,knurledLathe,crownParts,strapPath,smoothstep,bendGeometry} from './lathe.js';
 import {caseHorns,crownGuards,holeGeometry,shapedProfile} from './casebody.js';
 import {crossingAt,outlinePoly,outlinePoint} from '../caseshape.js';
 import {metalMaterial,crystalMaterial,magnifier,paintedMaterial,softenKeyGlint,zoneFinish,withTangents,filteredNormals,brushedReflection} from './materials.js';
@@ -40,6 +40,7 @@ import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 import {dialPlateCanvas,activeDialBg} from '../dialbg.js';
 import {buildMovement,openHeart} from './movement.js';
+const IDENTITY=new Matrix4();
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
    the floor of the lume channel; numerals carry no lume. */
@@ -988,6 +989,12 @@ function buildWatch(d,customs,aniso){
    const hd=lathe([Vv(pu.shoulder.r,0),Vv(r-e,0),Vv(r,e),Vv(r,L-e),Vv(r-e,L),Vv(0,L)],48);
    hd.rotateZ(-Math.PI/2);hd.translate(pu.head.x0,0,0);
    add(grp,'pusherHead',hd,caseMat('bevel'))}}
+
+ /* a curved case bends down toward 12 and 6 past the bezel: the band, its top,
+    the lugs and the caseback together (geometry.js caseBendOf) */
+ {const CB=caseBendOf(d);if(CB){const seen=new Set();watch.updateMatrixWorld(true);
+  G.case.traverse(o=>{if(!o.isMesh)return;if(seen.has(o.geometry))o.geometry=o.geometry.clone();seen.add(o.geometry);
+   const m=o.matrixWorld;bendGeometry(o.geometry,CB,m.equals(IDENTITY)?null:m)})}}
 
  /* ---- crown: tube, knurled barrel, domed end, swung to its bearing ---- */
  if(!uploaded('crown',G.crown,cp.axisY+cp.tube.r*5)){

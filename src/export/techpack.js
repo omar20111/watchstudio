@@ -152,7 +152,7 @@ async function cover(doc,F,d,customs,clock,meta,has3D){
  pg.text(X,M+22,'TECH PACK',{size:9,bold:true,color:DIM});
  pg.text(X,M+33,F.name,{size:20,bold:true});
  pg.text(X,M+40,`${meta.date} · made with WatchStudio`,{size:8,color:MUTED});
- const rows=[F.c.shape==='tonneau'?['Case width × length',`${f1(F.caseMm)} × ${f1(F.lengthMm)} mm (tonneau)`]
+ const rows=[F.c.shape==='tonneau'?['Case width × length',`${f1(F.caseMm)} × ${f1(F.lengthMm)} mm (tonneau${F.c.bend>0?`, curved: ends ${f2(F.c.bend)} mm lower`:''})`]
   :[F.round?'Case diameter':'Case across flats',`${f1(F.caseMm)} mm${F.round?'':` (${F.c.shape})`}`],['Thickness',`${f1(F.c.thickness)} mm`],['Lug to lug',`${f1(F.l2l)} mm`],
   ['Lug width',`${f1(F.lugW)} mm`],['Crystal',`${F.crystalName} sapphire${F.cyclops?', cyclops':''}`],
   ['Movement',cap(F.c.movement)+(F.vph?` · ${F.vph.toLocaleString('en-US')} vph`:'')],

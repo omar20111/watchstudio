@@ -17,9 +17,9 @@ import {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {exportWatch} from './glb.js';
 import {disposeHead} from '../core/three/watch.js';
 import {reliefReady} from '../core/three/relief.js';
-import {headProfiles,lathe,crownParts} from '../core/three/lathe.js';
+import {headProfiles,lathe,crownParts,bendGeometry} from '../core/three/lathe.js';
 import {shapedProfile} from '../core/three/casebody.js';
-import {outlinesOf,openingShaped} from '../core/geometry.js';
+import {outlinesOf,openingShaped,caseBendOf} from '../core/geometry.js';
 import {zip} from './zip.js';
 import {store} from '../state/store.js';
 import {toast} from '../core/utils.js';
@@ -225,6 +225,8 @@ function headSolid(d,mat){const P=headProfiles(d).profiles,OL=outlinesOf(d),A0=O
  /* near the axis every outline is a circle: a shaped outline set in that far has nothing left */
  const shapeAt=i=>({from:pts[i].x<A0*.35?'round':tag[i]});
  const g=shaped?shapedProfile(pts,shapeAt,OL):lathe(pts,200);
+ /* a curved case prints curved, as it is drawn */
+ bendGeometry(g,caseBendOf(d));
  const out=geoTriangles(g,mat);g.dispose();return out}
 
 /* The crown and its tube as one solid: the tube's axis from inside the case to
