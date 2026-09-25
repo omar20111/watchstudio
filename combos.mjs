@@ -706,8 +706,8 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
    - a shaped bezel sits as far inside the case's outline as a round one does,
      its flats clear of the crystal opening, and its top arrives round at the
      insert or opening
-   - a tonneau is as long as caseLengthMm says, and its lugs reach the stated
-     lug-to-lug
+   - a tonneau, at its shortest, usual and longest, is as long as caseLengthMm
+     says, and its lugs reach the stated lug-to-lug
    - the crown stands outside the outline along its bearing, even at a
      cushion's corner
    - an integrated shoulder is solid across the strap plus a wall, and the strap
@@ -716,10 +716,11 @@ for(const variant of['diver','gmt']){const d=M.clone(M.DEF);d.parts.bezel.varian
 {const CS=await import('./src/core/caseshape.js');
  const pts=(w,n)=>{const out=[];w.traverse(o=>{if(!o.isMesh||o.name!==n)return;w.updateMatrixWorld(true);const a=o.geometry.attributes.position,e=o.matrixWorld.elements;
   for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i);out.push([e[0]*x+e[4]*y+e[8]*z+e[12],e[1]*x+e[5]*y+e[9]*z+e[13],e[2]*x+e[6]*y+e[10]*z+e[14]])}});return out};
- for(const shape of G.CASE_SHAPES)for(const bezelShape of G.BEZEL_SHAPES)for(const lugs of G.LUG_STYLES)for(const [variant,crownPos,strap] of[['classic','3','leather'],['sport','430','steel']]){
+ for(const shape of G.CASE_SHAPES)for(const tl of shape==='tonneau'?CS.TONNEAU_RANGE.concat(CS.TONNEAU_LENGTH):[null])for(const bezelShape of G.BEZEL_SHAPES)for(const lugs of G.LUG_STYLES)for(const [variant,crownPos,strap] of[['classic','3','leather'],['sport','430','steel']]){
   const d=M.clone(M.DEF);Object.assign(d.case,{shape,bezelShape,lugs,crownPos});d.parts.case.variant=variant;d.parts.strap.variant=strap;
+  if(tl)d.case.tonneauLen=tl;
   if(variant==='sport')d.parts.bezel.variant='diver';
-  const tag=`shape ${shape}/${bezelShape}/${lugs}/${variant}/${strap}`;
+  const tag=`shape ${shape}${tl?' x'+tl:''}/${bezelShape}/${lugs}/${variant}/${strap}`;
   let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
   const O=G.outlinesOf(d),H=w.userData.heights,Rr=w.userData.radii;
   const flank=pts(w,'flank');if(!flank.length){bad(tag,'no flank');continue}

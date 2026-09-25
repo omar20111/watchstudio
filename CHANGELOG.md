@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Added — a tonneau's length**
+- A tonneau case can be anywhere from 1.1 to 1.45 times as long from 12 to 6
+  as it is wide (Case > Length, shown in mm), where it was always 1.2: a short
+  barrel or a long, slender one (caseshape.js builds the barrel for each length
+  asked for). The lugs, bezel fit, crown and strap follow the outline as before,
+  and the combination check runs every case and bezel at the shortest, usual and
+  longest length.
+
 **Added — an open heart**
 - A dial can show its balance beating (Dial > Complication > Open heart): a
   round aperture at 9, lined with a polished collar in the hands' metal, over

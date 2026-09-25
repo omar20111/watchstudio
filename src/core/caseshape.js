@@ -14,7 +14,8 @@
 
    It is sized by A0, how far it reaches toward 3 o'clock, so a cushion case
    "40 mm" is 40 mm across its flats, as a round one is across its diameter. A
-   tonneau reaches further toward 12 and 6 (TONNEAU_LENGTH times as far).
+   tonneau reaches further toward 12 and 6: its length, 1.1 to 1.45 times as
+   far (the case's tonneauLen, TONNEAU_LENGTH unless set).
 
    The same shape set in by `inset` mm is exactly the outline offset inward by
    that much: while the inset is less than rc only the corner radius shrinks;
@@ -31,7 +32,7 @@
    its opening, the flange under it and the crystal follow the case instead of
    coming back to a circle, as a shaped watch's do. */
 export const CASE_SHAPES=['round','cushion','octagon','square','tonneau','pebble'], BEZEL_SHAPES=['round','octagon','square','case'];
-export const TONNEAU_LENGTH=1.2;
+export const TONNEAU_LENGTH=1.2,TONNEAU_RANGE=[1.1,1.45];
 const TAU=Math.PI*2;
 const wrap=a=>((a%TAU)+TAU)%TAU;
 
@@ -51,7 +52,7 @@ function regular(kind,N,cf){const d=(1-cf)/Math.cos(Math.PI/N);
 /* The barrel: each side an arc through the widest point at 3 (or 9) and the two
    corners, each end an arc through the corners and its crown at 12 (or 6), the
    whole grown by rc. */
-function tonneau(){const cf=.18,w=1-cf,l=TONNEAU_LENGTH-cf,we=.62,lc=l-.06;
+function tonneau(len=TONNEAU_LENGTH){const cf=.18,w=1-cf,l=len-cf,we=.62,lc=l-.06;
  const xc=(w*w-we*we-lc*lc)/(2*(w-we)),Rs=w-xc,a=Math.asin(lc/Rs);
  const yc=(l*l-we*we-lc*lc)/(2*(l-lc)),Re=l-yc,b=Math.asin(we/Re);
  const v=[],S=40,E=16;
@@ -90,8 +91,13 @@ function hull(pts){const p=[...pts].sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
  return lo.slice(0,-1).concat(up.slice(0,-1))}
 
 const SPECS={round:spec('round',[[0,0]],1),cushion:regular('cushion',4,.42),octagon:regular('octagon',8,.07),
- square:regular('square',4,.12),tonneau:tonneau(),pebble:pebble()};
-export const shapeSpec=kind=>SPECS[kind]||SPECS.round;
+ square:regular('square',4,.12),pebble:pebble()};
+/* a tonneau for each length asked for, to the half percent */
+const tonneaus=new Map();
+const tonneauSpec=len=>{const L=Math.round(Math.min(TONNEAU_RANGE[1],Math.max(TONNEAU_RANGE[0],+len||TONNEAU_LENGTH))*200)/200;
+ let s=tonneaus.get(L);if(!s){s=tonneau(L);tonneaus.set(L,s)}return s};
+/* `c`, the case (geometry.js caseOf), carries a tonneau's length */
+export const shapeSpec=(kind,c)=>kind==='tonneau'?tonneauSpec(c&&c.tonneauLen):SPECS[kind]||SPECS.round;
 
 /* the A0 that puts a shape's farthest corner (not its flats) on radius R */
 export const inscribedApothem=(spec,R)=>R/(spec.maxR+spec.cf);

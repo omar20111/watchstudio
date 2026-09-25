@@ -14,7 +14,7 @@
 import {C,CAN,PX} from './constants.js';
 import {clamp} from './utils.js';
 import {MARKERSET_VARIANT,markerSetOf,setDepthMm} from './markerset/index.js';
-import {CASE_SHAPES,BEZEL_SHAPES,shapeSpec,extentAlong,supportAlong,inscribedApothem,crossingAt,outlinePoly,insetOf} from './caseshape.js';
+import {CASE_SHAPES,BEZEL_SHAPES,TONNEAU_LENGTH,TONNEAU_RANGE,shapeSpec,extentAlong,supportAlong,inscribedApothem,crossingAt,outlinePoly,insetOf} from './caseshape.js';
 
 const num=(v,fallback)=>v==null||v==='auto'||!isFinite(+v)?fallback:+v;
 
@@ -62,6 +62,7 @@ export const DEF_CASE=()=>({
  lugs:'straight',      /* straight | twisted | hooded | integrated */
  lugHoles:false,       /* spring-bar holes drilled through the lugs */
  shape:'round',        /* round | cushion | octagon | square | tonneau — the case's outline (caseshape.js) */
+ tonneauLen:1.2,       /* a tonneau's length from 12 to 6, as a share of its width */
  bezelShape:'round'}); /* round | octagon | square */
 
 export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['straight','twisted','hooded','integrated'];
@@ -127,6 +128,7 @@ export function caseOf(d){
   lugs:LUG_STYLES.includes(c0.lugs)?c0.lugs:'straight',
   lugHoles:!!c0.lugHoles,
   shape:CASE_SHAPES.includes(c0.shape)?c0.shape:'round',
+  tonneauLen:Math.round(mmOf(c0.tonneauLen,TONNEAU_RANGE[0],TONNEAU_RANGE[1],TONNEAU_LENGTH)*200)/200,
   bezelShape:BEZEL_SHAPES.includes(c0.bezelShape)?c0.bezelShape:'round'}}
 
 /* The thickness stack in mm. Sums to caseOf(d).thickness exactly — the
@@ -155,7 +157,7 @@ export function lugToLugMm(d){
    reached beside 12 rather than at it. Read from the outline alone — geoOf
    leans on the lug-to-lug, so this cannot lean on geoOf. */
 export function endReachMm(d){const c=d.case||{},A0=(+d.caseMm||40)/2;
- return CASE_SHAPES.includes(c.shape)&&c.shape!=='round'?Math.max(0,supportAlong(shapeSpec(c.shape),A0,-Math.PI/2)-A0):0}
+ return CASE_SHAPES.includes(c.shape)&&c.shape!=='round'?Math.max(0,supportAlong(shapeSpec(c.shape,c),A0,-Math.PI/2)-A0):0}
 /* the case from 12 to 6, mm: its size, or a tonneau's length */
 export const caseLengthMm=d=>Math.round(((+d.caseMm||40)+2*endReachMm(d))*10)/10;
 
@@ -331,7 +333,7 @@ export function springBarMm(d){const g=geoOf(d),lugW=g.R*(d.parts.case.variant==
    square case a square bezel's corners run out into the case's. It fits if its
    flats still clear the crystal opening. */
 const fitCache=new Map();
-export function bezelFit(d,kind){const g=geoOf(d),c=caseOf(d),cs=shapeSpec(c.shape),bs=shapeSpec(bezelSpecKind(kind,c));
+export function bezelFit(d,kind){const g=geoOf(d),c=caseOf(d),cs=shapeSpec(c.shape,c),bs=shapeSpec(bezelSpecKind(kind,c),c);
  const cA0=g.rCase/PX,bOut=g.rBezOut/PX,bIn=g.rBezIn/PX;
  /* a bezel of the case's own shape needs no room made for it: it is the case,
     set in by the band, and a round case's is simply round */
@@ -352,8 +354,8 @@ export function bezelFit(d,kind){const g=geoOf(d),c=caseOf(d),cs=shapeSpec(c.sha
 const bezelSpecKind=(kind,c)=>kind==='case'?c.shape:kind;
 export function outlinesOf(d){const g=geoOf(d),c=caseOf(d);
  const bf=bezelFit(d,c.bezelShape),bk=bf.fits?c.bezelShape:'round',A0=bf.fits?bf.A0:g.rBezOut/PX;
- return{case:{kind:c.shape,spec:shapeSpec(c.shape),A0:g.rCase/PX,scale:1},
-  bezel:{kind:bk,spec:shapeSpec(bezelSpecKind(bk,c)),A0,scale:A0/(g.rBezOut/PX)}}}
+ return{case:{kind:c.shape,spec:shapeSpec(c.shape,c),A0:g.rCase/PX,scale:1},
+  bezel:{kind:bk,spec:shapeSpec(bezelSpecKind(bk,c),c),A0,scale:A0/(g.rBezOut/PX)}}}
 /* Does the dial take the case's shape? A bezel shaped after the case keeps that
    shape inward (three/watch.js): the opening, and the flange under it at an even
    width, so the dial shows the case's outline — unless it carries an insert (a
@@ -614,7 +616,7 @@ export function frameBox(part,d){const g=geoOf(d);switch(part){
 const outlineD=(spec,A0,grow)=>outlinePoly(spec,A0,-grow,96).map(({p},i)=>`${i?'L':'M'}${(C+p[0]).toFixed(1)} ${(C+p[1]).toFixed(1)}`).join('')+'Z';
 export function frames(sel,d){const g=geoOf(d),r=g.R,c=caseOf(d);switch(sel){
  case'strap':return[{t:'r',x:C-g.sw/2-8,y:28,w:g.sw+16,h:C-g.R-40},{t:'r',x:C-g.sw/2-8,y:C+g.R+12,w:g.sw+16,h:CAN-28-(C+g.R+12)}];
- case'case':return c.shape==='round'?[{t:'c',r:r+10}]:[{t:'p',d:outlineD(shapeSpec(c.shape),g.rCase,10)}];
+ case'case':return c.shape==='round'?[{t:'c',r:r+10}]:[{t:'p',d:outlineD(shapeSpec(c.shape,c),g.rCase,10)}];
  /* swung to the crown's bearing, so a 4:30 crown is outlined at 4:30 */
  case'crown':{const b=crownBox(d);return[{t:'r',x:b.x+3,y:b.y+3,w:b.w-6,h:b.h-6,rot:crownAng(d)-90}]}
  case'bezel':{const B=outlinesOf(d).bezel;

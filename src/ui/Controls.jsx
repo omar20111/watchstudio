@@ -3,6 +3,7 @@ import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant,strapFinish} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
         rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit,complicationOf} from '../core/geometry.js';
+import {TONNEAU_RANGE} from '../core/caseshape.js';
 import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
 import {Slider,MetalRow,FinishRow,ColorField,Section,useSettled} from './primitives.jsx';
@@ -96,7 +97,11 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
      fmt={v=>v.toFixed(1)+' mm'} onChange={v=>setc({lugDropMm:v},'drop')}/>
     <Pick label="Case shape" val={c.shape} opts={[['round','Round'],['cushion','Cushion'],['octagon','Octagon'],['square','Square'],['tonneau','Tonneau'],['pebble','Pebble']]}
      onPick={v=>setc({shape:v},'shape')}/>
-    {c.shape==='tonneau'&&<p className="text-[10px] text-neutral-500">{(+d.caseMm).toFixed(1)} mm across, {caseLengthMm(d).toFixed(1)} mm from 12 to 6.</p>}
+    {c.shape==='tonneau'&&<>
+     {/* the barrel's length from 12 to 6, as a share of its width */}
+     <Slider label="Length" min={TONNEAU_RANGE[0]} max={TONNEAU_RANGE[1]} step={0.01} val={c.tonneauLen}
+      fmt={v=>(+d.caseMm*v).toFixed(1)+' mm'} onChange={v=>setc({tonneauLen:v},'tlen')}/>
+     <p className="text-[10px] text-neutral-500">{(+d.caseMm).toFixed(1)} mm across, {caseLengthMm(d).toFixed(1)} mm from 12 to 6.</p></>}
     {(()=>{const why=k=>bezelFit(d,k).fits?null:`A ${k} bezel this size would cut into the crystal opening on a ${c.shape} case`;
      const off={octagon:why('octagon'),square:why('square')};
      return<><Pick label="Bezel shape" val={c.bezelShape} opts={[['round','Round'],['octagon','Octagon'],['square','Square'],['case','Follow case']]} off={off}
