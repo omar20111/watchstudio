@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+**Fixed — usable on a phone**
+- Measured on an emulated phone (a 390 px screen at 3x, the processor at a
+  quarter of a laptop's speed), the site froze for as long as seven seconds
+  while it built the first watch, and a theme switch for nearly five.
+- The live view now builds a watch a part at a time — strap, case, crown,
+  bezel, dial, indices, logo, hands, crystal — with the page's turn between
+  them, and keeps the watch it has on screen until the new one is whole
+  (three/watch.js buildHeadSteps, view.js). The longest freeze on that phone
+  fell to under two seconds, on a laptop to about one; a slider let go
+  rebuilds in 0.4 s there, down from 1.1.
+- A phone (three/device.js) has its artwork baked at twice the sheet rather
+  than three times, its applied parts traced at one and a half times rather
+  than two, and its studio lighting drawn at half the size: as fine as its
+  screen shows, in a good deal less time.
+- The preset pictures render only while they are on screen: behind a phone's
+  closed drawer they had been built in the background at startup and after
+  every edit (ui/PresetThumb.jsx).
+
 **Added — a curved tonneau**
 - A tonneau can curve to the wrist (Case > Curve, the ends up to 2.5 mm lower):
   flat across the middle, where the bezel, crystal and dial sit, and bending

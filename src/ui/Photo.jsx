@@ -34,8 +34,8 @@ export function PhotoOverlay({view,box,onClose}){
   (async()=>{
    try{
     if(!canPathTrace(live.renderer)){setRaster(true);
-     /* a watch just rebuilt may still be compiling: its frame comes once it has */
-     while(live.compiling){await new Promise(r=>setTimeout(r,50));if(dead)return}
+     /* a watch still being built or compiled: its frame comes once it is whole */
+     while(live.building||live.compiling){await new Promise(r=>setTimeout(r,50));if(dead)return}
      await new Promise(r=>setTimeout(r,30));if(dead)return;
      /* drawn and copied in one go: the live canvas keeps no frame once shown */
      const src=live.renderer.domElement,out=cv.current,ao=live.aoOn,at=sceneClock(d,Date.now());

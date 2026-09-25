@@ -17,7 +17,7 @@ import {headKey} from '../core/three/watch.js';
 import {presetStill} from '../core/three/view.js';
 import {webglState} from '../core/three/support.js';
 import {pointerFree} from './pointerHeld.js';
-const {useEffect,useState}=React;
+const {useEffect,useState,useRef}=React;
 
 const SOLID=['case','crown','dial','markers','hands','bezel','strap'];
 const stills=new Map();                           /* key -> data URL, or the render on its way */
@@ -38,13 +38,23 @@ function still(part,dv,key){
   if(stills.size>90)stills.delete(stills.keys().next().value)}
  return stills.get(key)}
 
-function Solid({part,v,d}){const dv=variantDesign(part,v,d),key=keyOf(part,dv);
+/* is the element on screen? A panel slid away in a drawer (a phone's), or
+   scrolled out of sight, asks for no pictures: each is a build of its own, and
+   on a phone they had taken seconds at startup and after every edit behind a
+   closed drawer. Where there is no IntersectionObserver, always. */
+function useOnScreen(ref){const[on,setOn]=useState(typeof IntersectionObserver==='undefined');
+ useEffect(()=>{if(typeof IntersectionObserver==='undefined'||!ref.current)return;
+  const io=new IntersectionObserver(es=>setOn(es.some(e=>e.isIntersecting)));io.observe(ref.current);return()=>io.disconnect()},[]);
+ return on}
+
+function Solid({part,v,d}){const dv=variantDesign(part,v,d),key=keyOf(part,dv),el=useRef(null),shown=useOnScreen(el);
  const[url,setUrl]=useState(()=>typeof stills.get(key)==='string'?stills.get(key):null);
- useEffect(()=>{if(!webglState().ok)return;let alive=true;
+ useEffect(()=>{if(!webglState().ok||!shown)return;let alive=true;
   wanted.set(key,(wanted.get(key)||0)+1);
   Promise.resolve(still(part,dv,key)).then(u=>{if(alive&&u)setUrl(u)});
-  return()=>{alive=false;const n=(wanted.get(key)||1)-1;if(n>0)wanted.set(key,n);else wanted.delete(key)}},[key]);
- return url?<img src={url} className="w-14 h-14 object-cover" alt={v}/>:<span className="block w-14 h-14" aria-label={v}/>}
+  return()=>{alive=false;const n=(wanted.get(key)||1)-1;if(n>0)wanted.set(key,n);else wanted.delete(key)}},[key,shown]);
+ /* one element throughout, so what is watched for being on screen stays in the page */
+ return<span ref={el} className="block w-14 h-14" aria-label={url?undefined:v}>{url&&<img src={url} className="w-14 h-14 object-cover" alt={v}/>}</span>}
 
 const GLASS={flat:'M15 32 V29 H45 V32 Z',dome:'M15 32 V29 Q30 15 45 29 V32 Z',box:'M15 32 V20 Q15 17 18 17 H42 Q45 17 45 20 V32 Z'};
 function Crystal({v}){

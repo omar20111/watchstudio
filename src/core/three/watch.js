@@ -40,6 +40,7 @@ import {activeUpload,uploadCanvas} from './uploads.js';
 import {CASEBACK_WINDOW} from '../render/caseback.js';
 import {dialPlateCanvas,activeDialBg} from '../dialbg.js';
 import {buildMovement,openHeart,HEART_BALANCE} from './movement.js';
+import {PHONE} from './device.js';
 const IDENTITY=new Matrix4();
 
 /* The ground form of each index style (relief.js), heights in mm. `pocket` is
@@ -106,7 +107,12 @@ export function canvasTexture(cv,aniso=8){let t=texOf.get(cv);
    magnified four times over and its printing goes soft. Three times finer, or
    twice on a device reporting little memory; never past 4096 px. `half` is the
    square's half-width in sheet px, centred on the dial. */
-const ART_SCALE=typeof navigator!=='undefined'&&navigator.deviceMemory&&navigator.deviceMemory<=4?2:3;
+/* A phone (device.js) has its artwork baked at twice the sheet and its applied
+   parts traced at one and a half times, where a computer's are at three and
+   two: on an emulated phone (a quarter of a laptop's speed) the first watch had
+   taken six seconds to build, and a phone's screen shows no more than this,
+   short of zooming in close. */
+const ART_SCALE=PHONE||(typeof navigator!=='undefined'&&navigator.deviceMemory&&navigator.deviceMemory<=4)?2:3;
 /* A lite build (buildHead's `lite`, for the panel's small preset pictures) bakes
    and traces the whole sheet at its own resolution: nothing finer would show at
    120 px. (A painter fills its ground from the canvas's corner, the canvas's own
@@ -120,7 +126,7 @@ const artRes=halfPx=>{if(LITE)return{box:[0,0,CAN],k:1};
    a 0.055 mm pixel grid, ragged up close; they are traced instead from a bake of
    only the part's own rectangle at twice that. The rectangle is read off the
    sheet bake, which their shadows are drawn from anyway. */
-const SHAPE_SCALE=2;
+const SHAPE_SCALE=PHONE?1.5:2;
 const alphaBoxes=new WeakMap();
 function alphaBox(cv){if(alphaBoxes.has(cv))return alphaBoxes.get(cv);let box=null;
  try{const W=cv.width,H=cv.height,a=cv.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;let x0=W,y0=H,x1=-1,y1=-1;
@@ -790,7 +796,11 @@ function cyclopsGeometry({A,B,rc,R,rho,wall}){const M=72,N=12;
 /* ---------------------------------------------------------------- head */
 
 export function buildHead(d,customs={},{aniso=8,lite=false}={}){LITE=lite;
- try{const w=buildWatch(d,customs,aniso);holdTextures(w);return w}finally{LITE=false}}
+ try{const it=buildWatchSteps(d,customs,aniso);let r;while(!(r=it.next()).done);holdTextures(r.value);return r.value}finally{LITE=false}}
+/* the same build a part at a time: next() until done, whose value is the watch.
+   Never a lite one — a preset picture is built whole (buildHead), in one turn,
+   so none can run with LITE set while this one waits between its steps. */
+export function* buildHeadSteps(d,customs={},{aniso=8}={}){const w=yield* buildWatchSteps(d,customs,aniso);holdTextures(w);return w}
 
 /* Textures outlive the watch they were made for: bakes, grain and engraving maps
    are cached and shared, so disposeHead left every one of them alone — and none
@@ -810,7 +820,12 @@ function releaseTextures(head){const set=head.userData&&head.userData.textures;i
  for(const t of set){const n=(texUsers.get(t)||1)-1;
   if(n>0)texUsers.set(t,n);else{texUsers.delete(t);t.dispose()}}
  head.userData.textures=null}
-function buildWatch(d,customs,aniso){
+/* The build itself, a step at a time: each next() makes one part (the strap, the
+   case, the crown, the bezel, the dial, the indices, the logo, the hands, the
+   crystal) and the last returns the watch. buildHead runs it straight through;
+   a live view runs it a step a turn (buildHeadSteps, view.js), so the page is
+   never frozen for the whole of a build — six seconds on a phone. */
+function* buildWatchSteps(d,customs,aniso){
  const{profiles:P,heights:H,radii:Rr,crystal:CR}=headProfiles(d);
  const parts=d.parts,arch=caseOf(d),tex=cv=>canvasTexture(cv,aniso);
  const watch=new Group();watch.name='watch';
@@ -914,6 +929,7 @@ function buildWatch(d,customs,aniso){
    add(G.strap,'strap:buckle',bk.frame,hwMat(rough));
    add(G.strap,'strap:tongue',bk.tongue,hwMat(rough))}
 
+ yield;
  /* ---- case: turned flank, polished chamfer, horns, caseback ----
     Each face takes its zone's finish (materials.js zoneFinish): the case's own
     finish on its surfaces, a polish on its bevels. */
@@ -998,6 +1014,7 @@ function buildWatch(d,customs,aniso){
   G.case.traverse(o=>{if(!o.isMesh)return;if(seen.has(o.geometry))o.geometry=o.geometry.clone();seen.add(o.geometry);
    const m=o.matrixWorld;bendGeometry(o.geometry,CB,m.equals(IDENTITY)?null:m)})}}
 
+ yield;
  /* ---- crown: tube, knurled barrel, domed end, swung to its bearing ---- */
  if(!uploaded('crown',G.crown,cp.axisY+cp.tube.r*5)){
   const cr=parts.crown,crownMat=zone=>metalMaterial(cr.metal,zoneFinish(cr.finish,zone)),grp=new Group();grp.position.y=cp.axisY;grp.rotation.y=-(cp.bearing-90)*Math.PI/180;G.crown.add(grp);
@@ -1019,6 +1036,7 @@ function buildWatch(d,customs,aniso){
     endMat.roughness=Math.min(1,endMat.roughness*2)}}
   add(grp,'crownEnd',end,endMat)}
 
+ yield;
  /* ---- bezel ---- */
  const bz=parts.bezel,bezelMat=zone=>metalMaterial(bz.metal,zoneFinish(bz.finish,zone));
  if(!uploaded('bezel',G.bezel,H.bezelTop+.02)){
@@ -1166,6 +1184,7 @@ function buildWatch(d,customs,aniso){
    hand.position.z=-len/2+len*.12;
    add(reg,key+'Hub',new CylinderGeometry(4/PX,4/PX,.14,20),metalMaterial(hp.metal,'polished'))}}
 
+ yield;
  /* ---- applied indices: ground metal on the dial, lume set into a channel ----
     Each style's form (relief.js): batons bevelled to a flat top, dots domed,
     numerals with bevelled strokes. The lume decal sits at the channel floor, so
@@ -1191,6 +1210,7 @@ function buildWatch(d,customs,aniso){
    const lm=add(G.markers,'indicesLume',lf.geo,lumeMaterial(tex(lf.cv),mk.lume,mk.glow),{cast:false,noPick:true});
    lm.position.y=Hs+form.pocket+.004}}}
 
+ yield;
  /* ---- the user's logo (logo.js): printed as a decal on the dial, or traced
     and raised in the hands' metal like an applied index ---- */
  {const ls=logoSheet(d,customs);
@@ -1206,6 +1226,7 @@ function buildWatch(d,customs,aniso){
     const m=add(G.dial,'logo',lf.cv===ls?sheet():lf.geo,paintedMaterial(tex(lf.cv),{alphaTest:.4,roughness:.45}),{cast:false,noPick:true});
     m.position.y=Hs+.006}}}
 
+ yield;
  /* ---- hands: each on its own arbor height; `hand:*` carries its transform,
     the arbor inside it turns with the clock ---- */
  const hp=parts.hands;
@@ -1256,6 +1277,7 @@ function buildWatch(d,customs,aniso){
     add(arbor,'gmtBody',mergeGeometries([needle,tip,tail].map(g=>g.index?g.toNonIndexed():g)),gm,{receive:false});
     const hub=add(arbor,'gmtHub',new CylinderGeometry(10/PX,10/PX,.1,32),gm);hub.position.y=t/2}}}
 
+ yield;
  /* ---- crystal ---- */
  if(!uploaded('crystal',G.crystal,H.top+.02,{transparent:true,opacity:parts.crystal.opacity,alphaTest:0,depthWrite:false})){
   const faces=CR.faces.filter(f=>f.some((p,i)=>i&&p.distanceTo(f[i-1])>1e-6))
@@ -1270,6 +1292,7 @@ function buildWatch(d,customs,aniso){
     magnifier(crystalMaterial(parts.crystal.finish,parts.crystal.opacity,{solid:cy.height}),{depth:cy.depth,mag:cy.mag,top:cy.height,glass:CR.thickness}),{cast:false,receive:false});
    lens.position.set(cy.x,H.top,cy.z);lens.renderOrder=11}}
 
+ yield;
  /* A brushed finish streaks along the UV tangent, and the smoothed extrusions
     (lugs, crown guards) carry no UVs: with no tangent the highlight broke into
     a flat white. Give them a brushing frame instead — u along the case's 12–6

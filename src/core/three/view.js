@@ -21,7 +21,7 @@ import {lugToLugOf,geoOf} from '../geometry.js';
 import {headHeights,strapPath} from './lathe.js';
 import {paintBackground} from '../../export/background.js';
 import {sceneClock} from '../time.js';
-import {buildHead,poseHead,applyPose,disposeHead,headKey,pickPart3D} from './watch.js';
+import {buildHead,buildHeadSteps,poseHead,applyPose,disposeHead,headKey,pickPart3D} from './watch.js';
 import {studioEnvironment} from './studio.js';
 import {createAO} from './ao.js';
 import {webglState,markWebglFailed} from './support.js';
@@ -124,6 +124,29 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncC
     draw them, or the first frame still compiled a dozen the slow way.
     Where the driver cannot compile in parallel (a software renderer) nothing
     is gained by compiling ahead: the first frame compiles them, as it always did. */
+ let builds=0;
+ /* Put a newly built watch in place of the last: the table where its strap
+    lands, the camera on its dial, lit for the night if it is night. */
+ const install=w=>{if(watch){scene.remove(watch);disposeHead(watch)}
+  watch=w;builds++;scene.add(watch);compileWatch();
+  /* the watch rests on its strap, so the table is wherever the strap lands */
+  ground.position.y=watch.userData.groundY-.02;placeSurface();
+  target.set(0,watch.userData.heights.dial,0);aim();
+  if(watch.userData.pending)watch.userData.pending.then(()=>{built='';if(onDirty)onDirty()});
+  /* a new watch's lume starts in daylight: light it again if it is night */
+  if(night)applyNight();
+  if(lastD){applyPose(watch,lastD);ground.visible=groundOn(lastD)}};
+ /* A build a live view runs a step at a time (watch.js buildHeadSteps): steps
+    for up to STEP_MS, then the page's turn, then on — each step one part, so
+    a build freezes nothing longer than its biggest part. A newer design stops
+    the one before it. */
+ const STEP_MS=40;let building=null;
+ const runSteps=job=>{if(building!==job)return;const t0=performance.now();
+  try{for(;;){const r=job.it.next();
+    if(r.done){building=null;install(r.value);if(onDirty)onDirty();return}
+    if(performance.now()-t0>STEP_MS)break}}
+  catch(e){building=null;built='';console.error('WatchStudio: the watch could not be built',e);return}
+  setTimeout(()=>runSteps(job),0)};
  let compiling=null;const passTarget=new WebGLRenderTarget(1,1,{type:HalfFloatType});
  const parallel=!!renderer.compileAsync&&renderer.extensions.has('KHR_parallel_shader_compile');
  const compileScene=()=>{if(!parallel)return Promise.resolve();
@@ -201,17 +224,16 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncC
   setDesign(d,customs={},{lite=false}={}){lastD=d;lastCustoms=customs;
    const k=headKey(worn(d),customs)+(lite?'|lite':'');
    if(k!==built){built=k;
-    if(watch){scene.remove(watch);disposeHead(watch)}
-    watch=buildHead(worn(d),customs,{aniso,lite});scene.add(watch);compileWatch();
-    /* the watch rests on its strap, so the table is wherever the strap lands */
-    ground.position.y=watch.userData.groundY-.02;placeSurface();
-    target.set(0,watch.userData.heights.dial,0);aim();
-    if(watch.userData.pending)watch.userData.pending.then(()=>{built='';if(onDirty)onDirty()});
-    /* a new watch's lume starts in daylight: light it again if it is night */
-    if(night)applyNight()}
+    /* a live view builds a step a turn and keeps the watch it has until the
+       new one is whole; anything else builds it at once */
+    if(asyncCompile&&!lite){const job={it:buildHeadSteps(worn(d),customs,{aniso})};
+     if(building)building.it.return();building=job;runSteps(job)}
+    else{if(building){building.it.return();building=null}install(buildHead(worn(d),customs,{aniso,lite}))}}
    if(!!d.night!==night){night=!!d.night;applyNight()}
-   applyPose(watch,d);ground.visible=groundOn(d);
-   return watch.userData.pending},
+   if(watch){applyPose(watch,d);ground.visible=groundOn(d)}
+   return watch&&!building?watch.userData.pending:null},
+  /* is a new watch being built (the last one is still up)? */
+  get building(){return !!building},
   /* would setDesign rebuild? (lets a caller throttle rebuilds but not poses) */
   stale(d,customs={}){return headKey(worn(d),customs)!==built},
   pose(d){if(watch){applyPose(watch,d);ground.visible=groundOn(d)}},
@@ -249,6 +271,8 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncC
   get aoOn(){return aoOn},
   /* a size change shown before the watch is rebuilt for it: the built watch scaled */
   previewScale(k){if(watch&&Number.isFinite(k)&&k>0&&Math.abs(watch.scale.x-k)>1e-4){watch.scale.setScalar(k);aa.reset()}},
+  /* how many watches this view has built, for the browser checks */
+  get builds(){return builds},
   /* is a new watch still compiling (the last picture is still up)? */
   get compiling(){return !!compiling},
   /* the scene's shaders compiled in the background: resolves when it can be drawn without stalling */
@@ -313,7 +337,7 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncC
     if(aoOn)ao.apply(c,x1-x0,y1-y0,1);
     put(renderer.domElement,tx-x0,ty-y0,tw,th,tx,ty)}
    c.clearViewOffset()},
-  dispose(){if(watch)disposeHead(watch);ao.dispose();aa.dispose();glow.dispose();env.dispose();passTarget.dispose();renderer.dispose();watch=null}};
+  dispose(){if(building){building.it.return();building=null}if(watch)disposeHead(watch);ao.dispose();aa.dispose();glow.dispose();env.dispose();passTarget.dispose();renderer.dispose();watch=null}};
  return view}
 
 /* Lume in the dark glows: the light it gives off scatters in the crystal and
@@ -421,9 +445,10 @@ function stillView(){if(still)return still;
 
 /* The watch on the stage comes first. Started with it, the preset pictures'
    context compiled and built alongside and held it back by seconds: they wait
-   until a live view has drawn its watch, or a few seconds, whichever is sooner. */
+   until a live view has drawn its watch, or twenty seconds (a slow phone's
+   first watch takes most of that), whichever is sooner. */
 let liveDrawn;
-const firstLive=Promise.race([new Promise(r=>{liveDrawn=r}),new Promise(r=>setTimeout(r,8000))]);
+const firstLive=Promise.race([new Promise(r=>{liveDrawn=r}),new Promise(r=>setTimeout(r,20000))]);
 
 /* Stills take turns on the one view: a preset picture rendering in the panel
    must not swap the design out from under an export's frame, or the reverse. */

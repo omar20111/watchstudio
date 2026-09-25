@@ -28,6 +28,7 @@
    frame: x toward 3 o'clock, y up, z toward 6. No image files. */
 import {DataTexture,DataUtils,RGBAFormat,FloatType,HalfFloatType,LinearFilter,RepeatWrapping,ClampToEdgeWrapping,
         EquirectangularReflectionMapping,PMREMGenerator} from 'three';
+import {PHONE} from './device.js';
 
 const TAU=Math.PI*2,DEG=Math.PI/180;
 const smooth=(e0,e1,x)=>{const t=Math.min(1,Math.max(0,(x-e0)/(e1-e0)));return t*t*(3-2*t)};
@@ -85,7 +86,9 @@ export function studioEquirect(w=1024,h=512,{half=false}={}){
  t.mapping=EquirectangularReflectionMapping;t.wrapS=RepeatWrapping;t.wrapT=ClampToEdgeWrapping;
  t.magFilter=t.minFilter=LinearFilter;t.needsUpdate=true;return t}
 
+/* on a phone at half the size: a fifth of the time to draw, and the prefilter
+   softens it for all but a mirror polish anyway */
 export function studioEnvironment(renderer){
- const pm=new PMREMGenerator(renderer),eq=studioEquirect(1024,512,{half:true});
+ const pm=new PMREMGenerator(renderer),eq=PHONE?studioEquirect(512,256,{half:true}):studioEquirect(1024,512,{half:true});
  const rt=pm.fromEquirectangular(eq);
  eq.dispose();pm.dispose();return rt}
