@@ -2,7 +2,7 @@
 import React from 'react';
 import {PARTS,VARIANTS,VNAME,variantOf,applyVariant,strapFinish} from '../core/parts.js';
 import {strapMmOf,crownMmOf,bezelMmOf,bezelRangeOf,
-        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit,complicationOf,BEND_MAX_MM} from '../core/geometry.js';
+        rehautMmOf,caseOf,thicknessStack,lugToLugMm,lugLenMinOf,detentOf,dialLayoutOf,caseLengthMm,lugsFitEnd,bezelFit,complicationOf,BEND_MAX_MM,BEZEL_SCREWS,bezelScrewsOf} from '../core/geometry.js';
 import {TONNEAU_RANGE} from '../core/caseshape.js';
 import {PresetThumb} from './PresetThumb.jsx';
 import {store,useApp,TT} from '../state/store.js';
@@ -169,6 +169,17 @@ export function Controls(){const s=useApp();const d=s.d;const part=s.sel;const p
        aria-label={'Stripe '+c} onClick={()=>up({stripe:c},'sp')}/>)}
      <input type="color" className="w-6 h-6 bg-transparent" aria-label="Stripe colour" value={p.stripe||'#b5a24a'} onChange={e=>up({stripe:e.target.value},'sp')}/>
     </div></div>}</Section>}
+  {part==='bezel'&&!d.active.bezel&&(()=>{const BS=bezelScrewsOf(d),dim={opacity:.35,cursor:'not-allowed'};
+   return<Section title="Bezel Screws">
+    <div className="flex items-center justify-between text-[11px] text-neutral-400" role="group" aria-label="Bezel screws">
+     <span>Screws</span><div className="flex gap-1">{BEZEL_SCREWS.map(n=>{const off=!!BS.why&&n>0;
+      return<button key={n} className={`chip ${BS.n===n?'on':''}`} aria-pressed={BS.n===n} disabled={off} style={off?dim:undefined}
+       aria-label={n?`${n} bezel screws`:'No bezel screws'} onClick={()=>up({screws:n},'screws')}>{n||'None'}</button>})}</div></div>
+    {BS.n>0&&<div className="flex items-center justify-between text-[11px] text-neutral-400" role="group" aria-label="Screw heads">
+     <span>Heads</span><div className="flex gap-1">{[['hex','Hexagonal'],['slot','Slotted']].map(([v,t])=>
+      <button key={v} className={`chip ${BS.head===v?'on':''}`} aria-pressed={BS.head===v} onClick={()=>up({screwHead:v},'screws')}>{t}</button>)}</div></div>}
+    <p className="text-[10px] text-neutral-500">{BS.why||'Eight hexagonal screws at an octagon’s corners, or eight slotted ones two to a side of a square: the classic sports and square-dress bezels. Four sit at a square’s corners; six or eight go evenly round.'}</p>
+   </Section>})()}
   {part==='bezel'&&(p.variant==='diver'||p.variant==='gmt')&&!d.active.bezel&&
    <Section title="Bezel Insert"><ColorField label="Insert" val={p.insertColor} onChange={v=>up({insertColor:v},'ins')}/>
     <div className="flex items-center justify-between text-[11px] text-neutral-400">

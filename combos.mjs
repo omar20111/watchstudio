@@ -861,5 +861,26 @@ for(const caseMm of[34,46]){const d=M.clone(M.DEF);d.caseMm=caseMm;d.parts.strap
  for(const[shape,bezelShape]of[['cushion','round'],['tonneau','case'],['round','round']]){const d=M.clone(M.DEF);Object.assign(d.case,{shape,bezelShape,bend:2});
   if(G.caseBendOf(d))bad(`curve ${shape}/${bezelShape}`,'a case that cannot curve is curved')}}
 
+/* bezel screws: as many as asked, each on the bezel's top, between its outer
+   edge and its opening; none on a bezel that cannot take them. A theme starts
+   the case afresh: a square case with screws, then the diver, is a round diver. */
+{const CS=await import('./src/core/caseshape.js'),TH=await import('./src/state/themes.js');
+ for(const[bezelShape,shape,n,head]of[['octagon','round',8,'hex'],['square','square',8,'slot'],['square','square',4,'slot'],['round','round',6,'hex'],['round','round',8,'slot']]){
+  const d=M.clone(M.DEF);Object.assign(d.case,{shape,bezelShape});Object.assign(d.parts.bezel,{variant:'smooth',screws:n,screwHead:head});
+  const tag=`bezel screws ${n} ${head} on ${bezelShape}`;let w;try{w=M.buildHead(d,{})}catch(e){bad(tag,'3D build threw: '+e.message);continue}
+  const H=w.userData.heights,Rr=w.userData.radii,O=G.outlinesOf(d),screws=[];w.updateMatrixWorld(true);
+  w.traverse(o=>{if(o.isMesh&&o.name==='bezelScrew'){o.geometry.computeBoundingBox();const b=o.geometry.boundingBox;screws.push([(b.min.x+b.max.x)/2,b.max.y,(b.min.z+b.max.z)/2])}});
+  if(screws.length!==n){bad(tag,`${screws.length} screws built`);continue}
+  for(const[x,top,z]of screws){const r=Math.hypot(x,z),inset=O.bezel.kind==='round'?Rr.rBezOut-r:CS.insetOf(O.bezel.spec,O.bezel.A0,x,z);
+   if(!(r>Rr.rBezIn+.3))bad(tag,`a screw ${r.toFixed(2)}mm out, in the opening`);
+   if(!(inset>.2))bad(tag,`a screw ${inset.toFixed(2)}mm inside the bezel's edge`);
+   if(!(top>H.bezelTop))bad(tag,'a screw sunk below the bezel top')}}
+ {const d=M.clone(M.DEF);Object.assign(d.parts.bezel,{variant:'diver',screws:8});
+  if(G.bezelScrewsOf(d).n||M.buildHead(d,{}).getObjectByName('bezelScrew'))bad('bezel screws diver','screws in a rotating bezel')}
+ {const d=M.clone(M.DEF);TH.THEMES.find(t=>t.id==='squaredress').apply(d);TH.THEMES.find(t=>t.id==='diver').apply(d);
+  if(d.case.shape!=='round'||d.case.bezelShape!=='round'||d.parts.bezel.screws||d.case.lugs!=='straight'||d.bezelMm!=='auto')bad('themes','a theme kept the last one\u2019s case: '+JSON.stringify([d.case.shape,d.case.bezelShape,d.parts.bezel.screws,d.case.lugs,d.bezelMm]))}
+ /* every theme builds */
+ for(const t of TH.THEMES){const d=M.clone(M.DEF);t.apply(d);try{M.buildHead(d,{})}catch(e){bad('theme '+t.id,'3D build threw: '+e.message)}}}
+
 console.log(fails?`\nCOMBOS FAIL (${fails})`:'\nCOMBOS PASS');
 if(fails)process.exit(1);

@@ -16,7 +16,7 @@ import {Group,Mesh,CircleGeometry,RingGeometry,PlaneGeometry,CylinderGeometry,Bo
 import {mergeVertices,mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {CAN,PX,C,METALS,STRAP_REACH_3D} from '../constants.js';
 import {getProc,bakeSize} from '../cache.js';
-import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,complicationOf,caseBendOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
+import {caseOf,geoOf,outlinesOf,openingShaped,dialEdgeOf,complicationOf,caseBendOf,bezelScrewsOf,bezelRotatable,posAt,dialLayoutOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,DIAL_PLATE_MM,
         strapEndFactor,STRAP_TAIL_MM,STRAP_END_ROUND_MM,strapLengthsOf,strapReachPx,strapTaperEnd,buckleOf,
         HAND_LIFT_MM,DATE_WHEEL_DROP_MM,cyclopsOf,appliedHeightLimitOf,BRACELET_MM,STRAP_HOLES_MM,RALLY_HOLES_MM,RALLY_HOLE_R} from '../geometry.js';
 import {shade} from '../utils.js';
@@ -1081,6 +1081,39 @@ function* buildWatchSteps(d,customs,aniso){
    const pr=add(G.bezel,'bezelPrint',ring(Rr.rInCham,Rr.rGripIn),paintedMaterial(tex(getProc('bezel',d,undefined,'print',bres)),{alphaTest:.35,roughness:.6}),{cast:false});
    pr.position.y=H.bezelTop+.008}}
 
+ /* Screws set in a fixed bezel (geometry.js bezelScrewsOf): each halfway across
+    its top and a hair proud of it, on the surface the top was swept as — the
+    bezel's own outline blending to round toward the opening (above). Hexagonal
+    heads at an octagon's corners, slotted ones two to a side of a square, four
+    at its corners, or evenly round. */
+ {const BS=bezelScrewsOf(d);if(BS.n&&!activeUpload(d,customs,'bezel')){
+  const O=OL.bezel,xs=(Rr.rGripIn+Rr.rInCham)/2,top=P.bezelTop;
+  let ys=H.bezelTop;for(let i=1;i<top.length;i++){const a=top[i-1],b=top[i];if(a.x!==b.x&&(a.x-xs)*(b.x-xs)<=0){ys=a.y+(b.y-a.y)*(xs-a.x)/(b.x-a.x);break}}
+  const t=openShaped?0:Math.min(1,Math.max(0,(Rr.rGripIn-xs)/Math.max(1e-6,Rr.rGripIn-Rr.rInCham)));
+  const round=phi=>[xs*Math.cos(phi),xs*Math.sin(phi)];
+  /* the point of the top at normal phi; `f` runs along a flat from one end (0) to the other (1) */
+  const onTop=(phi,f=null)=>{const b=round(phi);if(O.kind==='round')return b;const ins=O.A0-xs*(O.scale||1);
+   let a;if(f==null)a=outlinePoint(O.spec,O.A0,ins,phi);
+   else{const p0=outlinePoint(O.spec,O.A0,ins,phi,-1),p1=outlinePoint(O.spec,O.A0,ins,phi,1);a=[p0[0]+(p1[0]-p0[0])*f,p0[1]+(p1[1]-p0[1])*f]}
+   return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]};
+  const n=BS.n,spots=[];
+  if(O.kind==='octagon'&&(n===8||n===4))for(let k=0;k<8;k+=8/n)spots.push(onTop(Math.PI/8+k*Math.PI/4));
+  else if(O.kind==='square'&&n===4)for(let k=0;k<4;k++)spots.push(onTop(Math.PI/4+k*Math.PI/2));
+  else if(O.kind==='square'&&n===8)for(let k=0;k<4;k++)for(const f of[.12,.88])spots.push(onTop(k*Math.PI/2,f));
+  else{const a0=-Math.PI/2+(n===6?0:Math.PI/n);for(let k=0;k<n;k++)spots.push(onTop(a0+k*2*Math.PI/n))}
+  /* a head stands 0.12 mm proud in a hole a little wider than itself: the dark
+     gap round it, and a hexagon's chamfered edges, are what show a screw set
+     flush in polished metal the same as its own */
+  const w=Math.min(.72,(Rr.rGripIn-Rr.rInCham)*.34),hh=.34,up=.12,mat=metalMaterial(bz.metal,'polished');
+  const dark=new MeshPhysicalMaterial({color:new Color('#15171a'),roughness:.6});
+  for(const[x,z]of spots){const phi=Math.atan2(z,x);
+   const gap=faceUp(new RingGeometry(w*.98,w*1.2,BS.head==='hex'?6:32,1));if(BS.head==='hex')gap.rotateY(-phi+Math.PI/6);gap.translate(x,ys+.012,z);
+   add(G.bezel,'bezelScrewHole',gap,dark,{cast:false});
+   if(BS.head==='hex'){const g=new CylinderGeometry(w*.86,w,hh,6);g.rotateY(-phi+Math.PI/6);g.translate(x,ys+up-hh/2,z);add(G.bezel,'bezelScrew',g,mat)}
+   else{const g=new CylinderGeometry(w*.94,w,hh,32);g.translate(x,ys+up-hh/2,z);add(G.bezel,'bezelScrew',g,mat);
+    const sl=new BoxGeometry(w*1.9,.1,w*.28);sl.rotateY(-phi);sl.translate(x,ys+up-.03,z);add(G.bezel,'bezelScrewSlot',sl,dark,{cast:false})}}}}
+
+ yield;
  /* ---- dial ----
     A plate, not a disc. Its centre is sunk below a chapter ring on a stepped
     dial; chronograph registers are milled into it; a date window is cut through

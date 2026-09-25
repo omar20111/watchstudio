@@ -70,8 +70,11 @@ export const CASE_SIDES=['straight','drum','sloped','stepped'], LUG_STYLES=['str
 export {CASE_SHAPES,BEZEL_SHAPES};
 /* An integrated case has no lugs: a short shoulder at 12 and 6, the bracelet
    (or strap) coming out from under it. Its exposed length, as a share of the
-   lug length a lugged case shows. */
-export const INTEGRATED_EXPOSED=.3;
+   lug length a lugged case shows: enough, with the lug-length slider, for a
+   case that runs well on into its bracelet — a Royal Oak's 51 mm from end to
+   end on 41 mm, a Santos's 47.5 on 39.8 — where at 0.3 no setting reached
+   either. */
+export const INTEGRATED_EXPOSED=.45;
 /* the gap between a strap's edge and the lug beside it, mm: a pair of lugs is
    as far apart as the lug width the watch is sold by, and no further */
 export const LUG_CLEAR_MM=.15;
@@ -196,6 +199,18 @@ export const detentStep=n=>n>0?360/n:0;
 export const bezelRotatable=d=>{const b=d.parts.bezel;
  if(b.variant!=='diver'&&b.variant!=='gmt')return false;
  return !(d.active&&d.active.bezel)};        /* a custom upload has no insert to spin */
+/* Screws set in a fixed bezel, as the famous ones have them: eight hexagonal
+   ones at an octagon's corners (the Royal Oak's), eight slotted ones two to a
+   side of a square (the Santos's), four at a square's corners, six or eight
+   round a circle (watch.js places them). Only a plain fixed bezel takes them: a
+   rotating one turns, a fluted or coin edge has no flat to seat them in, and a
+   bezel of the case's own shape runs out to the case's edge. `why` says so. */
+export const BEZEL_SCREWS=[0,4,6,8];
+export function bezelScrewsOf(d){const b=d.parts.bezel||{},n=BEZEL_SCREWS.includes(+b.screws)?+b.screws:0;
+ const why=d.active&&d.active.bezel?'An uploaded bezel has no metal to set screws in.'
+  :b.variant!=='smooth'?'Screws are set in a plain fixed bezel: choose the smooth one.'
+  :caseOf(d).bezelShape==='case'?'A bezel of the case’s own shape runs to its edge: choose a round, octagonal or square bezel.':null;
+ return{n:why?0:n,head:b.screwHead==='slot'?'slot':'hex',why}}
 export const bezelRotOf=d=>(((+d.parts.bezel.rot||0)%360)+360)%360;
 export function snapDetent(deg,n){
  if(!(n>0))return ((deg%360)+360)%360;

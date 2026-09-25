@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+**Added — the cases the famous watches are known by**
+- Each case shape was set against the real watch it is best known from — the
+  diver's round case, the integrated octagon, the screwed square dress watch,
+  the square pilot's, the cushion diver, the square racing chronograph, the
+  curved tonneau and the slim octagon — by their published dimensions. The
+  round, cushion, square and tonneau cases reached their proportions; two
+  things were missing.
+- Screws in a fixed bezel (Bezel > Bezel Screws): none, 4, 6 or 8, with
+  hexagonal or slotted heads — eight at an octagon's corners, eight two to a
+  side of a square, four at a square's corners, six or eight evenly round a
+  circle. Each stands a hair proud of the bezel's top halfway across it, in a
+  hole a little wider than itself, whose dark gap is what shows a screw set
+  flush in polished metal. A rotating, fluted or coin-edged bezel, or one of
+  the case's own shape, takes none, and the panel says why. The tech pack lists
+  them.
+- An integrated case's shoulders reach half as far again (INTEGRATED_EXPOSED
+  0.45): the lug-length slider now reaches a case that runs well on into its
+  bracelet — 51 mm end to end on 41 mm, 47.5 on 39.8 — which no setting did.
+- Themes that show each: Tapisserie Sport is now the octagon it was drawn
+  from, with a wide octagonal bezel, a hexagonal screw at each corner and an
+  integrated bracelet, 10.4 mm high; and Square Classic, Square Pilot, Cushion
+  Marine, Racing Square, Tonneau Sport and Octagon Slim are new.
+- A theme is a whole look: the case's shape, bezel, lugs, curve, height,
+  movement, screws and complication, and the bezel, strap and crown sizes,
+  start from the default for every theme, where one theme's square case had
+  carried on into the next.
+
 **Fixed — usable on a phone**
 - Measured on an emulated phone (a 390 px screen at 3x, the processor at a
   quarter of a laptop's speed), the site froze for as long as seven seconds

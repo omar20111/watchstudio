@@ -24,7 +24,7 @@ import {webglState} from '../core/three/support.js';
 import {hasStructuralUpload} from '../core/three/uploads.js';
 import {headHeights,headRadii,crownParts} from '../core/three/lathe.js';
 import {geoOf,caseOf,thicknessStack,lugToLugMm,strapMmOf,crownMmOf,bezelMmOf,dialLayoutOf,handLengthsOf,
-        strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf,outlinesOf,caseLengthMm} from '../core/geometry.js';
+        strapLengthsOf,BRACELET_MM,BEAT_HZ,cyclopsOf,DIAL_STEP_MM,SUBDIAL_DEPTH_MM,detentOf,outlinesOf,caseLengthMm,bezelScrewsOf} from '../core/geometry.js';
 import {CASEBACK_WINDOW} from '../core/render/caseback.js';
 import {METALS,PX} from '../core/constants.js';
 import {VNAME,strapFinish} from '../core/parts.js';
@@ -265,7 +265,7 @@ function partsSheet(doc,F,d,meta){
  const rows=[
   ['Case',`${cap(F.c.shape)} ${(VNAME[P.case.variant]||P.case.variant).toLowerCase()}; ${cap(F.c.side)} side; ${F.c.lugs==='integrated'?'integrated':cap(F.c.lugs)+' lugs'}${F.c.lugHoles&&F.c.lugs!=='integrated'?', drilled':''}`,metalName(P.case.metal),zones(P.case.finish),'—',`Ø${f1(F.caseMm)}, ${f1(F.c.thickness)} thick, lug to lug ${f1(F.l2l)}, lug width ${f1(F.lugW)}`],
   ['Bezel',`${VNAME[P.bezel.variant]||P.bezel.variant}${F.bezelKind==='round'?'':', '+F.bezelKind}`,metalName(P.bezel.metal),zones(P.bezel.finish),F.rot?(P.bezel.insertColor||'#101318'):'—',
-   `Outer Ø${f1(F.Rr.rBezOut*2)}, width ${f1(F.bezelMm)}, ${f1(F.st.bezel)} high${F.rot?`; insert, ${detentOf(d)} clicks`:''}`],
+   `Outer Ø${f1(F.Rr.rBezOut*2)}, width ${f1(F.bezelMm)}, ${f1(F.st.bezel)} high${F.rot?`; insert, ${detentOf(d)} clicks`:''}${(sc=>sc.n?`; ${sc.n} ${sc.head==='hex'?'hexagonal':'slotted'} screws`:'')(bezelScrewsOf(d))}`],
   ['Crystal',`${F.crystalName} sapphire`,'Sapphire','Polished','—',`Ø${f1(F.openingMm)} visible, ${f1(F.c.crystalMm)} above the bezel${F.cyclops?'; cyclops over the date':''}`],
   ['Dial',VNAME[P.dial.variant]||P.dial.variant,'—',!P.dial.finish||P.dial.finish==='none'?'—':cap(P.dial.finish),P.dial.color,
    `Ø${f1(F.dialMm)}${F.dateAt?`; date window at ${F.dateAt}`:''}${P.dial.step==='stepped'?`; centre sunk ${f2(DIAL_STEP_MM)}`:''}${F.L.subdials.length?`; registers milled ${f2(SUBDIAL_DEPTH_MM)}`:''}${F.L.heart?`; open heart Ø${f1(2*F.L.heart.r/PX)} at 9, polished collar`:''}`],

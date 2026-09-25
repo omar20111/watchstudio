@@ -1,7 +1,19 @@
 /* Whole-watch themes and the randomizer. */
 import {pick} from '../core/utils.js';
+import {DEF_CASE} from '../core/geometry.js';
 
-export const THEMES=[
+/* A theme is a whole look, case and all. What makes a case what it is — its
+   outline, its bezel's shape, its lugs, its curve and length, its height, its
+   movement, a bezel's screws, a complication — starts from the default for
+   every theme, so one theme's square case or open heart does not carry on
+   into the next one's. A theme then sets what it is known by. */
+const IDENTITY=['shape','bezelShape','lugs','side','tonneauLen','bend','thicknessMm','lugLenMm','lugDropMm','crystalMm','lugHoles','movement','pushers'];
+function fresh(n){const c=DEF_CASE();n.case={...n.case};for(const k of IDENTITY)n.case[k]=c[k];
+ /* the bezel, strap and crown take the sizes their case would give them */
+ n.bezelMm=n.strapMm=n.crownMm='auto';
+ n.parts.bezel.screws=0;n.parts.bezel.screwHead='hex';n.parts.dial.complication='none';delete n.parts.strap.style}
+
+const RAW=[
  {id:'diver',name:'Heritage Diver',apply:n=>{const P=n.parts;n.caseMm=42;
   P.case.metal='steel';P.case.finish='brushed';
   P.bezel.variant='diver';P.bezel.metal='steel';P.bezel.insertColor='#101318';
@@ -122,7 +134,11 @@ export const THEMES=[
   P.hands.variant='baton';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#dff3e4';P.hands.secColor='#e8e6e0';
   P.strap.variant='steel';P.strap.metal='steel';P.strap.finish='brushed';
   P.crown.variant='standard';P.crown.metal='steel';P.crown.finish='brushed';
-  n.case.crystal='flat'}},
+  n.case.crystal='flat';
+  /* the octagonal bezel with a hexagonal screw at each corner, the case running
+     on into its bracelet: 41 mm across, 10.4 mm high, 51 mm end to end */
+  Object.assign(n.case,{bezelShape:'octagon',lugs:'integrated',lugLenMm:12,thicknessMm:10.4});n.bezelMm=3;
+  P.bezel.finish='brushed';P.bezel.screws=8;P.bezel.screwHead='hex'}},
  {id:'desert',name:'Desert Field',apply:n=>{const P=n.parts;n.caseMm=40;
   P.case.variant='classic';P.case.metal='titanium';P.case.finish='matte';
   P.bezel.variant='smooth';P.bezel.metal='titanium';P.bezel.finish='matte';
@@ -133,6 +149,70 @@ export const THEMES=[
   P.strap.variant='nato';P.strap.color='#5e5238';P.strap.stitch='#e0cfa6';P.strap.metal='titanium';
   P.crown.variant='standard';P.crown.metal='titanium';P.crown.finish='matte';
   n.case.crystal='dome'}},
+ /* The icons each case shape is known by, in proportions measured off the real
+    watches: a square dress watch with its bezel screwed down two to a side, a
+    square pilot's with four at the corners, a cushion diver, a square racing
+    chronograph, a curved tonneau and a slim octagon. */
+ {id:'squaredress',name:'Square Classic',apply:n=>{const P=n.parts;n.caseMm=39.8;
+  Object.assign(n.case,{shape:'square',bezelShape:'square',lugs:'integrated',lugLenMm:8.6,thicknessMm:9.5,crystal:'flat',crystalMm:.8});
+  P.case.variant='classic';P.case.metal='steel';P.case.finish='brushed';
+  P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='polished';P.bezel.screws=8;P.bezel.screwHead='slot';
+  P.dial.variant='matte';P.dial.color='#ece8dc';P.dial.finish='none';P.dial.date='none';P.dial.step='flat';
+  P.dial.text={top:'WatchStudio',bottom:'AUTOMATIC',font:'serif',color:'#2a2c33'};
+  P.markers.variant='roman';
+  P.hands.variant='sword';P.hands.metal='black';P.hands.finish='polished';P.hands.lume='#e8e4d8';P.hands.secColor='#2a2c33';
+  P.strap.variant='steel';P.strap.metal='steel';P.strap.finish='brushed';
+  P.crown.variant='standard';P.crown.metal='steel';P.crown.finish='polished'}},
+ {id:'squarepilot',name:'Square Pilot',apply:n=>{const P=n.parts;n.caseMm=42;
+  Object.assign(n.case,{shape:'square',bezelShape:'square',thicknessMm:10.5,lugLenMm:5.5,crystal:'flat'});
+  P.case.variant='classic';P.case.metal='black';P.case.finish='matte';
+  P.bezel.variant='smooth';P.bezel.metal='black';P.bezel.finish='matte';P.bezel.screws=4;P.bezel.screwHead='slot';
+  P.dial.variant='matte';P.dial.color='#111214';P.dial.finish='none';P.dial.date='none';P.dial.step='flat';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'AVIATION',font:'sans',color:'auto'};
+  P.markers.variant='arabic';P.markers.lume='#dff3e4';
+  P.hands.variant='sword';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#dff3e4';P.hands.secColor='#e8e6e0';
+  P.strap.variant='rubber';P.strap.color='#15161a';P.strap.metal='black';
+  P.crown.variant='standard';P.crown.metal='black';P.crown.finish='matte'}},
+ {id:'cushion',name:'Cushion Marine',apply:n=>{const P=n.parts;n.caseMm=44;
+  Object.assign(n.case,{shape:'cushion',thicknessMm:15.5,lugLenMm:8,crystal:'dome'});
+  P.case.variant='sport';P.case.metal='steel';P.case.finish='brushed';
+  P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='polished';
+  P.dial.variant='matte';P.dial.color='#141414';P.dial.finish='none';P.dial.date='3';P.dial.step='stepped';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'300 m',font:'sans',color:'auto'};
+  P.markers.variant='arabic';P.markers.lume='#f0e6c8';
+  P.hands.variant='sword';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#f0e6c8';P.hands.secColor='#e8e6e0';
+  P.strap.variant='leather';P.strap.color='#6b4526';P.strap.stitch='#e8dcc0';P.strap.metal='steel';
+  P.crown.variant='oversized';P.crown.metal='steel';P.crown.finish='brushed'}},
+ {id:'racingsquare',name:'Racing Square',apply:n=>{const P=n.parts;n.caseMm=39;
+  Object.assign(n.case,{shape:'square',bezelShape:'case',thicknessMm:14.35,lugLenMm:7,crystal:'flat',pushers:true});
+  P.case.variant='classic';P.case.metal='steel';P.case.finish='polished';
+  P.bezel.variant='smooth';P.bezel.metal='steel';P.bezel.finish='polished';
+  P.dial.variant='chrono';P.dial.color='#1d4f9c';P.dial.finish='none';P.dial.date='none';P.dial.step='flat';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'AUTOMATIC',font:'caps',color:'auto'};
+  P.markers.variant='batons';P.markers.lume='#dff3e4';
+  P.hands.variant='baton';P.hands.metal='steel';P.hands.finish='polished';P.hands.lume='#dff3e4';P.hands.secColor='#e8482c';
+  P.strap.variant='leather';P.strap.style='rally';P.strap.color='#141416';P.strap.stitch='#e8482c';P.strap.metal='steel';
+  P.crown.variant='standard';P.crown.metal='steel';P.crown.finish='polished'}},
+ {id:'tonneausport',name:'Tonneau Sport',apply:n=>{const P=n.parts;n.caseMm=40;
+  Object.assign(n.case,{shape:'tonneau',tonneauLen:1.25,bend:1.2,lugs:'integrated',lugLenMm:7,thicknessMm:16,crystal:'flat'});
+  P.case.variant='classic';P.case.metal='titanium';P.case.finish='brushed';
+  P.bezel.variant='smooth';P.bezel.metal='titanium';P.bezel.finish='brushed';P.bezel.screws=8;P.bezel.screwHead='hex';
+  P.dial.variant='matte';P.dial.color='#2a2d33';P.dial.finish='none';P.dial.date='none';P.dial.step='stepped';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'AUTOMATIC',font:'sans',color:'auto'};
+  P.markers.variant='arabic';P.markers.lume='#ffffff';
+  P.hands.variant='baton';P.hands.metal='titanium';P.hands.finish='polished';P.hands.lume='#ffffff';P.hands.secColor='#e8482c';
+  P.strap.variant='rubber';P.strap.color='#1f1f22';P.strap.metal='titanium';
+  P.crown.variant='standard';P.crown.metal='titanium';P.crown.finish='brushed'}},
+ {id:'octagonslim',name:'Octagon Slim',apply:n=>{const P=n.parts;n.caseMm=40;
+  Object.assign(n.case,{shape:'octagon',bezelShape:'octagon',lugs:'integrated',lugLenMm:7,thicknessMm:6,movement:'manual',crystal:'flat',crystalMm:.6});
+  P.case.variant='classic';P.case.metal='titanium';P.case.finish='matte';
+  P.bezel.variant='smooth';P.bezel.metal='titanium';P.bezel.finish='matte';
+  P.dial.variant='matte';P.dial.color='#6a6e75';P.dial.finish='matte';P.dial.date='none';P.dial.step='flat';P.dial.complication='smallsec';
+  P.dial.text={top:'WATCHSTUDIO',bottom:'',font:'caps',color:'auto'};
+  P.markers.variant='minimal';
+  P.hands.variant='baton';P.hands.metal='titanium';P.hands.finish='polished';P.hands.lume='#e8e8e8';P.hands.secColor='#e8e8e8';
+  P.strap.variant='steel';P.strap.metal='titanium';P.strap.finish='matte';
+  P.crown.variant='standard';P.crown.metal='titanium';P.crown.finish='matte'}},
  {id:'arrow',name:'Broad Arrow Diver',apply:n=>{const P=n.parts;n.caseMm=41;
   P.case.variant='sport';P.case.metal='steel';P.case.finish='brushed';
   P.bezel.variant='diver';P.bezel.metal='steel';P.bezel.insertColor='#101318';
@@ -143,6 +223,7 @@ export const THEMES=[
   P.strap.variant='rubber';P.strap.color='#15161a';P.strap.metal='steel';
   P.crown.variant='oversized';P.crown.metal='steel';P.crown.finish='brushed';
   n.case.crystal='dome'}}];
+export const THEMES=RAW.map(t=>({...t,apply:n=>{fresh(n);t.apply(n)}}));
 
 export function shuffleInto(n){const P=n.parts;const metal=pick(['steel','steel','rose','gold','titanium','black','bronze','ceramic','carbon']);
  for(const k of['case','crown','bezel','hands'])P[k].metal=metal;
