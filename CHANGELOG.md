@@ -46,6 +46,12 @@
 - The preset pictures render only while they are on screen: behind a phone's
   closed drawer they had been built in the background at startup and after
   every edit (ui/PresetThumb.jsx).
+- A click on the stage right after the view had been tilted and eased back
+  could find nothing under it: the ray went out from where the camera had been
+  at the last frame drawn, and on a slow machine the click came first. It is
+  aimed from the camera as it is now (three/view.js pick). On the browser
+  checks' slower machines this had made every left-drag in the editor check
+  miss.
 - Where the graphics are drawn in software, the case and crown presets are
   drawn as outlines: each 3D picture took seconds there in a context of its
   own, and a drag on the stage waited behind them for half a minute (the

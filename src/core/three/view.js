@@ -317,7 +317,11 @@ export function createView(canvas,{preserveDrawingBuffer=false,aoScale=.5,asyncC
     if((k==='balance'||k==='glide')&&(o.userData.front?camera==='front'||camera==='three-quarter':camera==='back'))m=true});return m},
   /* the design part under a canvas-relative point (px), or null */
   pick(x,y,sel){if(!watch||camera==='profile')return null;
-   const rc=new Raycaster();rc.setFromCamera(new Vector2(x/w*2-1,-(y/h*2-1)),cam());
+   /* the camera as it is now, not as the last frame drew it: a tilt eased back
+      moves it, and on a slow machine a click can come before the frame does —
+      the ray went out from where the camera had been and hit nothing */
+   const c=cam();c.updateMatrixWorld();watch.updateMatrixWorld();
+   const rc=new Raycaster();rc.setFromCamera(new Vector2(x/w*2-1,-(y/h*2-1)),c);
    return pickPart3D(watch,rc,sel)},
   /* Render one frame to `size` px square in tiles no larger than the GPU allows,
      handing each tile to `put(src,sx,sy,sw,sh,dx,dy)`. Occlusion is screen-space
